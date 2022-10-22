@@ -26,17 +26,18 @@
 #endif
 
 //TODO: This is hacked together for dev demo purposes, mostly so we can test orbital simulation
-static float constexpr eccentricity = 0.0f;
-static float constexpr semi_major_axis = 40.0f; // Megameters
-static float constexpr periaspsis_angle = 0.0f;
+static float constexpr eccentricity = 0.8f;
+static float constexpr semi_latus_rectum = 30.0f; // Megameters
+static float constexpr periapsis_angle = glm::radians(30.0f);
+static float constexpr true_anomaly = glm::radians(-120.0f);
 
 static Scene::Transform *planet_trans;
 static Scene::Transform *moon_trans;
 
-static Body planet("planet", 10.0, 100.0, 2000.0);
+static Body planet("planet", 10.0, 2.0e13f, 2000.0); // Yes, this mass is wayyyyy to high. But this makes orbit go brr for demo purposes
 static Body moon("moon", 1.0, 1.0, 200.0);
-static Orbit moon_orbit(&planet, eccentricity, semi_major_axis, periaspsis_angle);
-
+static Orbit moon_orbit(&planet, eccentricity, semi_latus_rectum, periapsis_angle, true_anomaly);
+// static Orbit moon_orbit(&planet, glm::vec3(40.0f, 0.0f, 0.0f), glm::vec3(3.0f, 6.0f, 0.0f));
 
 //TODO: rename all of the hexapod* stuff to our new scene
 GLuint hexapod_meshes_for_lit_color_texture_program = 0;
@@ -104,7 +105,7 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 		scene.transforms.emplace_back();
 		moon_trans = &scene.transforms.back();
 		moon_trans->name = "Moon";
-		moon_trans->position.x = planet_trans->position.x + semi_major_axis;
+		moon_trans->position = moon_orbit.get_pos();
 		scene.drawables.emplace_back(moon_trans);
 		Scene::Drawable &drawable = scene.drawables.back();
 
@@ -234,7 +235,10 @@ void PlayMode::update(float elapsed) {
 	}
 
 	{ //basic orbital simulation demo
+		moon_orbit.update(elapsed);
 		moon_orbit.predict();
+
+		moon_trans->position = moon_orbit.get_pos();
 	}
 
 	//reset button press counters:
@@ -277,7 +281,9 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		// LOG(n << " points");
 		for (size_t i = 0; i < n; i++) {
 			// LOG("drawing " << glm::to_string(points[i-1])  << " to " << glm::to_string(points[i]));
-			lines.draw(points[i], points[(i + 1) % n], purple);
+			glm::vec3 next = points[(i + 1) % n];
+			if (next == Orbit::Invalid) continue;
+			lines.draw(points[i], next, purple);
 		}
 	}
 
