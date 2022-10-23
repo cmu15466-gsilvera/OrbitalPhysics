@@ -26,16 +26,21 @@
 #endif
 
 //TODO: This is hacked together for dev demo purposes, mostly so we can test orbital simulation
-static float constexpr eccentricity = 0.8f;
+//The masses and distances are fudged for now for demo purposes. Things would normally be much futher away and move much
+//slower (if we're going for realism)
+static float constexpr eccentricity = 0.1f;
 static float constexpr semi_latus_rectum = 30.0f; // Megameters
 static float constexpr periapsis_angle = glm::radians(30.0f);
 static float constexpr true_anomaly = glm::radians(-120.0f);
 
+static Scene::Transform *star_trans;
 static Scene::Transform *planet_trans;
 static Scene::Transform *moon_trans;
 
-static Body planet("planet", 10.0, 2.0e13f, 2000.0); // Yes, this mass is wayyyyy to high. But this makes orbit go brr for demo purposes
-static Body moon("moon", 1.0, 1.0, 200.0);
+static Body star(275.0, 1.2e14f, std::numeric_limits< float >::infinity());
+static Body planet(10.0, 2.0e13f, 1000.0); // Yes, this mass is wayyyyy to high. But this makes orbit go brr for demo purposes
+static Body moon(1.0, 2.0e8f, 200.0);
+static Orbit planet_orbit(&star, 0.0f, 1000.0f, 0.0f, 0.0f);
 static Orbit moon_orbit(&planet, eccentricity, semi_latus_rectum, periapsis_angle, true_anomaly);
 // static Orbit moon_orbit(&planet, glm::vec3(40.0f, 0.0f, 0.0f), glm::vec3(3.0f, 6.0f, 0.0f));
 
@@ -57,6 +62,22 @@ Load< Scene > hexapod_scene(LoadTagDefault, []() -> Scene const * {
 Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample const * {
 	return new Sound::Sample(data_path("dusty-floor.opus"));
 });
+
+//Helper to set up a drawable given a transform. Note that mesh_name comes from transform->name.
+static void make_drawable(Scene &scene, Scene::Transform *transform) {
+	assert(transform != nullptr);
+	Mesh const &mesh = hexapod_meshes->lookup(transform->name);
+
+	scene.drawables.emplace_back(transform);
+	Scene::Drawable &drawable = scene.drawables.back();
+
+	drawable.pipeline = lit_color_texture_program_pipeline;
+
+	drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
+	drawable.pipeline.type = mesh.type;
+	drawable.pipeline.start = mesh.start;
+	drawable.pipeline.count = mesh.count;
+}
 
 PlayMode::PlayMode() : scene(*hexapod_scene) {
 	//get pointers to leg for convenience:
@@ -82,39 +103,39 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
 
 	//TODO: this is here temporarily for setting up the dev demo
-	{ //Load planet
-		Mesh const &mesh = hexapod_meshes->lookup("Planet");
+	{ //Load star
+		scene.transforms.emplace_back();
+		star_trans = &scene.transforms.back();
+		star_trans->name = "Star";
 
+		star.set_transform(star_trans);
+
+		make_drawable(scene, star_trans);
+		LOG("Loaded Star");
+	}
+
+	{ //Load planet
 		scene.transforms.emplace_back();
 		planet_trans = &scene.transforms.back();
 		planet_trans->name = "Planet";
-		scene.drawables.emplace_back(planet_trans);
-		Scene::Drawable &drawable = scene.drawables.back();
 
-		drawable.pipeline = lit_color_texture_program_pipeline;
+		planet.set_orbit(&planet_orbit);
+		planet.set_transform(planet_trans);
 
-		drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
-		drawable.pipeline.type = mesh.type;
-		drawable.pipeline.start = mesh.start;
-		drawable.pipeline.count = mesh.count;
+		make_drawable(scene, planet_trans);
+		LOG("Loaded Planet");
 	}
 
 	{ //Load moon
-		Mesh const &mesh = hexapod_meshes->lookup("Moon");
-
 		scene.transforms.emplace_back();
 		moon_trans = &scene.transforms.back();
 		moon_trans->name = "Moon";
-		moon_trans->position = moon_orbit.get_pos();
-		scene.drawables.emplace_back(moon_trans);
-		Scene::Drawable &drawable = scene.drawables.back();
 
-		drawable.pipeline = lit_color_texture_program_pipeline;
+		moon.set_orbit(&moon_orbit);
+		moon.set_transform(moon_trans);
 
-		drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
-		drawable.pipeline.type = mesh.type;
-		drawable.pipeline.start = mesh.start;
-		drawable.pipeline.count = mesh.count;
+		make_drawable(scene, moon_trans);
+		LOG("Loaded Moon");
 	}
 }
 
@@ -122,7 +143,7 @@ PlayMode::~PlayMode() {
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
-
+	//TODO: update controls
 	if (evt.type == SDL_KEYDOWN) {
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -206,25 +227,30 @@ void PlayMode::update(float elapsed) {
 	// leg_tip_loop->set_position(get_leg_tip_position(), 1.0f / 60.0f);
 
 	//move camera:
-	{
+	// {
 
-		//combine inputs into a move:
-		constexpr float PlayerSpeed = 30.0f;
-		glm::vec2 move = glm::vec2(0.0f);
-		if (left.pressed && !right.pressed) move.x =-1.0f;
-		if (!left.pressed && right.pressed) move.x = 1.0f;
-		if (down.pressed && !up.pressed) move.y =-1.0f;
-		if (!down.pressed && up.pressed) move.y = 1.0f;
+	// 	//combine inputs into a move:
+	// 	constexpr float PlayerSpeed = 30.0f;
+	// 	glm::vec2 move = glm::vec2(0.0f);
+	// 	if (left.pressed && !right.pressed) move.x =-1.0f;
+	// 	if (!left.pressed && right.pressed) move.x = 1.0f;
+	// 	if (down.pressed && !up.pressed) move.y =-1.0f;
+	// 	if (!down.pressed && up.pressed) move.y = 1.0f;
 
-		//make it so that moving diagonally doesn't go faster:
-		if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
+	// 	//make it so that moving diagonally doesn't go faster:
+	// 	if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
 
-		glm::mat4x3 frame = camera->transform->make_local_to_parent();
-		glm::vec3 frame_right = frame[0];
-		//glm::vec3 up = frame[1];
-		glm::vec3 frame_forward = -frame[2];
+	// 	glm::mat4x3 frame = camera->transform->make_local_to_parent();
+	// 	glm::vec3 frame_right = frame[0];
+	// 	//glm::vec3 up = frame[1];
+	// 	glm::vec3 frame_forward = -frame[2];
 
-		camera->transform->position += move.x * frame_right + move.y * frame_forward;
+	// 	camera->transform->position += move.x * frame_right + move.y * frame_forward;
+	// }
+
+	{ //TODO: remove this once we have proper camera controls
+		camera->transform->position = planet.pos;
+		camera->transform->position.z += 200;
 	}
 
 	{ //update listener to camera position:
@@ -235,10 +261,8 @@ void PlayMode::update(float elapsed) {
 	}
 
 	{ //basic orbital simulation demo
-		moon_orbit.update(elapsed);
-		moon_orbit.predict();
-
-		moon_trans->position = moon_orbit.get_pos();
+		planet.update(elapsed);
+		moon.update(elapsed);
 	}
 
 	//reset button press counters:
@@ -271,20 +295,12 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	{ //TODO: this is a demo of drawing the orbit
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
-		DrawLines lines(world_to_clip);
+		DrawLines orbit_lines(world_to_clip);
 
 		static constexpr glm::u8vec4 purple = glm::u8vec4(0xff, 0x00, 0xff, 0xff);
 
-		auto &points = moon_orbit.points;
-		size_t n = points.size();
-
-		// LOG(n << " points");
-		for (size_t i = 0; i < n; i++) {
-			// LOG("drawing " << glm::to_string(points[i-1])  << " to " << glm::to_string(points[i]));
-			glm::vec3 next = points[(i + 1) % n];
-			if (next == Orbit::Invalid) continue;
-			lines.draw(points[i], next, purple);
-		}
+		planet_orbit.draw(orbit_lines, purple);
+		moon_orbit.draw(orbit_lines, purple);
 	}
 
 	{ //use DrawLines to overlay some text:

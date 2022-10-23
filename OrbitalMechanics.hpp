@@ -1,5 +1,8 @@
 #pragma once
 
+#include "Scene.hpp"
+#include "DrawLines.hpp"
+
 #include <glm/glm.hpp>
 
 #include <array>
@@ -14,10 +17,12 @@ struct Orbit;
 
 //Stars, Planets, Moons, Asteroids, etc.
 struct Body {
-	Body(std::string const &name_, float r, float m, float sr) : name(name_), radius(r), mass(m), soi_radius(sr) {}
+	Body(float r, float m, float sr) : radius(r), mass(m), soi_radius(sr) {}
 
-	void set_orbit(Orbit *orbit_)  {
-		orbit = orbit_;
+	void set_orbit(Orbit *orbit_);
+	void set_transform(Scene::Transform *transform_)  {
+		transform = transform_;
+		transform->position = pos;
 	}
 	bool check_collision(glm::vec3 target_pos, float target_radius) {
 		return glm::distance(pos, target_pos) <= radius + target_radius;
@@ -25,11 +30,10 @@ struct Body {
 	bool in_soi(glm::vec3 target_pos) {
 		return glm::distance(pos, target_pos) <= soi_radius;
 	}
+	void update(float elapsed);
 
-	Orbit *orbit;
-
-	//Identifier
-	std::string name;
+	Orbit *orbit = nullptr;
+	Scene::Transform *transform = nullptr;
 
 	//Fixed values
 	float radius; //collision radius, Megameters (1000 kilometers)
@@ -38,19 +42,30 @@ struct Body {
 	//Note that the above unit choices are made so that G is still 6.6e-11 like in Nm^2/kg^2
 
 	//Variable values
-	glm::vec3 pos;
-	glm::vec3 vel;
+	glm::vec3 pos = glm::vec3(0.0f);
+	glm::vec3 vel = glm::vec3(0.0f);
 };
 
 // Player
 // struct Rocket {
-// 	Rocket();
+// 	Rocket(Orbit *orbit_, Scene::Transform *transform_);
+
+// 	void update(float dtheta, float elapsed);
+// 	void update_orbit();
+
+// 	Orbit *orbit = nullptr;
+// 	Scene::Transform *transform = nullptr;
 
 // 	glm::vec3 pos;
 // 	glm::vec3 vec;
 // 	glm::vec3 acc;
 
-// 	float fuel;
+// 	static float constexpr DryMass = 4.0f; // Megagram
+
+// 	bool stability_dampening = true; //controls SAS, dampens angular momentum
+// 	float theta = 0.0f; //rotation along XY plane
+// 	float h = 0.0f; //angular momentum
+// 	float fuel = 8.0f; //measured by mass, Megagram
 // };
 
 //Keplerian orbital mechanics
@@ -74,9 +89,11 @@ struct Orbit {
 	}
 	glm::vec3 update(float elapsed);
 	glm::vec3 get_pos();
+	glm::vec3 get_vel();
 
-	//Simulate the oribit (populate points)
+	//Simulate and draw the oribit (populate points)
 	void predict();
+	void draw(DrawLines &lines, glm::u8vec4 color);
 
 	//Constants
 	static float constexpr G = 6.67430e-11f; // Standard gravitational constant

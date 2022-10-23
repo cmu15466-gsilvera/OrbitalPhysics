@@ -1,6 +1,7 @@
 objs/*
 *.exe
 *.pdb
+*.blend[1-9]
 maek-cache.json
 dist/README-freetype.txt
 dist/README-glm.txt
