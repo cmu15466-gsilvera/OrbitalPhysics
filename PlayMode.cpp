@@ -29,19 +29,22 @@
 //The masses and distances are fudged for now for demo purposes. Things would normally be much futher away and move much
 //slower (if we're going for realism)
 static float constexpr eccentricity = 0.1f;
-static float constexpr semi_latus_rectum = 30.0f; // Megameters
+static float constexpr semi_latus_rectum = 200.0f; // Megameters
 static float constexpr periapsis_angle = glm::radians(30.0f);
 static float constexpr true_anomaly = glm::radians(-120.0f);
 
+static Scene::Transform *spaceship_trans;
 static Scene::Transform *star_trans;
 static Scene::Transform *planet_trans;
 static Scene::Transform *moon_trans;
-
+static Rocket spaceship;
 static Body star(275.0, 1.2e14f, std::numeric_limits< float >::infinity());
 static Body planet(10.0, 2.0e13f, 1000.0); // Yes, this mass is wayyyyy to high. But this makes orbit go brr for demo purposes
-static Body moon(1.0, 2.0e8f, 200.0);
+static Body moon(1.0, 2.0e8f, 50.0);
+
 static Orbit planet_orbit(&star, 0.0f, 1000.0f, 0.0f, 0.0f);
 static Orbit moon_orbit(&planet, eccentricity, semi_latus_rectum, periapsis_angle, true_anomaly);
+static Orbit spaceship_orbit(&planet, 0.0f, 30.0f, 0.0f, 0.0f);
 // static Orbit moon_orbit(&planet, glm::vec3(40.0f, 0.0f, 0.0f), glm::vec3(3.0f, 6.0f, 0.0f));
 
 //TODO: rename all of the hexapod* stuff to our new scene
@@ -136,6 +139,17 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 
 		make_drawable(scene, moon_trans);
 		LOG("Loaded Moon");
+	}
+
+	{ //Load player
+		scene.transforms.emplace_back();
+		spaceship_trans = &scene.transforms.back();
+		spaceship_trans->name = "Spaceship";
+
+		spaceship.init(&spaceship_orbit, spaceship_trans);
+
+		make_drawable(scene, spaceship_trans);
+		LOG("Loaded Spaceship");
 	}
 }
 
@@ -249,8 +263,8 @@ void PlayMode::update(float elapsed) {
 	// }
 
 	{ //TODO: remove this once we have proper camera controls
-		camera->transform->position = planet.pos;
-		camera->transform->position.z += 200;
+		camera->transform->position = spaceship.pos;
+		camera->transform->position.z += 50;
 	}
 
 	{ //update listener to camera position:
@@ -263,6 +277,7 @@ void PlayMode::update(float elapsed) {
 	{ //basic orbital simulation demo
 		planet.update(elapsed);
 		moon.update(elapsed);
+		spaceship.update(0.0f, 0.0f, elapsed);
 	}
 
 	//reset button press counters:
@@ -301,6 +316,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 		planet_orbit.draw(orbit_lines, purple);
 		moon_orbit.draw(orbit_lines, purple);
+		spaceship_orbit.draw(orbit_lines, purple);
 	}
 
 	{ //use DrawLines to overlay some text:

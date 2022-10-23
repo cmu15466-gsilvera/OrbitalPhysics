@@ -47,29 +47,30 @@ struct Body {
 };
 
 // Player
-// struct Rocket {
-// 	Rocket(Orbit *orbit_, Scene::Transform *transform_);
+struct Rocket {
+	Rocket() {}
 
-// 	void update(float dtheta, float elapsed);
-// 	void update_orbit();
+	void init(Orbit *orbit_, Scene::Transform *transform_);
+	void update(float dthrust, float dtheta, float elapsed);
+	void update_orbit();
 
-// 	Orbit *orbit = nullptr;
-// 	Scene::Transform *transform = nullptr;
+	Orbit *orbit;
+	Scene::Transform *transform;
 
-// 	glm::vec3 pos;
-// 	glm::vec3 vec;
-// 	glm::vec3 acc;
+	glm::vec3 pos;
+	glm::vec3 vel;
+	glm::vec3 acc;
 
-// 	static float constexpr DryMass = 4.0f; // Megagram
+	static float constexpr DryMass = 4.0f; // Megagram
 
-// 	bool stability_dampening = true; //controls SAS, dampens angular momentum
-// 	float theta = 0.0f; //rotation along XY plane
-// 	float h = 0.0f; //angular momentum
-// 	float fuel = 8.0f; //measured by mass, Megagram
-// };
+	bool stability_dampening = true; //controls SAS, dampens angular momentum
+	float theta = 0.0f; //rotation along XY plane
+	float h = 0.0f; //angular momentum
+	float fuel = 8.0f; //measured by mass, Megagram
+};
 
 //Keplerian orbital mechanics
-//See example: https://www.desmos.com/calculator/axhi5heeps
+//See example: https://www.desmos.com/calculator/j0z5ksh8ed
 //References:
 //Orbital path: https://en.wikipedia.org/wiki/Kepler_orbit
 //Orbital velocity: https://en.wikipedia.org/wiki/Vis-viva_equation

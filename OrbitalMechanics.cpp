@@ -32,6 +32,36 @@ void Body::update(float elapsed) {
 }
 
 
+void Rocket::init(Orbit *orbit_, Scene::Transform *transform_) {
+	assert(orbit_ != nullptr && transform_ != nullptr);
+
+	orbit = orbit_;
+	pos = orbit->get_pos();
+	vel = orbit->get_vel();
+	acc = glm::vec3(0.0f);
+
+	transform = transform_;
+	transform->position = pos;
+}
+
+void Rocket::update(float dthrust, float dtheta, float elapsed) {
+	//TODO
+
+	assert(orbit != nullptr && transform != nullptr);
+	orbit->update(elapsed);
+	pos = orbit->get_pos();
+	vel = orbit->get_vel();
+	orbit->predict();
+
+	transform->position = pos;
+}
+
+// Create new orbit based on old one
+void Rocket::update_orbit() {
+	//TODO
+}
+
+
 Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel) : origin(origin_) {
 	//Math references:
 	//https://orbital-mechanics.space/classical-orbital-elements/orbital-elements-and-the-state-vector.html
