@@ -12,3 +12,7 @@ dist/README-libpng.txt
 dist/README-opusfile.txt
 dist/README-SDL.txt
 dist/SDL2.dll
+dist/game
+freetype-test
+scenes/show-meshes
+scenes/show-scene
