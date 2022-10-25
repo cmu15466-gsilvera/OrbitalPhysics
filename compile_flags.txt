@@ -1,0 +1,4 @@
+-I
+../nest-libs/windows/glm/include/
+-I
+../nest-libs/windows/SDL2/include/

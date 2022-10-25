@@ -2,6 +2,7 @@
 
 #include "OrbitalMechanics.hpp"
 
+#include "BackgroundShaderProgram.hpp"
 #include "LitColorTextureProgram.hpp"
 
 #include "DrawLines.hpp"
@@ -37,6 +38,7 @@ static Scene::Transform *spaceship_trans;
 static Scene::Transform *star_trans;
 static Scene::Transform *planet_trans;
 static Scene::Transform *moon_trans;
+static Scene::Transform *bg_trans;
 static Rocket spaceship;
 static Body star(275.0, 1.2e14f, std::numeric_limits< float >::infinity());
 static Body planet(10.0, 2.0e13f, 1000.0); // Yes, this mass is wayyyyy to high. But this makes orbit go brr for demo purposes
@@ -52,6 +54,13 @@ GLuint hexapod_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > hexapod_meshes(LoadTagDefault, []() -> MeshBuffer const * {
 	MeshBuffer const *ret = new MeshBuffer(data_path("orbit.pnct"));
 	hexapod_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+	return ret;
+});
+
+GLuint background_mesh_for_background_program = 0;
+Load< MeshBuffer > background_mesh(LoadTagDefault, []() -> MeshBuffer const * {
+	MeshBuffer const *ret = new MeshBuffer(data_path("background.pnct"));
+	background_mesh_for_background_program = ret->make_vao_for_program(background_program->program);
 	return ret;
 });
 
@@ -106,6 +115,28 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
 
 	//TODO: this is here temporarily for setting up the dev demo
+	{ //Load background
+		scene.transforms.emplace_back();
+		bg_trans = &scene.transforms.back();
+		bg_trans->name = "BGPlane";
+		bg_trans->parent = camera->transform;
+		bg_trans->position = glm::vec3(0, 0, -1000.0f);
+		bg_trans->scale = glm::vec3(1000.0f, 1000.0f, 1000.0f);
+
+		Mesh const &mesh = background_mesh->lookup(bg_trans->name);
+
+		scene.drawables.emplace_back(bg_trans);
+		Scene::Drawable &drawable = scene.drawables.back();
+
+		drawable.pipeline = lit_color_texture_program_pipeline;
+
+		drawable.pipeline.vao = background_mesh_for_background_program;
+		drawable.pipeline.type = mesh.type;
+		drawable.pipeline.start = mesh.start;
+		drawable.pipeline.count = mesh.count;
+		LOG("Loaded BG");
+	}
+
 	{ //Load star
 		scene.transforms.emplace_back();
 		star_trans = &scene.transforms.back();
@@ -299,7 +330,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glUniform3fv(lit_color_texture_program->LIGHT_ENERGY_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 0.95f)));
 	glUseProgram(0);
 
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClearDepth(1.0f); //1.0 is actually the default value to clear the depth buffer to, but FYI you can change it.
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -313,10 +344,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		DrawLines orbit_lines(world_to_clip);
 
 		static constexpr glm::u8vec4 purple = glm::u8vec4(0xff, 0x00, 0xff, 0xff);
+		static constexpr glm::u8vec4 blue = glm::u8vec4(0x00, 0x00, 0xff, 0xff);
 
 		planet_orbit.draw(orbit_lines, purple);
 		moon_orbit.draw(orbit_lines, purple);
-		spaceship_orbit.draw(orbit_lines, purple);
+		spaceship_orbit.draw(orbit_lines, blue);
 	}
 
 	{ //use DrawLines to overlay some text:
