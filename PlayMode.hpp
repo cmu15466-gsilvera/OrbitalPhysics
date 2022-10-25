@@ -23,7 +23,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up;
+	} left, right, down, up, tab;
 
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
@@ -44,5 +44,9 @@ struct PlayMode : Mode {
 
 	//camera:
 	Scene::Camera *camera = nullptr;
+	size_t camera_view_idx = 0;
+	// track locations and radii
+	std::vector<std::pair<glm::vec3 *, float>> focus_points = {}; 
+	void update_camera_view();
 
 };
