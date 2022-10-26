@@ -189,6 +189,10 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			tab.downs += 1;
 			tab.pressed = true;
 			return true;
+		} else if (evt.key.keysym.sym == SDLK_LSHIFT) {
+			shift.downs += 1;
+			shift.pressed = true;
+			return true;
 		}
 	} else if (evt.type == SDL_KEYUP) {
 		if (evt.key.keysym.sym == SDLK_a) {
@@ -205,6 +209,9 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_TAB) {
 			tab.pressed = false;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_LSHIFT) {
+			shift.pressed = false;
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
@@ -307,7 +314,8 @@ void PlayMode::update(float elapsed) {
 	// }
 
 	if (tab.downs == 1) {
-		camera_view_idx = (camera_view_idx + 1) % focus_points.size();
+		uint8_t dir = shift.pressed ? -1 : 1;
+		camera_view_idx = (camera_view_idx + dir * 1) % focus_points.size();
 	}
 	update_camera_view();
 
@@ -330,6 +338,7 @@ void PlayMode::update(float elapsed) {
 	up.downs = 0;
 	down.downs = 0;
 	tab.downs = 0;
+	shift.downs = 0;
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {

@@ -23,7 +23,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, tab;
+	} left, right, down, up, tab, shift;
 
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
