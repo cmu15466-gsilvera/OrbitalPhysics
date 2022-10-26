@@ -214,14 +214,9 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 	} else if (evt.type == SDL_MOUSEMOTION) {
 		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-			glm::vec2 motion = glm::vec2(
+		 	mouse_motion_rel = glm::vec2(
 				evt.motion.xrel / float(window_size.y),
 				-evt.motion.yrel / float(window_size.y)
-			);
-			camera->transform->rotation = glm::normalize(
-				camera->transform->rotation
-				* glm::angleAxis(-motion.x * camera->fovy, glm::vec3(0.0f, 1.0f, 0.0f))
-				* glm::angleAxis(motion.y * camera->fovy, glm::vec3(1.0f, 0.0f, 0.0f))
 			);
 			return true;
 		}
@@ -233,9 +228,33 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update_camera_view() {
-	camera->transform->position = *(focus_points[camera_view_idx].first);
-	// push up by some radius amount 
-	camera->transform->position.z += 10.f * focus_points[camera_view_idx].second;
+	const glm::vec3 &focus_point = *(focus_points[camera_view_idx].first);
+	const float scale = focus_points[camera_view_idx].second;
+
+	camera_arm_length = 10 * scale;
+
+	glm::mat4x3 frame = camera->transform->make_local_to_parent();
+	glm::vec3 right_vec = frame[0];
+	glm::vec3 up_vec = frame[1];
+	// glm::vec3 forward_vec = -frame[2];
+
+	const float mx = scale * -10.f;
+	const float my = scale * -10.f;
+	camera_offset += mx * mouse_motion_rel.x * right_vec + my * mouse_motion_rel.y * up_vec;
+
+	// reset the delta's so the camera stops when mouse up
+	mouse_motion_rel = glm::vec2(0, 0);
+
+	// normalize camera so its always camera_arm_length away
+	camera_offset = glm::normalize(camera_offset);
+	camera_offset *= camera_arm_length;
+
+	glm::vec3 new_pos = focus_point + camera_offset;
+	glm::vec3 dir = glm::normalize(focus_point - new_pos);
+	
+	/// TODO: fix the spinning when go directly over and up is parallel to dir
+	camera->transform->position = new_pos;
+	camera->transform->rotation = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
 }
 
 void PlayMode::update(float elapsed) {
