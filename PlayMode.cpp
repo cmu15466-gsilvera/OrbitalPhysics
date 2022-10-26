@@ -220,6 +220,9 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			);
 			return true;
 		}
+	} else if(evt.type == SDL_MOUSEWHEEL) {
+		scroll_zoom += evt.wheel.y;
+		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
 	//(for orbital manuever planning tool)
@@ -229,18 +232,20 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::update_camera_view() {
 	const glm::vec3 &focus_point = *(focus_points[camera_view_idx].first);
-	const float scale = focus_points[camera_view_idx].second;
+	const float radius = focus_points[camera_view_idx].second;
 
-	camera_arm_length = 10 * scale;
+	// camera arm length depends on radius
+	// have the scroll zooming affect the arm length by 1/cam_scale
+	camera_arm_length = radius * (cam_scale + (1.f / cam_scale) * scroll_zoom);
 
 	glm::mat4x3 frame = camera->transform->make_local_to_parent();
 	glm::vec3 right_vec = frame[0];
 	glm::vec3 up_vec = frame[1];
 	// glm::vec3 forward_vec = -frame[2];
 
-	const float mx = scale * -10.f;
-	const float my = scale * -10.f;
-	camera_offset += mx * mouse_motion_rel.x * right_vec + my * mouse_motion_rel.y * up_vec;
+	const float mx = radius * cam_scale;
+	const float my = radius * cam_scale;
+	camera_offset -= mx * mouse_motion_rel.x * right_vec + my * mouse_motion_rel.y * up_vec;
 
 	// reset the delta's so the camera stops when mouse up
 	mouse_motion_rel = glm::vec2(0, 0);

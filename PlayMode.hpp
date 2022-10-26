@@ -44,9 +44,11 @@ struct PlayMode : Mode {
 
 	//camera:
 	Scene::Camera *camera = nullptr;
+	const float cam_scale = 10.f; // use to scale camera motion
 	glm::vec3 camera_offset{0.f, 10.f, 10.f};
 	size_t camera_view_idx = 0;
 	float camera_arm_length = 1.f;
+	float scroll_zoom = 0.f;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 	// track locations and radii
 	std::vector<std::pair<glm::vec3 *, float>> focus_points = {}; 
