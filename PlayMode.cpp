@@ -151,6 +151,13 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 		make_drawable(scene, spaceship_trans);
 		LOG("Loaded Spaceship");
 	}
+
+	// track order of focus points for camera
+	// HACK: can also clean this up by making Body, Rocket inherit from a parent with a pos/radius member
+	focus_points = {{&spaceship.pos, 5.f },
+					{&star.pos, star.radius },
+					{&planet.pos, planet.radius },
+					{&moon.pos, moon.radius } };
 }
 
 PlayMode::~PlayMode() {
@@ -178,6 +185,18 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			down.downs += 1;
 			down.pressed = true;
 			return true;
+		} else if (evt.key.keysym.sym == SDLK_TAB) {
+			tab.downs += 1;
+			tab.pressed = true;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_LSHIFT) {
+			shift.downs += 1;
+			shift.pressed = true;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_LCTRL) {
+			control.downs += 1;
+			control.pressed = true;
+			return true;
 		}
 	} else if (evt.type == SDL_KEYUP) {
 		if (evt.key.keysym.sym == SDLK_a) {
@@ -192,6 +211,15 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = false;
 			return true;
+		} else if (evt.key.keysym.sym == SDLK_TAB) {
+			tab.pressed = false;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_LSHIFT) {
+			shift.pressed = false;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_LCTRL) {
+			control.pressed = false;
+			return true;
 		}
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
@@ -200,17 +228,15 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 	} else if (evt.type == SDL_MOUSEMOTION) {
 		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-			glm::vec2 motion = glm::vec2(
+		 	mouse_motion_rel = glm::vec2(
 				evt.motion.xrel / float(window_size.y),
 				-evt.motion.yrel / float(window_size.y)
 			);
-			camera->transform->rotation = glm::normalize(
-				camera->transform->rotation
-				* glm::angleAxis(-motion.x * camera->fovy, glm::vec3(0.0f, 1.0f, 0.0f))
-				* glm::angleAxis(motion.y * camera->fovy, glm::vec3(1.0f, 0.0f, 0.0f))
-			);
 			return true;
 		}
+	} else if(evt.type == SDL_MOUSEWHEEL) {
+		scroll_zoom += evt.wheel.y;
+		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
 	//(for orbital manuever planning tool)
@@ -218,53 +244,63 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	return false;
 }
 
+void PlayMode::update_camera_view() {
+	const glm::vec3 &focus_point = *(focus_points[camera_view_idx].first);
+	const float radius = focus_points[camera_view_idx].second;
+
+	// camera arm length depends on radius
+	// have the scroll zooming affect the arm length by 1/cam_scale
+	camera_arm_length = radius * (cam_scale + (1.f / cam_scale) * scroll_zoom);
+
+	glm::mat4x3 frame = camera->transform->make_local_to_parent();
+	glm::vec3 right_vec = frame[0];
+	glm::vec3 up_vec = frame[1];
+	// glm::vec3 forward_vec = -frame[2];
+
+	const float mx = radius * cam_scale;
+	const float my = radius * cam_scale;
+	camera_offset -= mx * mouse_motion_rel.x * right_vec + my * mouse_motion_rel.y * up_vec;
+
+	// reset the delta's so the camera stops when mouse up
+	mouse_motion_rel = glm::vec2(0, 0);
+
+	// normalize camera so its always camera_arm_length away
+	camera_offset = glm::normalize(camera_offset);
+	camera_offset *= camera_arm_length;
+
+	glm::vec3 new_pos = focus_point + camera_offset;
+	glm::vec3 dir = glm::normalize(focus_point - new_pos);
+	
+	/// TODO: fix the spinning when go directly over and up is parallel to dir
+	camera->transform->position = new_pos;
+	camera->transform->rotation = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
+}
+
 void PlayMode::update(float elapsed) {
+	{ // update camera controls
+		if (tab.downs == 1) {
+			uint8_t dir = shift.pressed ? -1 : 1;
+			camera_view_idx = (camera_view_idx + dir * 1) % focus_points.size();
+		}
+		update_camera_view();
+	}
 
-	//slowly rotates through [0,1):
-	// wobble += elapsed / 10.0f;
-	// wobble -= std::floor(wobble);
+	{ // update rocket controls
+		if (left.downs) {
+			spaceship.theta_thrust = 1.f;
+		} else if (right.downs) {
+			spaceship.theta_thrust = -1.f;
+		} else {
+			spaceship.theta_thrust = 0.f;
+		}
 
-	// hip->rotation = hip_base_rotation * glm::angleAxis(
-	// 	glm::radians(5.0f * std::sin(wobble * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 1.0f, 0.0f)
-	// );
-	// upper_leg->rotation = upper_leg_base_rotation * glm::angleAxis(
-	// 	glm::radians(7.0f * std::sin(wobble * 2.0f * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 0.0f, 1.0f)
-	// );
-	// lower_leg->rotation = lower_leg_base_rotation * glm::angleAxis(
-	// 	glm::radians(10.0f * std::sin(wobble * 3.0f * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 0.0f, 1.0f)
-	// );
-
-	//move sound to follow leg tip position:
-	// leg_tip_loop->set_position(get_leg_tip_position(), 1.0f / 60.0f);
-
-	//move camera:
-	// {
-
-	// 	//combine inputs into a move:
-	// 	constexpr float PlayerSpeed = 30.0f;
-	// 	glm::vec2 move = glm::vec2(0.0f);
-	// 	if (left.pressed && !right.pressed) move.x =-1.0f;
-	// 	if (!left.pressed && right.pressed) move.x = 1.0f;
-	// 	if (down.pressed && !up.pressed) move.y =-1.0f;
-	// 	if (!down.pressed && up.pressed) move.y = 1.0f;
-
-	// 	//make it so that moving diagonally doesn't go faster:
-	// 	if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
-
-	// 	glm::mat4x3 frame = camera->transform->make_local_to_parent();
-	// 	glm::vec3 frame_right = frame[0];
-	// 	//glm::vec3 up = frame[1];
-	// 	glm::vec3 frame_forward = -frame[2];
-
-	// 	camera->transform->position += move.x * frame_right + move.y * frame_forward;
-	// }
-
-	{ //TODO: remove this once we have proper camera controls
-		camera->transform->position = spaceship.pos;
-		camera->transform->position.z += 50;
+		if (shift.pressed) {
+			spaceship.thrust = 1.f;
+		} else if (control.pressed) {
+			spaceship.thrust = -1.f;
+		} else {
+			spaceship.thrust = 0.f;
+		}
 	}
 
 	{ //update listener to camera position:
@@ -285,6 +321,9 @@ void PlayMode::update(float elapsed) {
 	right.downs = 0;
 	up.downs = 0;
 	down.downs = 0;
+	tab.downs = 0;
+	shift.downs = 0;
+	control.downs = 0;
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {

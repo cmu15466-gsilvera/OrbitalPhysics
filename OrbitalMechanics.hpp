@@ -58,13 +58,20 @@ struct Rocket {
 	Scene::Transform *transform;
 
 	glm::vec3 pos;
-	glm::vec3 vel;
+	glm::vec3 vel, last_orbit_vel;
 	glm::vec3 acc;
+
+	// rotational euler mechanics
+	glm::vec3 rot{0.f, 0.f, 0.f};
+	glm::vec3 rotvel{0.f, 0.f, 0.f};
+	glm::vec3 rotacc{0.f, 0.f, 0.f};
 
 	static float constexpr DryMass = 4.0f; // Megagram
 
 	bool stability_dampening = true; //controls SAS, dampens angular momentum
+	float theta_thrust = 0.0f; // acceleration for theta (yaw rotation)
 	float theta = 0.0f; //rotation along XY plane
+	float thrust = 0.0f; // forward thrust
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
 };

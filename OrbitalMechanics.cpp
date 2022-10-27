@@ -5,6 +5,7 @@
 #define DEBUG
 #ifdef DEBUG
 #include <iostream>
+#include <glm/gtx/string_cast.hpp> // glm::to_string
 #define LOG(ARGS) std::cout << ARGS << std::endl;
 #else
 #define LOG(ARGS)
@@ -45,15 +46,47 @@ void Rocket::init(Orbit *orbit_, Scene::Transform *transform_) {
 }
 
 void Rocket::update(float dthrust, float dtheta, float elapsed) {
-	//TODO
 
-	assert(orbit != nullptr && transform != nullptr);
-	orbit->update(elapsed);
-	pos = orbit->get_pos();
-	vel = orbit->get_vel();
-	orbit->predict();
+	{ // rocket controls & physics
+	/// TODO: clean up the physics of this
+	#define ZERO_SPACE_FRICTION true // we can change this if we want acceleration not to decay
+	#if ZERO_SPACE_FRICTION
+		rotacc = glm::vec3(0.f, 0.f, theta_thrust);
+	#else
+		if (theta_thrust != 0.f)
+		{
+			rotacc = glm::vec3(0.f, 0.f, theta_thrust);
+		}
+		rotacc *= 0.9; // slight decay in rotational acceleration
+	#endif
 
-	transform->position = pos;
+		rotvel += elapsed * rotacc;
+		rot += elapsed * rotvel;
+		{ // bound rotation angles within -pi, pi
+			auto bound_angles = [](float &angle){
+				if (angle > M_PI)
+					angle -= 2 * M_PI;
+				if (angle < -M_PI)
+					angle += 2 * M_PI;
+			};
+			bound_angles(rot.x);
+			bound_angles(rot.y);
+			bound_angles(rot.z);
+		}
+		theta = rot.z; // yaw (rotation alonx XY plane)
+		transform->rotation = glm::quat(rot);
+	}
+
+	{ // orbital mechanics
+		/// TODO: use thrust/theta to update/reconfigure orbit?
+		assert(orbit != nullptr && transform != nullptr);
+		orbit->update(elapsed);
+		pos = orbit->get_pos();
+		vel = orbit->get_vel();
+		last_orbit_vel = vel;
+		orbit->predict();
+		transform->position = pos;
+	}
 }
 
 // Create new orbit based on old one
