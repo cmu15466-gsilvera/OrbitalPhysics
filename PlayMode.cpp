@@ -193,6 +193,10 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			shift.downs += 1;
 			shift.pressed = true;
 			return true;
+		} else if (evt.key.keysym.sym == SDLK_LCTRL) {
+			control.downs += 1;
+			control.pressed = true;
+			return true;
 		}
 	} else if (evt.type == SDL_KEYUP) {
 		if (evt.key.keysym.sym == SDLK_a) {
@@ -212,6 +216,9 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_LSHIFT) {
 			shift.pressed = false;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_LCTRL) {
+			control.pressed = false;
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
@@ -279,12 +286,20 @@ void PlayMode::update(float elapsed) {
 	}
 
 	{ // update rocket controls
-		if (left.downs){
+		if (left.downs) {
 			spaceship.theta_thrust = 1.f;
-		} else if (right.downs){
+		} else if (right.downs) {
 			spaceship.theta_thrust = -1.f;
 		} else {
 			spaceship.theta_thrust = 0.f;
+		}
+
+		if (shift.pressed) {
+			spaceship.thrust = 1.f;
+		} else if (control.pressed) {
+			spaceship.thrust = -1.f;
+		} else {
+			spaceship.thrust = 0.f;
 		}
 	}
 
@@ -308,6 +323,7 @@ void PlayMode::update(float elapsed) {
 	down.downs = 0;
 	tab.downs = 0;
 	shift.downs = 0;
+	control.downs = 0;
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
