@@ -270,54 +270,23 @@ void PlayMode::update_camera_view() {
 }
 
 void PlayMode::update(float elapsed) {
-
-	//slowly rotates through [0,1):
-	// wobble += elapsed / 10.0f;
-	// wobble -= std::floor(wobble);
-
-	// hip->rotation = hip_base_rotation * glm::angleAxis(
-	// 	glm::radians(5.0f * std::sin(wobble * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 1.0f, 0.0f)
-	// );
-	// upper_leg->rotation = upper_leg_base_rotation * glm::angleAxis(
-	// 	glm::radians(7.0f * std::sin(wobble * 2.0f * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 0.0f, 1.0f)
-	// );
-	// lower_leg->rotation = lower_leg_base_rotation * glm::angleAxis(
-	// 	glm::radians(10.0f * std::sin(wobble * 3.0f * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 0.0f, 1.0f)
-	// );
-
-	//move sound to follow leg tip position:
-	// leg_tip_loop->set_position(get_leg_tip_position(), 1.0f / 60.0f);
-
-	//move camera:
-	// {
-
-	// 	//combine inputs into a move:
-	// 	constexpr float PlayerSpeed = 30.0f;
-	// 	glm::vec2 move = glm::vec2(0.0f);
-	// 	if (left.pressed && !right.pressed) move.x =-1.0f;
-	// 	if (!left.pressed && right.pressed) move.x = 1.0f;
-	// 	if (down.pressed && !up.pressed) move.y =-1.0f;
-	// 	if (!down.pressed && up.pressed) move.y = 1.0f;
-
-	// 	//make it so that moving diagonally doesn't go faster:
-	// 	if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
-
-	// 	glm::mat4x3 frame = camera->transform->make_local_to_parent();
-	// 	glm::vec3 frame_right = frame[0];
-	// 	//glm::vec3 up = frame[1];
-	// 	glm::vec3 frame_forward = -frame[2];
-
-	// 	camera->transform->position += move.x * frame_right + move.y * frame_forward;
-	// }
-
-	if (tab.downs == 1) {
-		uint8_t dir = shift.pressed ? -1 : 1;
-		camera_view_idx = (camera_view_idx + dir * 1) % focus_points.size();
+	{ // update camera controls
+		if (tab.downs == 1) {
+			uint8_t dir = shift.pressed ? -1 : 1;
+			camera_view_idx = (camera_view_idx + dir * 1) % focus_points.size();
+		}
+		update_camera_view();
 	}
-	update_camera_view();
+
+	{ // update rocket controls
+		if (left.downs){
+			spaceship.theta_thrust = 1.f;
+		} else if (right.downs){
+			spaceship.theta_thrust = -1.f;
+		} else {
+			spaceship.theta_thrust = 0.f;
+		}
+	}
 
 	{ //update listener to camera position:
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
