@@ -1,7 +1,5 @@
 #include "PlayMode.hpp"
 
-#include "OrbitalMechanics.hpp"
-
 #include "LitColorTextureProgram.hpp"
 
 #include "DrawLines.hpp"
@@ -25,37 +23,14 @@
 #define LOG(ARGS)
 #endif
 
-//TODO: This is hacked together for dev demo purposes, mostly so we can test orbital simulation
-//The masses and distances are fudged for now for demo purposes. Things would normally be much futher away and move much
-//slower (if we're going for realism)
-static float constexpr eccentricity = 0.1f;
-static float constexpr semi_latus_rectum = 200.0f; // Megameters
-static float constexpr periapsis_angle = glm::radians(30.0f);
-static float constexpr true_anomaly = glm::radians(-120.0f);
-
-static Scene::Transform *spaceship_trans;
-static Scene::Transform *star_trans;
-static Scene::Transform *planet_trans;
-static Scene::Transform *moon_trans;
-static Rocket spaceship;
-static Body star(275.0, 1.2e14f, std::numeric_limits< float >::infinity());
-static Body planet(10.0, 2.0e13f, 1000.0); // Yes, this mass is wayyyyy to high. But this makes orbit go brr for demo purposes
-static Body moon(1.0, 2.0e8f, 50.0);
-
-static Orbit planet_orbit(&star, 0.0f, 1000.0f, 0.0f, 0.0f);
-static Orbit moon_orbit(&planet, eccentricity, semi_latus_rectum, periapsis_angle, true_anomaly);
-static Orbit spaceship_orbit(&planet, 0.0f, 30.0f, 0.0f, 0.0f);
-// static Orbit moon_orbit(&planet, glm::vec3(40.0f, 0.0f, 0.0f), glm::vec3(3.0f, 6.0f, 0.0f));
-
-//TODO: rename all of the hexapod* stuff to our new scene
-GLuint hexapod_meshes_for_lit_color_texture_program = 0;
+GLuint orbit_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > main_meshes(LoadTagDefault, []() -> MeshBuffer const * {
 	MeshBuffer const *ret = new MeshBuffer(data_path("orbit.pnct"));
-	hexapod_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+	orbit_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
 
-Load< Scene > hexapod_scene(LoadTagDefault, []() -> Scene const * {
+Load< Scene > orbit_scene(LoadTagDefault, []() -> Scene const * {
 	return new Scene(data_path("orbit.scene"), [&](Scene &s, Scene::Transform *t, std::string const &m){
 		//Drawables will be set up later, dummy function
 	});
@@ -76,13 +51,13 @@ static void make_drawable(Scene &scene, Scene::Transform *transform) {
 
 	drawable.pipeline = lit_color_texture_program_pipeline;
 
-	drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
+	drawable.pipeline.vao = orbit_meshes_for_lit_color_texture_program;
 	drawable.pipeline.type = mesh.type;
 	drawable.pipeline.start = mesh.start;
 	drawable.pipeline.count = mesh.count;
 }
 
-PlayMode::PlayMode() : scene(*hexapod_scene) {
+PlayMode::PlayMode() : scene(*orbit_scene) {
 	//get pointers to leg for convenience:
 	// for (auto &transform : scene.transforms) {
 	// 	if (transform.name == "Hip.FL") hip = &transform;
@@ -98,20 +73,28 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 	// lower_leg_base_rotation = lower_leg->rotation;
 
 	//get pointer to camera for convenience:
-	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
+	if (scene.cameras.size() != 1) {
+		throw std::runtime_error("Expecting scene to have exactly one camera, but it has "
+			+ std::to_string(scene.cameras.size()));
+	}
 	camera = &scene.cameras.front();
 
 	//start music loop playing:
 	// (note: position will be over-ridden in update())
 	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
 
-	//TODO: this is here temporarily for setting up the dev demo
+	//TODO: This is hacked together for dev demo purposes, mostly so we can test orbital simulation
+	// The masses and distances are fudged for now. Things would normally be much futher away and move much
+	// slower (if we're going for realism)
 	{ //Load star
 		scene.transforms.emplace_back();
-		star_trans = &scene.transforms.back();
+		Scene::Transform *star_trans = &scene.transforms.back();
 		star_trans->name = "Star";
 
-		star.set_transform(star_trans);
+		bodies.emplace_back(Body(275.0, 1.2e14f, std::numeric_limits< float >::infinity()));
+		star = &bodies.back();
+
+		star->set_transform(star_trans);
 
 		make_drawable(scene, star_trans);
 		LOG("Loaded Star");
@@ -119,45 +102,65 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 
 	{ //Load planet
 		scene.transforms.emplace_back();
-		planet_trans = &scene.transforms.back();
+		Scene::Transform *planet_trans = &scene.transforms.back();
 		planet_trans->name = "Planet";
 
-		planet.set_orbit(&planet_orbit);
-		planet.set_transform(planet_trans);
+		bodies.emplace_back(Body(10.0, 2.0e13f, 1000.0f));
+		Body *planet = &bodies.back();
+
+		orbits.emplace_back(Orbit(star, 0.0f, 1000.0f, 0.0f, 0.0f));
+		Orbit *planet_orbit = &orbits.back();
+
+		planet->set_orbit(planet_orbit);
+		planet->set_transform(planet_trans);
+
+		star->add_satellite(planet);
 
 		make_drawable(scene, planet_trans);
 		LOG("Loaded Planet");
-	}
 
-	{ //Load moon
-		scene.transforms.emplace_back();
-		moon_trans = &scene.transforms.back();
-		moon_trans->name = "Moon";
+		//Load all things orbiting planet
+		{ //Load moon of planet
+			scene.transforms.emplace_back();
+			Scene::Transform *moon_trans = &scene.transforms.back();
+			moon_trans->name = "Moon";
 
-		moon.set_orbit(&moon_orbit);
-		moon.set_transform(moon_trans);
+			//Yes, this mass is wayyyyy to high. But this makes orbit go brr for demo purposes
+			bodies.emplace_back(Body(1.0, 2.0e8f, 50.0));
+			Body *moon = &bodies.back();
 
-		make_drawable(scene, moon_trans);
-		LOG("Loaded Moon");
-	}
+			orbits.emplace_back(Orbit(planet, 0.1f, 200.0f, glm::radians(30.0f), glm::radians(-120.0f)));
+			Orbit *moon_orbit = &orbits.back();
 
-	{ //Load player
-		scene.transforms.emplace_back();
-		spaceship_trans = &scene.transforms.back();
-		spaceship_trans->name = "Spaceship";
+			moon->set_orbit(moon_orbit);
+			moon->set_transform(moon_trans);
 
-		spaceship.init(&spaceship_orbit, spaceship_trans);
+			planet->add_satellite(moon);
 
-		make_drawable(scene, spaceship_trans);
-		LOG("Loaded Spaceship");
+			make_drawable(scene, moon_trans);
+			LOG("Loaded Moon");
+		}
+		{ //Load player
+			scene.transforms.emplace_back();
+			Scene::Transform *spaceship_trans = &scene.transforms.back();
+			spaceship_trans->name = "Spaceship";
+
+			orbits.emplace_back(Orbit(planet, 0.0f, 30.0f, 0.0f, 0.0f));
+			Orbit *spaceship_orbit = &orbits.back();
+
+			spaceship.init(spaceship_orbit, spaceship_trans);
+
+			make_drawable(scene, spaceship_trans);
+			LOG("Loaded Spaceship");
+		}
 	}
 
 	// track order of focus points for camera
 	// HACK: can also clean this up by making Body, Rocket inherit from a parent with a pos/radius member
-	focus_points = {{&spaceship.pos, 5.f },
-					{&star.pos, star.radius },
-					{&planet.pos, planet.radius },
-					{&moon.pos, moon.radius } };
+	camera_arm.focus_points = {std::make_pair(&spaceship.pos, 5.f)};
+	for (Body &body : bodies) {
+		camera_arm.focus_points.emplace_back(std::make_pair(&body.pos, body.radius));
+	}
 }
 
 PlayMode::~PlayMode() {
@@ -235,7 +238,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		}
 	} else if(evt.type == SDL_MOUSEWHEEL) {
-		scroll_zoom += evt.wheel.y;
+		camera_arm.scroll_zoom = std::max(camera_arm.scroll_zoom - evt.wheel.y * camera_arm.ScrollSensitivity, 0.0f);
 		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
@@ -245,42 +248,41 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update_camera_view() {
-	const glm::vec3 &focus_point = *(focus_points[camera_view_idx].first);
-	const float radius = focus_points[camera_view_idx].second;
+	const glm::vec3 &focus_point = *(camera_arm.focus_points[camera_arm.camera_view_idx].first);
+	const float radius = camera_arm.focus_points[camera_arm.camera_view_idx].second;
+
+	float camera_arm_length = radius * (10.0f + camera_arm.scroll_zoom);
 
 	// camera arm length depends on radius
-	// have the scroll zooming affect the arm length by 1/cam_scale
-	camera_arm_length = radius * (cam_scale + (1.f / cam_scale) * scroll_zoom);
+	{
+		glm::mat4x3 frame = camera->transform->make_local_to_parent();
+		glm::vec3 right_vec = frame[0];
+		glm::vec3 up_vec = frame[1];
+		// glm::vec3 forward_vec = -frame[2];
 
-	glm::mat4x3 frame = camera->transform->make_local_to_parent();
-	glm::vec3 right_vec = frame[0];
-	glm::vec3 up_vec = frame[1];
-	// glm::vec3 forward_vec = -frame[2];
+		camera_arm.camera_offset -= (mouse_motion_rel.x * right_vec + mouse_motion_rel.y * up_vec)
+			* camera_arm_length * camera_arm.MouseSensitivity;
 
-	const float mx = radius * cam_scale;
-	const float my = radius * cam_scale;
-	camera_offset -= mx * mouse_motion_rel.x * right_vec + my * mouse_motion_rel.y * up_vec;
+		camera_arm.camera_offset = camera_arm_length * glm::normalize(camera_arm.camera_offset);
 
-	// reset the delta's so the camera stops when mouse up
-	mouse_motion_rel = glm::vec2(0, 0);
+		glm::vec3 new_pos = focus_point + camera_arm.camera_offset;
+		glm::vec3 dir = glm::normalize(focus_point - new_pos);
 
-	// normalize camera so its always camera_arm_length away
-	camera_offset = glm::normalize(camera_offset);
-	camera_offset *= camera_arm_length;
+		// LOG("real camera pos " << glm::to_string(new_pos));
+		// LOG("real camera dir " << glm::to_string(dir));
 
-	glm::vec3 new_pos = focus_point + camera_offset;
-	glm::vec3 dir = glm::normalize(focus_point - new_pos);
-	
-	/// TODO: fix the spinning when go directly over and up is parallel to dir
-	camera->transform->position = new_pos;
-	camera->transform->rotation = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
+		camera->transform->position = new_pos;
+		camera->transform->rotation = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
+	}
+
+	// TODO: fix the spinning when go directly over and up is parallel to dir
 }
 
 void PlayMode::update(float elapsed) {
 	{ // update camera controls
-		if (tab.downs == 1) {
+		if (tab.downs > 0) {
 			uint8_t dir = shift.pressed ? -1 : 1;
-			camera_view_idx = (camera_view_idx + dir * 1) % focus_points.size();
+			camera_arm.camera_view_idx = (camera_arm.camera_view_idx + dir) % camera_arm.focus_points.size();
 		}
 		update_camera_view();
 	}
@@ -311,8 +313,7 @@ void PlayMode::update(float elapsed) {
 	}
 
 	{ //basic orbital simulation demo
-		planet.update(elapsed);
-		moon.update(elapsed);
+		star->update(elapsed);
 		spaceship.update(0.0f, 0.0f, elapsed);
 	}
 
@@ -324,6 +325,7 @@ void PlayMode::update(float elapsed) {
 	tab.downs = 0;
 	shift.downs = 0;
 	control.downs = 0;
+	mouse_motion_rel = glm::vec2(0, 0);
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
@@ -338,7 +340,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glUniform3fv(lit_color_texture_program->LIGHT_ENERGY_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 0.95f)));
 	glUseProgram(0);
 
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClearDepth(1.0f); //1.0 is actually the default value to clear the depth buffer to, but FYI you can change it.
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -353,9 +355,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 		static constexpr glm::u8vec4 purple = glm::u8vec4(0xff, 0x00, 0xff, 0xff);
 
-		planet_orbit.draw(orbit_lines, purple);
-		moon_orbit.draw(orbit_lines, purple);
-		spaceship_orbit.draw(orbit_lines, purple);
+		star->draw_orbits(orbit_lines, purple);
+		spaceship.orbit->draw(orbit_lines, purple);
 	}
 
 	{ //use DrawLines to overlay some text:

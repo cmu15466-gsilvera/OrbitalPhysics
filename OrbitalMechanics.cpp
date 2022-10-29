@@ -11,6 +11,8 @@
 #define LOG(ARGS)
 #endif
 
+// Windows doesn't have M_PI apparently
+#define M_PI 3.141529f
 
 void Body::set_orbit(Orbit *orbit_) {
 	orbit = orbit_;
@@ -22,19 +24,35 @@ void Body::set_orbit(Orbit *orbit_) {
 void Body::update(float elapsed) {
 	//TODO: if we want things to rotate, here would be where that gets done
 
-	if (orbit == nullptr) return;
-	orbit->update(elapsed);
-	pos = orbit->get_pos();
-	vel = orbit->get_vel();
-	orbit->predict();
+	if (orbit != nullptr) {
+		orbit->update(elapsed);
+		pos = orbit->get_pos();
+		vel = orbit->get_vel();
+		orbit->predict();
+	}
 
 	assert(transform != nullptr);
 	transform->position = pos;
+
+	//Recursively update all satellites, their satellites, and so on
+	for (Body *body : satellites) {
+		assert(body != nullptr);
+		body->update(elapsed);
+	}
+}
+
+void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color) {
+	if (orbit != nullptr) orbit->draw(lines, color);
+
+	for (Body *body : satellites) {
+		assert(body != nullptr);
+		body->draw_orbits(lines, color);
+	}
 }
 
 
 void Rocket::init(Orbit *orbit_, Scene::Transform *transform_) {
-	assert(orbit_ != nullptr && transform_ != nullptr);
+	assert(transform_ != nullptr);
 
 	orbit = orbit_;
 	pos = orbit->get_pos();
@@ -78,19 +96,23 @@ void Rocket::update(float dthrust, float dtheta, float elapsed) {
 	}
 
 	{ // orbital mechanics
-		/// TODO: use thrust/theta to update/reconfigure orbit?
-		assert(orbit != nullptr && transform != nullptr);
+		// TODO: use thrust/theta to update/reconfigure orbit?
+		assert(transform != nullptr);
 		orbit->update(elapsed);
 		pos = orbit->get_pos();
 		vel = orbit->get_vel();
 		last_orbit_vel = vel;
 		orbit->predict();
+
+		pos = orbit->get_pos();
+		vel = orbit->get_vel();
+
 		transform->position = pos;
 	}
 }
 
 // Create new orbit based on old one
-void Rocket::update_orbit() {
+void Rocket::recalculate_orbits() {
 	//TODO
 }
 
@@ -185,10 +207,11 @@ void Orbit::predict() {
 
 		points[i].x = x;
 		points[i].y = y;
+		points[i].z = 0.0f;
 	}
 }
 
-void Orbit::draw(DrawLines &lines, glm::u8vec4 color) {
+void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 	size_t n = points.size();
 
 	// LOG(n << " points");

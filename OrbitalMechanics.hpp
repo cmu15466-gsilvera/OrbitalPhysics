@@ -24,6 +24,9 @@ struct Body {
 		transform = transform_;
 		transform->position = pos;
 	}
+	void add_satellite(Body *body) {
+		satellites.emplace_back(body);
+	}
 	bool check_collision(glm::vec3 target_pos, float target_radius) {
 		return glm::distance(pos, target_pos) <= radius + target_radius;
 	}
@@ -31,7 +34,9 @@ struct Body {
 		return glm::distance(pos, target_pos) <= soi_radius;
 	}
 	void update(float elapsed);
+	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color);
 
+	std::vector< Body * > satellites;
 	Orbit *orbit = nullptr;
 	Scene::Transform *transform = nullptr;
 
@@ -52,7 +57,7 @@ struct Rocket {
 
 	void init(Orbit *orbit_, Scene::Transform *transform_);
 	void update(float dthrust, float dtheta, float elapsed);
-	void update_orbit();
+	void recalculate_orbits();
 
 	Orbit *orbit;
 	Scene::Transform *transform;
@@ -71,7 +76,7 @@ struct Rocket {
 	bool stability_dampening = true; //controls SAS, dampens angular momentum
 	float theta_thrust = 0.0f; // acceleration for theta (yaw rotation)
 	float theta = 0.0f; //rotation along XY plane
-	float thrust = 0.0f; // forward thrust
+	float thrust = 0.0f; //forward thrust
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
 };
@@ -101,20 +106,21 @@ struct Orbit {
 
 	//Simulate and draw the oribit (populate points)
 	void predict();
-	void draw(DrawLines &lines, glm::u8vec4 color);
+	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants
-	static float constexpr G = 6.67430e-11f; // Standard gravitational constant
-	static int constexpr PredictDetail = 360; // number of points to generate when predicting
+	static float constexpr G = 6.67430e-11f; //Standard gravitational constant
+	static size_t constexpr PredictDetail = 360; //number of points to generate when predicting
 	static float constexpr PredictAngle = 360.0f / static_cast< float >(PredictDetail); // dtheta between points
-	static float constexpr TimeStep = 0.001f; // time step, seconds
+	static float constexpr TimeStep = 0.001f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI
 
 	//Fixed values
 	Body *origin;
 
-	//Cache of orbit points for drawing
-	std::array< glm::vec3, PredictDetail > points;
+	//Future trajectory, populated by predict()
+	std::array< glm::vec3, PredictDetail > points; //Cache of orbit points for drawing
+	Orbit *continuation; //Continuation in next SOI
 
 	//Values defining orbit
 	float c; //eccentricity
