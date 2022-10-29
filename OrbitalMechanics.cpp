@@ -101,7 +101,6 @@ void Rocket::update(float dthrust, float dtheta, float elapsed) {
 		orbit->update(elapsed);
 		pos = orbit->get_pos();
 		vel = orbit->get_vel();
-		last_orbit_vel = vel;
 		orbit->predict();
 
 		pos = orbit->get_pos();
@@ -193,13 +192,17 @@ void Orbit::predict() {
 	float origin_y = origin->pos.y;
 	float soi_radius = origin->soi_radius;
 
-	for (int i = 0; i < PredictDetail; i++) {
-		float theta_ = glm::radians(static_cast< float >(i) * PredictAngle);
+	float theta_init = std::floor(theta / glm::radians(PredictAngle)) * glm::radians(PredictAngle);
+	LOG(theta_init);
+
+	points[0] = get_pos();
+	for (int i = 1; i < PredictDetail; i++) {
+		float theta_ = theta_init + glm::radians(static_cast< float >(i) * PredictAngle);
 		float r_ = p / (1 + c * std::cos(theta_));
 
 		if (r_ < 0 || r_ > soi_radius) {
 			points[i] = Invalid;
-			continue;
+			break;
 		}
 
 		float x = r_ * std::cos(theta_ + phi) + origin_x;
@@ -218,7 +221,7 @@ void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 	for (size_t i = 0; i < n; i++) {
 		// LOG("drawing " << glm::to_string(points[i-1])  << " to " << glm::to_string(points[i]));
 		glm::vec3 next = points[(i + 1) % n];
-		if (next == Orbit::Invalid) continue;
+		if (next == Orbit::Invalid) break;
 		lines.draw(points[i], next, color);
 	}
 }

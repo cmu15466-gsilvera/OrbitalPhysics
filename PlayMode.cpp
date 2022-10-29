@@ -145,7 +145,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			Scene::Transform *spaceship_trans = &scene.transforms.back();
 			spaceship_trans->name = "Spaceship";
 
-			orbits.emplace_back(Orbit(planet, 0.0f, 30.0f, 0.0f, 0.0f));
+			orbits.emplace_back(Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), 0.0f));
 			Orbit *spaceship_orbit = &orbits.back();
 
 			spaceship.init(spaceship_orbit, spaceship_trans);
@@ -258,7 +258,6 @@ void PlayMode::update_camera_view() {
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
 		glm::vec3 right_vec = frame[0];
 		glm::vec3 up_vec = frame[1];
-		// glm::vec3 forward_vec = -frame[2];
 
 		camera_arm.camera_offset -= (mouse_motion_rel.x * right_vec + mouse_motion_rel.y * up_vec)
 			* camera_arm_length * camera_arm.MouseSensitivity;
@@ -268,14 +267,11 @@ void PlayMode::update_camera_view() {
 		glm::vec3 new_pos = focus_point + camera_arm.camera_offset;
 		glm::vec3 dir = glm::normalize(focus_point - new_pos);
 
-		// LOG("real camera pos " << glm::to_string(new_pos));
-		// LOG("real camera dir " << glm::to_string(dir));
-
+		//TODO: fix the spinning when go directly over and up is parallel to dir
+		// Doing this probably requires not using the transformation matrix's vectors for finding right and up vecs
 		camera->transform->position = new_pos;
 		camera->transform->rotation = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
 	}
-
-	// TODO: fix the spinning when go directly over and up is parallel to dir
 }
 
 void PlayMode::update(float elapsed) {

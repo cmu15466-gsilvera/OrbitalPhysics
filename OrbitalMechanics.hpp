@@ -63,7 +63,7 @@ struct Rocket {
 	Scene::Transform *transform;
 
 	glm::vec3 pos;
-	glm::vec3 vel, last_orbit_vel;
+	glm::vec3 vel;
 	glm::vec3 acc;
 
 	// rotational euler mechanics
@@ -110,7 +110,7 @@ struct Orbit {
 
 	//Constants
 	static float constexpr G = 6.67430e-11f; //Standard gravitational constant
-	static size_t constexpr PredictDetail = 360; //number of points to generate when predicting
+	static size_t constexpr PredictDetail = 720; //number of points to generate when predicting
 	static float constexpr PredictAngle = 360.0f / static_cast< float >(PredictDetail); // dtheta between points
 	static float constexpr TimeStep = 0.001f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI
