@@ -11,7 +11,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-#include <random>
+#include <iomanip>
+#include <sstream>
 
 
 #define DEBUG
@@ -287,22 +288,23 @@ void PlayMode::update(float elapsed) {
 		update_camera_view();
 	}
 
-	{ // update rocket controls
-		if (left.downs) {
-			spaceship.theta_thrust = 1.f;
-		} else if (right.downs) {
-			spaceship.theta_thrust = -1.f;
+	if (dilation == LEVEL_0){ // update rocket controls
+		if (left.downs > 0 && right.downs == 0) {
+			spaceship.dtheta = 2.0f;
+		} else if (right.downs > 0 && left.downs == 0) {
+			spaceship.dtheta = -2.0f;
 		} else {
-			spaceship.theta_thrust = 0.f;
+			spaceship.dtheta = 0.f;
 		}
 
 		if (shift.pressed) {
-			spaceship.thrust = 1.f;
+			spaceship.thrust_percent = std::min(spaceship.thrust_percent + 0.1f , 100.0f);
 		} else if (control.pressed) {
-			spaceship.thrust = -1.f;
-		} else {
-			spaceship.thrust = 0.f;
+			spaceship.thrust_percent = std::max(spaceship.thrust_percent - 0.1f , 0.0f);
 		}
+	} else {
+		spaceship.dtheta = 0.f;
+		spaceship.thrust_percent = 0.f;
 	}
 
 	{ //update listener to camera position:
@@ -314,7 +316,7 @@ void PlayMode::update(float elapsed) {
 
 	{ //basic orbital simulation demo
 		star->update(elapsed);
-		spaceship.update(0.0f, 0.0f, elapsed, star, orbits);
+		spaceship.update(elapsed, star, orbits);
 	}
 
 	//reset button press counters:
@@ -360,6 +362,40 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		spaceship.orbit->draw(orbit_lines, blue);
 	}
 
+	{ //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
+		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
+		DrawLines vector_lines(world_to_clip);
+
+		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff); //rpos
+		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
+		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
+		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
+		static float constexpr display_multiplier = 1000.0f;
+
+		float x = spaceship.orbit->r * std::cos(spaceship.orbit->theta + spaceship.orbit->phi);
+		float y = spaceship.orbit->r * std::sin(spaceship.orbit->theta + spaceship.orbit->phi);
+
+		glm::vec3 rpos = glm::vec3(x, y, 0.0f);
+		static float constexpr pi_over_2 = glm::radians(90.0f);
+
+		float dx = spaceship.orbit->dtheta * spaceship.orbit->r * std::cos(spaceship.orbit->theta + spaceship.orbit->phi + pi_over_2);
+		float dy = spaceship.orbit->dtheta * spaceship.orbit->r * std::sin(spaceship.orbit->theta + spaceship.orbit->phi + pi_over_2);
+		glm::vec3 rvel = glm::vec3(dx, dy, 0.0f);
+
+		glm::vec3 heading = glm::vec3(
+			std::cos(spaceship.theta),
+			std::sin(spaceship.theta),
+			0.0f
+		) * 10.0f;
+
+		vector_lines.draw(spaceship.pos, spaceship.pos + rpos, white);
+		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
+		vector_lines.draw(spaceship.pos, spaceship.pos + rvel * 1000.0f, green);
+		vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
+
+		LOG("rvel: " << glm::to_string(rvel) << " acc: " << glm::to_string(spaceship.acc));
+	}
+
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);
 		float aspect = float(drawable_size.x) / float(drawable_size.y);
@@ -371,12 +407,18 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		));
 
 		constexpr float H = 0.09f;
-		lines.draw_text("Mouse motion rotates camera; WASD moves; escape ungrabs mouse",
+
+		std::stringstream stream;
+		stream << std::fixed << std::setprecision(2);
+		stream << "thrust percent: " << spaceship.thrust_percent << " fuel: " << spaceship.fuel;
+
+		std::string text = stream.str();
+		lines.draw_text(text,
 			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
 		float ofs = 2.0f / drawable_size.y;
-		lines.draw_text("Mouse motion rotates camera; WASD moves; escape ungrabs mouse",
+		lines.draw_text(text,
 			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + + 0.1f * H + ofs, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0xff, 0xff, 0xff, 0x00));

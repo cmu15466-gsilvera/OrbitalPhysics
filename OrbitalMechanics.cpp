@@ -15,7 +15,7 @@
 #define M_PI 3.141529f
 
 //Time acceleration
-float dilation = 10000.0f;
+DilationLevel dilation = LEVEL_0;
 
 
 void Body::set_orbit(Orbit *orbit_) {
@@ -79,39 +79,47 @@ void Rocket::init(Orbit *orbit_, Scene::Transform *transform_) {
 	transform->position = pos;
 }
 
-void Rocket::update(float dthrust, float dtheta, float elapsed, Body *root, std::list< Orbit > &orbits) {
+void Rocket::update(float elapsed, Body *root, std::list< Orbit > &orbits) {
+	bool moved = false;
+	{ //rocket controls & physics
+		//Going to assume stability assist via reaction wheels is always on and the controller is perfect to simplify
+		// things. We can make the game harder later on by changing this to RCS based if need.
+		theta += elapsed * dtheta; // yaw (rotation alonx XY plane)
+		if (theta > M_PI)
+			theta -= 2 * M_PI;
+		if (theta < -M_PI)
+			theta += 2 * M_PI;
+		transform->rotation = glm::quat(glm::vec3(0.f, 0.f, theta));
 
-	{ // rocket controls & physics
-	/// TODO: clean up the physics of this
-	#define ZERO_SPACE_FRICTION true // we can change this if we want acceleration not to decay
-	#if ZERO_SPACE_FRICTION
-		rotacc = glm::vec3(0.f, 0.f, theta_thrust);
-	#else
-		if (theta_thrust != 0.f)
-		{
-			rotacc = glm::vec3(0.f, 0.f, theta_thrust);
-		}
-		rotacc *= 0.9; // slight decay in rotational acceleration
-	#endif
+		if (thrust_percent > 0.0f && fuel > 0.0f) {
+			moved = true; //set flag to trigger orbit recalc later on
 
-		rotvel += elapsed * rotacc;
-		rot += elapsed * rotvel;
-		{ // bound rotation angles within -pi, pi
-			auto bound_angles = [](float &angle){
-				if (angle > M_PI)
-					angle -= 2 * M_PI;
-				if (angle < -M_PI)
-					angle += 2 * M_PI;
-			};
-			bound_angles(rot.x);
-			bound_angles(rot.y);
-			bound_angles(rot.z);
+			//calculate acceleration: F = ma ==> acc = thrust * MaxThrust / (DryMass + fuel);
+			//Note conversion from MegaNewtons/Megagram == meter/s^2 to Megameter/s^2
+			float acc_magnitude = thrust_percent * MaxThrust / (DryMass + fuel * 1000.0f);
+			acc = glm::vec3(
+				acc_magnitude * std::cos(theta),
+				acc_magnitude * std::sin(theta),
+				0.0f
+			);
+
+			//update fuel consumption
+			fuel = std::max(fuel - thrust_percent * MaxFuelConsumption, 0.0f);
+
+			//update velocity
+			vel += acc * elapsed;
+		} else {
+			acc = glm::vec3(0.0f);
 		}
-		theta = rot.z; // yaw (rotation alonx XY plane)
-		transform->rotation = glm::quat(rot);
 	}
 
-	{ // orbital mechanics
+	{ //orbital mechanics
+		if (moved) {
+			//recalculate orbit due to thrust
+			Orbit *temp = orbit->continuation;
+			*orbit = Orbit(orbit->origin, pos, vel, false);
+			orbit->continuation = temp;
+		}
 		// TODO: use thrust/theta to update/reconfigure orbit?
 		assert(transform != nullptr);
 		orbit->update(elapsed);
@@ -227,7 +235,7 @@ Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_)
 }
 
 void Orbit::update(float elapsed) {
-	const float time_step = dilation / 100.0f;
+	const float time_step = static_cast<float>(dilation) / 100.0f;
 	for (float t = 0.0f; t < elapsed * dilation; t += time_step) {
 		theta += dtheta * time_step;
 		compute_r();
@@ -312,7 +320,9 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
 				orbits.emplace_back(Orbit(origin->orbit->origin, sim.pos, sim.vel, true));
 				continuation = &orbits.back();
 			} else {
+				Orbit *temp = continuation->continuation;
 				*continuation = Orbit(origin->orbit->origin, sim.pos, sim.vel, true);
+				continuation->continuation = temp;
 			}
 			continuation->sim_predict(root, orbits, level+1);
 			return;
@@ -330,8 +340,10 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
 					orbits.emplace_back(Orbit(satellite, sim.pos, sim.vel, true));
 					continuation = &orbits.back();
 				} else {
-				*continuation = Orbit(satellite, sim.pos, sim.vel, true);
-			}
+					Orbit *temp = continuation->continuation;
+					*continuation = Orbit(satellite, sim.pos, sim.vel, true);
+					continuation->continuation = temp;
+				}
 				continuation->sim_predict(root, orbits, level+1);
 				return;
 			}

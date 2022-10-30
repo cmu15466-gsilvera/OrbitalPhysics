@@ -16,6 +16,16 @@
 struct Body;
 struct Orbit;
 
+enum DilationLevel {
+	LEVEL_0 = 1, //real-time, only permit movement under this level
+	LEVEL_1 = 10,
+	LEVEL_2 = 100,
+	LEVEL_3 = 1000,
+	LEVEL_4 = 10000
+};
+
+extern DilationLevel dilation;
+
 //Stars, Planets, Moons, Asteroids, etc.
 struct Body {
 	Body(float r, float m, float sr) : radius(r), mass(m), soi_radius(sr) {}
@@ -57,7 +67,7 @@ struct Rocket {
 	Rocket() {}
 
 	void init(Orbit *orbit_, Scene::Transform *transform_);
-	void update(float dthrust, float dtheta, float elapsed, Body *root, std::list< Orbit > &orbits);
+	void update(float elapsed, Body *root, std::list< Orbit > &orbits);
 	void recalculate_orbits();
 
 
@@ -68,17 +78,13 @@ struct Rocket {
 	glm::vec3 vel;
 	glm::vec3 acc;
 
-	// rotational euler mechanics
-	glm::vec3 rot{0.f, 0.f, 0.f};
-	glm::vec3 rotvel{0.f, 0.f, 0.f};
-	glm::vec3 rotacc{0.f, 0.f, 0.f};
-
 	static float constexpr DryMass = 4.0f; // Megagram
+	static float constexpr MaxThrust = 0.5f; // MegaNewtons
+	static float constexpr MaxFuelConsumption = 0.0f; // Measured by mass, Megagram
 
-	bool stability_dampening = true; //controls SAS, dampens angular momentum
-	float theta_thrust = 0.0f; // acceleration for theta (yaw rotation)
-	float theta = 0.0f; //rotation along XY plane
-	float thrust = 0.0f; //forward thrust
+	float dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
+	float theta = 0.0f; //rotation along XY plane, radians
+	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
 };
