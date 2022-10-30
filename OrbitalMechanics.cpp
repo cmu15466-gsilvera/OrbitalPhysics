@@ -6,13 +6,17 @@
 #ifdef DEBUG
 #include <iostream>
 #include <glm/gtx/string_cast.hpp> // glm::to_string
-#define LOG(ARGS) std::cout << ARGS << std::endl;
+#define LOG(ARGS) std::cout << ARGS << std::endl
 #else
 #define LOG(ARGS)
 #endif
 
-// Windows doesn't have M_PI apparently
+//Windows doesn't have M_PI apparently
 #define M_PI 3.141529f
+
+//Time acceleration
+float dilation = 10000.0f;
+
 
 void Body::set_orbit(Orbit *orbit_) {
 	orbit = orbit_;
@@ -63,7 +67,7 @@ void Rocket::init(Orbit *orbit_, Scene::Transform *transform_) {
 	transform->position = pos;
 }
 
-void Rocket::update(float dthrust, float dtheta, float elapsed) {
+void Rocket::update(float dthrust, float dtheta, float elapsed, std::list< Orbit > &orbits) {
 
 	{ // rocket controls & physics
 	/// TODO: clean up the physics of this
@@ -101,10 +105,29 @@ void Rocket::update(float dthrust, float dtheta, float elapsed) {
 		orbit->update(elapsed);
 		pos = orbit->get_pos();
 		vel = orbit->get_vel();
-		orbit->predict();
 
-		pos = orbit->get_pos();
-		vel = orbit->get_vel();
+		Body *origin = orbit->origin;
+
+		glm::vec3 rpos = pos - origin->pos;
+		glm::vec3 rvel = vel - origin->vel;
+
+		if (!origin->in_soi(pos)) {
+			Body *new_origin = origin->orbit->origin;
+			assert(new_origin != nullptr);
+
+			orbits.emplace_back(Orbit(new_origin, pos, vel));
+			orbit = &orbits.back();
+		}
+
+		for (Body *satellite : origin->satellites) {
+			if (satellite->in_soi(pos)) {
+				orbits.emplace_back(Orbit(satellite, pos, vel));
+				orbit = &orbits.back();
+				break;
+			}
+		}
+
+		orbit->predict();
 
 		transform->position = pos;
 	}
@@ -121,10 +144,19 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel) : origin(origin_) {
 	//https://orbital-mechanics.space/classical-orbital-elements/orbital-elements-and-the-state-vector.html
 	//https://scienceworld.wolfram.com/physics/SemilatusRectum.html
 
+	LOG("Entering new orbit around: " << origin_->transform->name);
+	LOG("\tentry pos: " << glm::to_string(pos));
+	LOG("\tentry vel: " << glm::to_string(vel));
+
 	float mu = G * origin->mass;
-	glm::vec3 d = pos - origin_->pos; //relative position
-	glm::vec3 v = vel - origin_->vel; //relative velocity
+	glm::vec3 d = pos - origin->pos; //relative position
+	glm::vec3 v = vel - origin->vel; //relative velocity
+
 	glm::vec3 h = glm::cross(d, v); //specific orbital angular momentum
+
+	//TODO: handle retrograde orbits (180 degree inclination)
+	assert(h.z >= 0 && "Need to implement retrograde orbits");
+
 	glm::vec3 e = glm::cross(v, h) / mu - glm::normalize(d); //eccentricity vector, points to periapsis
 
 	//Assuming no inclination
@@ -143,8 +175,14 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel) : origin(origin_) {
 		a = std::numeric_limits< float >::infinity();
 	}
 
+	LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a);
+
+	theta = glm::atan(d.y, d.x) - phi;
 	compute_r();
 	compute_dtheta();
+
+	LOG("\tnew pos: " << glm::to_string(get_pos()));
+	LOG("\tnew vel: " << glm::to_string(get_vel()));
 }
 
 Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_)
@@ -156,13 +194,18 @@ Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_)
 		a = std::numeric_limits< float >::infinity();
 	}
 
+	LOG("Created orbit around: " << origin_->transform->name);
+	LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a);
+
 	compute_r();
 	compute_dtheta();
 }
 
 glm::vec3 Orbit::update(float elapsed) {
-	for (float t = 0.0f; t < elapsed; t += TimeStep) {
-		theta += dtheta * TimeStep;
+
+	const float time_step = dilation / 100.0f;
+	for (float t = 0.0f; t < elapsed * dilation; t += time_step) {
+		theta += dtheta * time_step;
 		compute_r();
 		compute_dtheta();
 	}
@@ -192,8 +235,8 @@ void Orbit::predict() {
 	float origin_y = origin->pos.y;
 	float soi_radius = origin->soi_radius;
 
-	float theta_init = std::floor(theta / glm::radians(PredictAngle)) * glm::radians(PredictAngle);
-	LOG(theta_init);
+	const float theta_init = std::floor(theta / glm::radians(PredictAngle)) * glm::radians(PredictAngle);
+	// LOG(theta_init);
 
 	points[0] = get_pos();
 	for (int i = 1; i < PredictDetail; i++) {

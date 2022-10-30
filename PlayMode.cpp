@@ -91,7 +91,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		Scene::Transform *star_trans = &scene.transforms.back();
 		star_trans->name = "Star";
 
-		bodies.emplace_back(Body(275.0, 1.2e14f, std::numeric_limits< float >::infinity()));
+		bodies.emplace_back(Body(275.0, 2.0e24f, std::numeric_limits< float >::infinity()));
 		star = &bodies.back();
 
 		star->set_transform(star_trans);
@@ -105,10 +105,10 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		Scene::Transform *planet_trans = &scene.transforms.back();
 		planet_trans->name = "Planet";
 
-		bodies.emplace_back(Body(10.0, 2.0e13f, 1000.0f));
+		bodies.emplace_back(Body(10.0, 6.0e18f, 1000.0f));
 		Body *planet = &bodies.back();
 
-		orbits.emplace_back(Orbit(star, 0.0f, 1000.0f, 0.0f, 0.0f));
+		orbits.emplace_back(Orbit(star, 0.0f, 10000.0f, 0.0f, 0.0f));
 		Orbit *planet_orbit = &orbits.back();
 
 		planet->set_orbit(planet_orbit);
@@ -125,8 +125,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			Scene::Transform *moon_trans = &scene.transforms.back();
 			moon_trans->name = "Moon";
 
-			//Yes, this mass is wayyyyy to high. But this makes orbit go brr for demo purposes
-			bodies.emplace_back(Body(1.0, 2.0e8f, 50.0));
+			bodies.emplace_back(Body(1.0, 7.0e16f, 50.0));
 			Body *moon = &bodies.back();
 
 			orbits.emplace_back(Orbit(planet, 0.1f, 200.0f, glm::radians(30.0f), glm::radians(-120.0f)));
@@ -144,6 +143,11 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			scene.transforms.emplace_back();
 			Scene::Transform *spaceship_trans = &scene.transforms.back();
 			spaceship_trans->name = "Spaceship";
+
+			// glm::vec3 rpos = glm::vec3(30.0f, 0.0f, 0.0f);
+			// glm::vec3 rvel = glm::vec3(0.0f, 0.003654f, 0.0f);
+
+			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
 
 			orbits.emplace_back(Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), 0.0f));
 			Orbit *spaceship_orbit = &orbits.back();
@@ -310,7 +314,7 @@ void PlayMode::update(float elapsed) {
 
 	{ //basic orbital simulation demo
 		star->update(elapsed);
-		spaceship.update(0.0f, 0.0f, elapsed);
+		spaceship.update(0.0f, 0.0f, elapsed, orbits);
 	}
 
 	//reset button press counters:
@@ -350,9 +354,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		DrawLines orbit_lines(world_to_clip);
 
 		static constexpr glm::u8vec4 purple = glm::u8vec4(0xff, 0x00, 0xff, 0xff);
+		static constexpr glm::u8vec4 blue = glm::u8vec4(0x00, 0x00, 0xff, 0xff);
 
 		star->draw_orbits(orbit_lines, purple);
-		spaceship.orbit->draw(orbit_lines, purple);
+		spaceship.orbit->draw(orbit_lines, blue);
 	}
 
 	{ //use DrawLines to overlay some text:

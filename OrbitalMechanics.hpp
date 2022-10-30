@@ -7,6 +7,7 @@
 
 #include <array>
 #include <limits>
+#include <list>
 #include <string>
 #include <vector>
 
@@ -44,7 +45,6 @@ struct Body {
 	float radius; //collision radius, Megameters (1000 kilometers)
 	float mass; //mass used for gravity calculation, Gigagrams (1 million kilograms)
 	float soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
-	//Note that the above unit choices are made so that G is still 6.6e-11 like in Nm^2/kg^2
 
 	//Variable values
 	glm::vec3 pos = glm::vec3(0.0f);
@@ -56,7 +56,7 @@ struct Rocket {
 	Rocket() {}
 
 	void init(Orbit *orbit_, Scene::Transform *transform_);
-	void update(float dthrust, float dtheta, float elapsed);
+	void update(float dthrust, float dtheta, float elapsed, std::list< Orbit > &orbits);
 	void recalculate_orbits();
 
 	Orbit *orbit;
@@ -92,7 +92,7 @@ struct Orbit {
 
 	float compute_dtheta() {
 		//vis-viva equation: https://en.wikipedia.org/wiki/Vis-viva_equation
-		dtheta = (G * origin->mass / r) * (2.0f / r - 1.0f / a);
+		dtheta = std::sqrt((G * origin->mass) * (2.0f / r - 1.0f / a)) / r;
 		return dtheta;
 	}
 	float compute_r() {
@@ -109,10 +109,10 @@ struct Orbit {
 	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants
-	static float constexpr G = 6.67430e-11f; //Standard gravitational constant
+	static float constexpr G = 6.67430e-23f; //Standard gravitational constant
 	static size_t constexpr PredictDetail = 720; //number of points to generate when predicting
 	static float constexpr PredictAngle = 360.0f / static_cast< float >(PredictDetail); // dtheta between points
-	static float constexpr TimeStep = 0.001f; //time step, seconds
+	static float constexpr TimeStep = 1.0f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI
 
 	//Fixed values
