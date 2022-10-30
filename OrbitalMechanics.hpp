@@ -35,6 +35,7 @@ struct Body {
 		return glm::distance(pos, target_pos) <= soi_radius;
 	}
 	void update(float elapsed);
+	void simulate(float time);
 	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color);
 
 	std::vector< Body * > satellites;
@@ -56,8 +57,9 @@ struct Rocket {
 	Rocket() {}
 
 	void init(Orbit *orbit_, Scene::Transform *transform_);
-	void update(float dthrust, float dtheta, float elapsed, std::list< Orbit > &orbits);
+	void update(float dthrust, float dtheta, float elapsed, Body *root, std::list< Orbit > &orbits);
 	void recalculate_orbits();
+
 
 	Orbit *orbit;
 	Scene::Transform *transform;
@@ -87,12 +89,12 @@ struct Rocket {
 //Orbital path: https://en.wikipedia.org/wiki/Kepler_orbit
 //Orbital velocity: https://en.wikipedia.org/wiki/Vis-viva_equation
 struct Orbit {
-	Orbit(Body *origin, glm::vec3 pos, glm::vec3 vel);
+	Orbit(Body *origin, glm::vec3 pos, glm::vec3 vel, bool simulated);
 	Orbit(Body *origin_, float c_, float p_, float phi_, float theta_);
 
 	float compute_dtheta() {
 		//vis-viva equation: https://en.wikipedia.org/wiki/Vis-viva_equation
-		dtheta = std::sqrt((G * origin->mass) * (2.0f / r - 1.0f / a)) / r;
+		dtheta = std::sqrt(mu * (2.0f / r - 1.0f / a)) / r;
 		return dtheta;
 	}
 	float compute_r() {
@@ -100,27 +102,31 @@ struct Orbit {
 		r = p / (1.0f + c * std::cos(theta));
 		return r;
 	}
-	glm::vec3 update(float elapsed);
+	void update(float elapsed);
 	glm::vec3 get_pos();
 	glm::vec3 get_vel();
 
-	//Simulate and draw the oribit (populate points)
+	//Simulate and draw the orbit (populate points)
 	void predict();
+	void init_sim();
+	void simulate(float time);
+	void sim_predict(Body *root, std::list< Orbit > &orbits, int level);
 	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants
 	static float constexpr G = 6.67430e-23f; //Standard gravitational constant
-	static size_t constexpr PredictDetail = 720; //number of points to generate when predicting
+	static size_t constexpr PredictDetail = 1440; //number of points to generate when predicting
 	static float constexpr PredictAngle = 360.0f / static_cast< float >(PredictDetail); // dtheta between points
 	static float constexpr TimeStep = 1.0f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI
-
+	static int constexpr MaxLevel = 1;
 	//Fixed values
 	Body *origin;
+	float mu; //standard gravitation parameter, mu = G * origin->mass;
 
 	//Future trajectory, populated by predict()
 	std::array< glm::vec3, PredictDetail > points; //Cache of orbit points for drawing
-	Orbit *continuation; //Continuation in next SOI
+	Orbit *continuation = nullptr; //Continuation in next SOI
 
 	//Values defining orbit
 	float c; //eccentricity
@@ -134,4 +140,15 @@ struct Orbit {
 	float r; //orbital distance, a.k.a distance from center of origin
 	float theta; //true anomaly, a.k.a angle from periapsis
 	float dtheta; //orbital angular velocity
+
+	//Dynamics under simulation
+	struct Simulation {
+		float r;
+		float theta;
+		float dtheta;
+		glm::vec3 pos;
+		glm::vec3 vel;
+	};
+
+	Simulation sim;
 };

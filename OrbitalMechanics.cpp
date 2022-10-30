@@ -45,6 +45,18 @@ void Body::update(float elapsed) {
 	}
 }
 
+void Body::simulate(float time) {
+	if (orbit != nullptr) {
+		orbit->simulate(time);
+	}
+
+	//Recursively simulate all satellites, their satellites, and so on
+	for (Body *body : satellites) {
+		assert(body != nullptr);
+		body->simulate(time);
+	}
+}
+
 void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color) {
 	if (orbit != nullptr) orbit->draw(lines, color);
 
@@ -67,7 +79,7 @@ void Rocket::init(Orbit *orbit_, Scene::Transform *transform_) {
 	transform->position = pos;
 }
 
-void Rocket::update(float dthrust, float dtheta, float elapsed, std::list< Orbit > &orbits) {
+void Rocket::update(float dthrust, float dtheta, float elapsed, Body *root, std::list< Orbit > &orbits) {
 
 	{ // rocket controls & physics
 	/// TODO: clean up the physics of this
@@ -115,19 +127,20 @@ void Rocket::update(float dthrust, float dtheta, float elapsed, std::list< Orbit
 			Body *new_origin = origin->orbit->origin;
 			assert(new_origin != nullptr);
 
-			orbits.emplace_back(Orbit(new_origin, pos, vel));
+			orbits.emplace_back(Orbit(new_origin, pos, vel, false));
 			orbit = &orbits.back();
 		}
 
 		for (Body *satellite : origin->satellites) {
 			if (satellite->in_soi(pos)) {
-				orbits.emplace_back(Orbit(satellite, pos, vel));
+				orbits.emplace_back(Orbit(satellite, pos, vel, false));
 				orbit = &orbits.back();
 				break;
 			}
 		}
 
-		orbit->predict();
+		orbit->sim_predict(root, orbits, 0);
+		// orbit->predict();
 
 		transform->position = pos;
 	}
@@ -138,19 +151,25 @@ void Rocket::recalculate_orbits() {
 	//TODO
 }
 
-
-Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel) : origin(origin_) {
+Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel, bool simulated) : origin(origin_) {
 	//Math references:
 	//https://orbital-mechanics.space/classical-orbital-elements/orbital-elements-and-the-state-vector.html
 	//https://scienceworld.wolfram.com/physics/SemilatusRectum.html
 
-	LOG("Entering new orbit around: " << origin_->transform->name);
-	LOG("\tentry pos: " << glm::to_string(pos));
-	LOG("\tentry vel: " << glm::to_string(vel));
+	// LOG("Entering new orbit around: " << origin_->transform->name);
+	// LOG("\tentry pos: " << glm::to_string(pos));
+	// LOG("\tentry vel: " << glm::to_string(vel));
 
-	float mu = G * origin->mass;
-	glm::vec3 d = pos - origin->pos; //relative position
-	glm::vec3 v = vel - origin->vel; //relative velocity
+	mu = G * origin->mass;
+	glm::vec3 d, v;
+	if (!simulated || origin->orbit == nullptr) {
+		d = pos - origin->pos; //relative position
+		v = vel - origin->vel; //relative velocity
+	} else {
+		Orbit *orbit = origin->orbit;
+		d = pos - orbit->sim.pos; //relative position
+		v = vel - orbit->sim.vel; //relative velocity
+	}
 
 	glm::vec3 h = glm::cross(d, v); //specific orbital angular momentum
 
@@ -175,14 +194,16 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel) : origin(origin_) {
 		a = std::numeric_limits< float >::infinity();
 	}
 
-	LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a);
+	// LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a);
 
 	theta = glm::atan(d.y, d.x) - phi;
 	compute_r();
 	compute_dtheta();
 
-	LOG("\tnew pos: " << glm::to_string(get_pos()));
-	LOG("\tnew vel: " << glm::to_string(get_vel()));
+	// LOG("\tnew pos: " << glm::to_string(get_pos()));
+	// LOG("\tnew vel: " << glm::to_string(get_vel()));
+
+	init_sim();
 }
 
 Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_)
@@ -194,15 +215,18 @@ Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_)
 		a = std::numeric_limits< float >::infinity();
 	}
 
+	mu = G * origin->mass;
+
 	LOG("Created orbit around: " << origin_->transform->name);
 	LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a);
 
 	compute_r();
 	compute_dtheta();
+
+	init_sim();
 }
 
-glm::vec3 Orbit::update(float elapsed) {
-
+void Orbit::update(float elapsed) {
 	const float time_step = dilation / 100.0f;
 	for (float t = 0.0f; t < elapsed * dilation; t += time_step) {
 		theta += dtheta * time_step;
@@ -210,7 +234,7 @@ glm::vec3 Orbit::update(float elapsed) {
 		compute_dtheta();
 	}
 
-	return get_pos();
+	init_sim();
 }
 
 glm::vec3 Orbit::get_pos() {
@@ -257,6 +281,91 @@ void Orbit::predict() {
 	}
 }
 
+void Orbit::init_sim() {
+	sim.r = r;
+	sim.theta = theta;
+	sim.dtheta = dtheta;
+	sim.pos = get_pos();
+	sim.vel = get_vel();
+}
+
+void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
+	float origin_x = origin->pos.x;
+	float origin_y = origin->pos.y;
+
+	points[0] = sim.pos;
+	float aligned = std::ceil(sim.theta / glm::radians(PredictAngle)) * glm::radians(PredictAngle);
+	float step = (aligned - sim.theta) / sim.dtheta;
+	for (int i = 1; i < PredictDetail; i++) {
+		root->simulate(step);
+		simulate(step);
+		step = glm::radians(PredictAngle) / sim.dtheta * (1 + level);
+
+		if (sim.r > origin->soi_radius) {
+			points[i] = Invalid;
+
+			if (level >= MaxLevel) return;
+
+			// SOI transfer to origin of origin
+			if (continuation == nullptr) {
+				assert(origin->orbit != nullptr);
+				orbits.emplace_back(Orbit(origin->orbit->origin, sim.pos, sim.vel, true));
+				continuation = &orbits.back();
+			} else {
+				*continuation = Orbit(origin->orbit->origin, sim.pos, sim.vel, true);
+			}
+			continuation->sim_predict(root, orbits, level+1);
+			return;
+		}
+
+		for (Body *satellite : origin->satellites) {
+			assert(satellite != nullptr && satellite->orbit != nullptr);
+			if (glm::distance(sim.pos, satellite->orbit->sim.pos) < satellite->soi_radius) {
+				points[i] = Invalid;
+
+				if (level >= MaxLevel) return;
+
+				// SOI transfer to satellite of origin
+				if (continuation == nullptr) {
+					orbits.emplace_back(Orbit(satellite, sim.pos, sim.vel, true));
+					continuation = &orbits.back();
+				} else {
+				*continuation = Orbit(satellite, sim.pos, sim.vel, true);
+			}
+				continuation->sim_predict(root, orbits, level+1);
+				return;
+			}
+		}
+
+		points[i].x = sim.r * std::cos(sim.theta + phi) + origin_x;
+		points[i].y = sim.r * std::sin(sim.theta + phi) + origin_y;
+		points[i].z = 0.0f;
+	}
+}
+
+void Orbit::simulate(float time) {
+	static float constexpr pi_over_2 = glm::radians(90.0f);
+	static float constexpr steps = 100.0f;
+	const float time_step = time / steps ;
+	for (float t = 0.0f; t < time; t += time_step) {
+		sim.theta += sim.dtheta * time_step;
+		sim.r = p / (1.0f + c * std::cos(sim.theta));
+		sim.dtheta = std::sqrt(mu * (2.0f / sim.r - 1.0f / a)) / sim.r;
+	}
+
+	sim.pos.x = sim.r * std::cos(sim.theta + phi);
+	sim.pos.y = sim.r * std::sin(sim.theta + phi);
+	sim.pos.z = 0.0f;
+
+	if (origin->orbit != nullptr) sim.pos += origin->orbit->sim.pos;
+
+	sim.vel.x = sim.dtheta * sim.r * std::cos(sim.theta + phi + pi_over_2);
+	sim.vel.y = sim.dtheta * sim.r * std::sin(sim.theta + phi + pi_over_2);
+	sim.vel.z = 0.0f;
+
+	if (origin->orbit != nullptr) sim.vel += origin->orbit->sim.vel;
+}
+
 void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 	size_t n = points.size();
 
@@ -267,4 +376,6 @@ void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 		if (next == Orbit::Invalid) break;
 		lines.draw(points[i], next, color);
 	}
+
+	if (continuation != nullptr) continuation->draw(lines, color);
 }

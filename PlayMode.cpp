@@ -91,7 +91,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		Scene::Transform *star_trans = &scene.transforms.back();
 		star_trans->name = "Star";
 
-		bodies.emplace_back(Body(275.0, 2.0e24f, std::numeric_limits< float >::infinity()));
+		bodies.emplace_back(Body(275.0, 8.0e23f, std::numeric_limits< float >::infinity()));
 		star = &bodies.back();
 
 		star->set_transform(star_trans);
@@ -108,7 +108,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		bodies.emplace_back(Body(10.0, 6.0e18f, 1000.0f));
 		Body *planet = &bodies.back();
 
-		orbits.emplace_back(Orbit(star, 0.0f, 10000.0f, 0.0f, 0.0f));
+		orbits.emplace_back(Orbit(star, 0.0f, 100000.0f, 0.0f, 0.0f));
 		Orbit *planet_orbit = &orbits.back();
 
 		planet->set_orbit(planet_orbit);
@@ -314,7 +314,7 @@ void PlayMode::update(float elapsed) {
 
 	{ //basic orbital simulation demo
 		star->update(elapsed);
-		spaceship.update(0.0f, 0.0f, elapsed, orbits);
+		spaceship.update(0.0f, 0.0f, elapsed, star, orbits);
 	}
 
 	//reset button press counters:
