@@ -1,4 +1,4 @@
 -I
-../nest-libs/linux/glm/include/
+../nest-libs/windows/glm/include/
 -I
-../nest-libs/linux/SDL2/include/SDL2/
+../nest-libs/windows/SDL2/include/
