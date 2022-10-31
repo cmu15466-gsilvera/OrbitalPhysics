@@ -49,7 +49,7 @@ static Orbit spaceship_orbit(&planet, 0.0f, 30.0f, 0.0f, 0.0f);
 
 //TODO: rename all of the hexapod* stuff to our new scene
 GLuint hexapod_meshes_for_lit_color_texture_program = 0;
-Load< MeshBuffer > hexapod_meshes(LoadTagDefault, []() -> MeshBuffer const * {
+Load< MeshBuffer > main_meshes(LoadTagDefault, []() -> MeshBuffer const * {
 	MeshBuffer const *ret = new MeshBuffer(data_path("orbit.pnct"));
 	hexapod_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
@@ -69,7 +69,7 @@ Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample c
 //Helper to set up a drawable given a transform. Note that mesh_name comes from transform->name.
 static void make_drawable(Scene &scene, Scene::Transform *transform) {
 	assert(transform != nullptr);
-	Mesh const &mesh = hexapod_meshes->lookup(transform->name);
+	Mesh const &mesh = main_meshes->lookup(transform->name);
 
 	scene.drawables.emplace_back(transform);
 	Scene::Drawable &drawable = scene.drawables.back();
