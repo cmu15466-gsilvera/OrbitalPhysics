@@ -12,7 +12,9 @@
 #endif
 
 //Windows doesn't have M_PI apparently
+#ifndef M_PI // but other OS's do
 #define M_PI 3.141529f
+#endif
 
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
@@ -113,7 +115,6 @@ void Rocket::update(float elapsed, Body *root, std::list< Orbit > &orbits) {
 	{ //rocket controls & physics
 		//Going to assume stability assist via reaction wheels is always on and the controller is perfect to simplify
 		// things. We can make the game harder later on by changing this to RCS based if need.
-		// TODO: make this smoother
 		dtheta = control_dtheta;
 		theta += elapsed * dtheta; // yaw (rotation alonx XY plane)
 		if (theta > M_PI)

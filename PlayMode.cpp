@@ -395,7 +395,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
 		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
 		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
-		static float constexpr display_multiplier = 1000.0f;
+		// static float constexpr display_multiplier = 1000.0f;
 
 		glm::vec3 heading = glm::vec3(
 			std::cos(spaceship.theta),
