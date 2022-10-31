@@ -11,6 +11,7 @@
 #define LOG(ARGS)
 #endif
 
+# define M_PI		3.14159265358979323846f	/* pi */
 
 void Body::set_orbit(Orbit *orbit_) {
 	orbit = orbit_;
