@@ -12,7 +12,9 @@
 #endif
 
 //Windows doesn't have M_PI apparently
+#ifndef M_PI // but other OS's do
 #define M_PI 3.141529f
+#endif
 
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
