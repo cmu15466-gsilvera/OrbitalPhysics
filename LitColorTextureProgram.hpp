@@ -23,8 +23,8 @@ struct LitColorTextureProgram {
 	GLuint NORMAL_TO_LIGHT_mat3 = -1U;
 
 	//lighting:
-	GLuint LIGHT_TYPE_int = -1U;
 	GLuint LIGHT_LOCATION_vec3 = -1U;
+	GLuint AMBIENT_COLOR_vec3 = -1U;
 	GLuint LIGHT_DIRECTION_vec3 = -1U;
 	GLuint LIGHT_ENERGY_vec3 = -1U;
 	GLuint LIGHT_CUTOFF_float = -1U;
