@@ -69,7 +69,7 @@ struct Body {
 struct Rocket {
 	Rocket() {}
 
-	void init(Orbit *orbit_, Scene::Transform *transform_);
+	void init(Orbit *orbit_, Scene::Transform *transform_, Body *root, std::list< Orbit > &orbits);
 	void update(float elapsed, Body *root, std::list< Orbit > &orbits);
 
 
@@ -152,7 +152,7 @@ struct Orbit {
 	static float constexpr PredictAngle = glm::radians(360.0f / static_cast< float >(PredictDetail)); //change btwn pts
 	static float constexpr TimeStep = 1.0f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI
-	static int constexpr MaxLevel = 1;
+	static int constexpr MaxLevel = 2;
 	//Fixed values
 	Body *origin;
 
@@ -189,8 +189,8 @@ struct Orbit {
 		glm::vec3 pos;
 		glm::vec3 vel;
 
-		glm::vec3 rpos; //only used for degenerate case
-		glm::vec3 rvel; //only used for degenerate case
+		glm::vec3 rpos;
+		glm::vec3 rvel;
 	};
 
 	Simulation sim;
