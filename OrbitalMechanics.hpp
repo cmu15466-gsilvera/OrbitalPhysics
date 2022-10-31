@@ -26,6 +26,9 @@ enum DilationLevel {
 
 extern DilationLevel dilation;
 
+DilationLevel operator++(DilationLevel &level, int);
+DilationLevel operator--(DilationLevel &level, int);
+
 //Stars, Planets, Moons, Asteroids, etc.
 struct Body {
 	Body(float r, float m, float sr) : radius(r), mass(m), soi_radius(sr) {}

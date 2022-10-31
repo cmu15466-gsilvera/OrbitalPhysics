@@ -17,6 +17,35 @@
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
 
+DilationLevel operator++(DilationLevel &level, int) {
+	switch (level) {
+	case LEVEL_0:
+		return level = LEVEL_1;
+	case LEVEL_1:
+		return level = LEVEL_2;
+	case LEVEL_2:
+		return level = LEVEL_3;
+	case LEVEL_3:
+	case LEVEL_4:
+	default:
+		return level = LEVEL_4;
+	}
+}
+
+DilationLevel operator--(DilationLevel &level, int) {
+	switch (level) {
+	case LEVEL_4:
+		return level = LEVEL_3;
+	case LEVEL_3:
+		return level = LEVEL_2;
+	case LEVEL_2:
+		return level = LEVEL_1;
+	case LEVEL_1:
+	case LEVEL_0:
+	default:
+		return level = LEVEL_0;
+	}
+}
 
 void Body::set_orbit(Orbit *orbit_) {
 	orbit = orbit_;

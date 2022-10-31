@@ -205,6 +205,14 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			control.downs += 1;
 			control.pressed = true;
 			return true;
+		} else if (evt.key.keysym.sym == SDLK_PLUS || evt.key.keysym.sym == SDLK_KP_PLUS) {
+			plus.downs += 1;
+			plus.pressed = true;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_MINUS || evt.key.keysym.sym == SDLK_KP_MINUS) {
+			minus.downs += 1;
+			minus.pressed = true;
+			return true;
 		}
 	} else if (evt.type == SDL_KEYUP) {
 		if (evt.key.keysym.sym == SDLK_a) {
@@ -227,6 +235,12 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_LCTRL) {
 			control.pressed = false;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_PLUS || evt.key.keysym.sym == SDLK_KP_PLUS) {
+			plus.pressed = false;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_MINUS || evt.key.keysym.sym == SDLK_KP_MINUS) {
+			minus.pressed = false;
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
@@ -288,6 +302,12 @@ void PlayMode::update(float elapsed) {
 		update_camera_view();
 	}
 
+	if (plus.downs > 0 && minus.downs == 0) {
+		dilation++;
+	} else if (minus.downs > 0 && plus.downs == 0) {
+		dilation--;
+	}
+
 	if (dilation == LEVEL_0){ // update rocket controls
 		if (left.downs > 0 && right.downs == 0) {
 			spaceship.dtheta = 2.0f;
@@ -327,6 +347,8 @@ void PlayMode::update(float elapsed) {
 	tab.downs = 0;
 	shift.downs = 0;
 	control.downs = 0;
+	plus.downs = 0;
+	minus.downs = 0;
 	mouse_motion_rel = glm::vec2(0, 0);
 }
 
@@ -411,8 +433,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		constexpr float H = 0.09f;
 
 		std::stringstream stream;
-		stream << std::fixed << std::setprecision(2);
-		stream << "thrust percent: " << spaceship.thrust_percent << " fuel: " << spaceship.fuel;
+		stream << std::fixed << std::setprecision(2)
+			<< "thrust percent: " << spaceship.thrust_percent
+			<< " fuel: " << spaceship.fuel
+			<< " dilation: " << static_cast< float >(dilation);
 
 		std::string text = stream.str();
 		lines.draw_text(text,
