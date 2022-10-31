@@ -396,27 +396,15 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
 		static float constexpr display_multiplier = 1000.0f;
 
-		glm::vec3 rpos = orbit.rot * glm::vec3(
-			orbit.r * std::cos(orbit.theta),
-			orbit.r * std::sin(orbit.theta),
-			0.0f // r * std::sin(incl) + origin->pos.z
-		);
-
-		glm::vec3 rvel = orbit.rot * glm::vec3(
-			-orbit.mu_over_h * std::sin(orbit.theta),
-			orbit.mu_over_h * (orbit.c + std::cos(orbit.theta)),
-			0.0f
-		);
-
 		glm::vec3 heading = glm::vec3(
 			std::cos(spaceship.theta),
 			std::sin(spaceship.theta),
 			0.0f
 		) * 10.0f;
 
-		vector_lines.draw(spaceship.pos, spaceship.pos + rpos, white);
+		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rpos, white);
 		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
-		vector_lines.draw(spaceship.pos, spaceship.pos + rvel * 1000.0f, green);
+		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rvel * 1000.0f, green);
 		vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
 	}
 

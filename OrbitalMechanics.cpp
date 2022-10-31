@@ -157,10 +157,8 @@ void Rocket::update(float elapsed, Body *root, std::list< Orbit > &orbits) {
 
 		Body *origin = orbit->origin;
 
-		glm::vec3 rpos = pos - origin->pos;
-		glm::vec3 rvel = vel - origin->vel;
-
 		if (!origin->in_soi(pos)) {
+			//TODO: cleanup old orbit and continuations
 			Body *new_origin = origin->orbit->origin;
 			assert(new_origin != nullptr);
 
@@ -170,6 +168,7 @@ void Rocket::update(float elapsed, Body *root, std::list< Orbit > &orbits) {
 
 		for (Body *satellite : origin->satellites) {
 			if (satellite->in_soi(pos)) {
+				//TODO: cleanup old orbit and continuations
 				orbits.emplace_back(Orbit(satellite, pos, vel, false));
 				orbit = &orbits.back();
 				break;
@@ -252,9 +251,8 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel, bool simulated) : orig
 	);
 
 	theta = sign * (glm::atan(d.y, d.x) - phi);
-	if (p > 1.0e-4f) {
-		compute_r();
-		compute_dtheta();
+	if (p > MinPForDegen) {
+		init_dynamics();
 	} else {
 		//degenerate orbit (freefall), do not use Kepler's equations
 		r = glm::l2Norm(d);
@@ -297,21 +295,31 @@ Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool r
 	LOG("Created orbit around: " << origin_->transform->name);
 	LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a << " incl: " << incl);
 
-	compute_r();
-	compute_dtheta();
-
+	init_dynamics();
 	init_sim();
 }
 
+glm::vec3 Orbit::get_rpos(float theta_, float r_) {
+	return rot * glm::vec3(
+		r_ * std::cos(theta_),
+		r_ * std::sin(theta_),
+		0.0f
+	);
+}
+
+glm::vec3 Orbit::get_rvel(float theta_) {
+	return rot * glm::vec3(
+		-mu_over_h * std::sin(theta_),
+		mu_over_h * (c + std::cos(theta_)),
+		0.0f
+	);
+}
+
 void Orbit::update(float elapsed) {
-	const float time_step = static_cast<float>(dilation) / 100.0f;
-	glm::vec3 drvel;
-	for (float t = 0.0f; t < elapsed * dilation; t += time_step) {
-		if (p != 0.0f) {
-			theta += dtheta * time_step;
-			compute_r();
-			compute_dtheta();
-		} else {
+	const float time_step = elapsed * static_cast< float >(dilation) / static_cast< float >(UpdateSteps);
+	if (p == 0.0f) { //degenerate case
+		glm::vec3 drvel;
+		for (size_t i = 0; i < UpdateSteps; i++) {
 			float f = -mu / (r * r);
 			drvel = time_step * f * (rot * glm::vec3(
 				std::cos(theta),
@@ -323,57 +331,39 @@ void Orbit::update(float elapsed) {
 			r = glm::l2Norm(rpos);
 			theta = glm::atan(rpos.y, rpos.x);
 		}
+	} else { //standard case
+		for (size_t i = 0; i < UpdateSteps; i++) {
+			theta += dtheta * time_step;
+			compute_r();
+			compute_dtheta();
+		}
+
+		rpos = get_rpos(theta, r);
+		rvel = get_rvel(theta);
 	}
 
 	init_sim();
-}
-
-glm::vec3 Orbit::get_pos() {
-	if (p != 0.0f) {
-		return rot * glm::vec3(
-			r * std::cos(theta),
-			r * std::sin(theta),
-			0.0f
-		) + origin->pos;
-	} else {
-		return rpos + origin->pos;
-	}
-}
-
-glm::vec3 Orbit::get_vel() {
-	if (p != 0.0f) {
-		return rot * glm::vec3(
-			-mu_over_h * std::sin(theta),
-			mu_over_h * (c + std::cos(theta)),
-			0.0f
-		) + origin->vel;
-	} else {
-		return rvel + origin->vel;
-	}
 }
 
 void Orbit::predict() {
 	glm::vec3 &origin_pos = origin->pos;
 	float soi_radius = origin->soi_radius;
 
-	const float theta_init = std::floor(theta / glm::radians(PredictAngle)) * glm::radians(PredictAngle);
+
+	const float theta_init = std::floor(theta / PredictAngle) * PredictAngle;
 	// LOG(theta_init);
 
 	points[0] = get_pos();
-	for (int i = 1; i < PredictDetail; i++) {
-		float theta_ = theta_init + glm::radians(static_cast< float >(i) * PredictAngle);
-		float r_ = p / (1 + c * std::cos(theta_));
+	for (size_t i = 1; i < PredictDetail; i++) {
+		float theta_ = theta_init + (static_cast< float >(i) * PredictAngle);
+		float r_ = compute_r(theta_);
 
 		if (r_ < 0 || r_ > soi_radius) {
 			points[i] = Invalid;
 			break;
 		}
 
-		points[i] = rot * glm::vec3(
-			r_ * std::cos(theta_),
-			r_ * std::sin(theta_),
-			0.0f
-		) + origin_pos;
+		points[i] = get_rpos(theta_, r_) + origin_pos;
 	}
 }
 
@@ -384,20 +374,22 @@ void Orbit::init_sim() {
 	sim.pos = get_pos();
 	sim.vel = get_vel();
 
-	sim.rpos = rpos; //only used for degenerate case
-	sim.rvel = rvel; //only used for degenerate case
+	sim.rpos = rpos;
+	sim.rvel = rvel;
 }
 
 void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
 	glm::vec3 &origin_pos = origin->pos;
 
 	points[0] = sim.pos;
-	float aligned = std::ceil(sim.theta / glm::radians(PredictAngle)) * glm::radians(PredictAngle);
+	float aligned = std::ceil(sim.theta / PredictAngle) * PredictAngle;
+	//TODO: handle degenerate case separately
+
 	float step = p != 0.0f ? (aligned - sim.theta) / sim.dtheta : 10.0f;
-	for (int i = 1; i < PredictDetail; i++) {
+	for (size_t i = 1; i < PredictDetail; i++) {
 		root->simulate(step);
 		simulate(step);
-		step = p != 0.0f ? glm::radians(PredictAngle) / sim.dtheta : 10.0f;
+		step = p != 0.0f ? PredictAngle / sim.dtheta : 10.0f;
 
 		if (sim.r > origin->soi_radius) {
 			points[i] = Invalid;
@@ -439,11 +431,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
 			}
 		}
 
-		points[i] = rot * glm::vec3(
-			sim.r * std::cos(sim.theta),
-			sim.r * std::sin(sim.theta),
-			0.0f
-		) + origin_pos;
+		points[i] = sim.rpos + origin_pos;
 	}
 
 	if (continuation != nullptr) {
@@ -453,15 +441,10 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
 }
 
 void Orbit::simulate(float time) {
-	static float constexpr steps = 100.0f;
-	const float time_step = time / steps ;
-	glm::vec3 drvel;
-	for (float t = 0.0f; t < time; t += time_step) {
-		if (p != 0.0f) {
-			sim.theta += sim.dtheta * time_step;
-			sim.r = p / (1.0f + c * std::cos(sim.theta));
-			sim.dtheta = std::sqrt(mu * (2.0f / sim.r - inv_a)) / sim.r;
-		} else {
+	const float time_step = time / static_cast< float >(UpdateSteps);
+	if (p == 0.0f) { //degenerate case
+		glm::vec3 drvel;
+		for (size_t i = 0; i < UpdateSteps; i++) {
 			float f = -mu / (sim.r * sim.r);
 			drvel = time_step * f * (rot * glm::vec3(
 				std::cos(sim.theta),
@@ -473,28 +456,18 @@ void Orbit::simulate(float time) {
 			sim.r = glm::l2Norm(sim.rpos);
 			sim.theta = glm::atan(sim.rpos.y, sim.rpos.x);
 		}
+	} else { //standard case
+		for (size_t i = 0; i < UpdateSteps; i++) {
+			sim.theta += sim.dtheta * time_step;
+			sim.r = compute_r(sim.theta);
+			sim.dtheta = compute_dtheta(sim.r);
+		}
+		sim.rpos = get_rpos(sim.theta, sim.r);
+		sim.rvel = get_rvel(sim.theta);
 	}
 
-	if (p != 0.0f) {
-		sim.pos = rot * glm::vec3(
-			sim.r * std::cos(sim.theta),
-			sim.r * std::sin(sim.theta),
-			0.0f
-		);
-
-		if (origin->orbit != nullptr) sim.pos += origin->orbit->sim.pos;
-
-		sim.vel = rot * glm::vec3(
-			-mu_over_h * std::sin(sim.theta),
-			mu_over_h * (c + std::cos(sim.theta)),
-			0.0f
-		);
-
-		if (origin->orbit != nullptr) sim.vel += origin->orbit->sim.vel;
-	} else {
-		sim.pos = origin->orbit != nullptr ? sim.rpos + origin->orbit->sim.pos : sim.rpos;
-		sim.vel = origin->orbit != nullptr ? sim.rvel + origin->orbit->sim.vel : sim.rvel;
-	}
+	sim.pos = origin->orbit != nullptr ? sim.rpos + origin->orbit->sim.pos : sim.rpos;
+	sim.vel = origin->orbit != nullptr ? sim.rvel + origin->orbit->sim.vel : sim.rvel;
 }
 
 void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {

@@ -100,20 +100,41 @@ struct Orbit {
 	Orbit(Body *origin, glm::vec3 pos, glm::vec3 vel, bool simulated);
 	Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool retrograde);
 
-	float compute_dtheta() {
+	void init_dynamics() {
+		assert(p > MinPForDegen);
+		compute_r();
+		compute_dtheta();
+		rpos = get_rpos(theta, r);
+		rvel = get_rvel(theta);
+	}
+
+	// Computing dynamics
+	float compute_dtheta(float r_) {
 		//vis-viva equation: https://en.wikipedia.org/wiki/Vis-viva_equation
-		dtheta = std::sqrt(mu * (2.0f / r - inv_a)) / r;
-		return dtheta;
+		return std::sqrt(mu * (2.0f / r_ - inv_a)) / r_;
+	}
+	float compute_dtheta() {
+		return dtheta = compute_dtheta(r);
+	}
+	float compute_r(float theta_) {
+		//Kepler orbit equation: https://en.wikipedia.org/wiki/Kepler_orbit
+		float denom = (1.0f + c * std::cos(theta_));
+		return denom != 0.0f ? p / denom : p;
 	}
 	float compute_r() {
-		//Kepler orbit equation: https://en.wikipedia.org/wiki/Kepler_orbit
-		float denom = (1.0f + c * std::cos(theta));
-		r = denom != 0.0f ? p / denom : p;
-		return r;
+		return r = compute_r(theta);
 	}
 	void update(float elapsed);
-	glm::vec3 get_pos();
-	glm::vec3 get_vel();
+	glm::vec3 get_rpos(float theta_, float r_);
+	glm::vec3 get_rvel(float theta_);
+
+	//Convenience functions
+	glm::vec3 get_pos() {
+		return rpos + origin->pos;
+	}
+	glm::vec3 get_vel() {
+		return rvel + origin->vel;
+	}
 
 	//Simulate and draw the orbit (populate points)
 	void predict();
@@ -124,8 +145,10 @@ struct Orbit {
 
 	//Constants
 	static float constexpr G = 6.67430e-23f; //Standard gravitational constant
+	static float constexpr MinPForDegen = 1.0e-4f;
+	static size_t constexpr UpdateSteps = 100;
 	static size_t constexpr PredictDetail = 1440; //number of points to generate when predicting
-	static float constexpr PredictAngle = 360.0f / static_cast< float >(PredictDetail); // dtheta between points
+	static float constexpr PredictAngle = glm::radians(360.0f / static_cast< float >(PredictDetail)); //change btwn pts
 	static float constexpr TimeStep = 1.0f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI
 	static int constexpr MaxLevel = 1;
@@ -154,8 +177,8 @@ struct Orbit {
 	float theta; //true anomaly, a.k.a angle from periapsis, in radians
 	float dtheta; //orbital angular velocity, in radians
 
-	glm::vec3 rpos; //only used for degenerate case
-	glm::vec3 rvel; //only used for degenerate case
+	glm::vec3 rpos; //relative position (from origin)
+	glm::vec3 rvel; //relative velocity (from origin)
 
 	//Dynamics under simulation
 	struct Simulation {
