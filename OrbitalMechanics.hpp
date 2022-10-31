@@ -68,7 +68,6 @@ struct Rocket {
 
 	void init(Orbit *orbit_, Scene::Transform *transform_);
 	void update(float elapsed, Body *root, std::list< Orbit > &orbits);
-	void recalculate_orbits();
 
 
 	Orbit *orbit;
@@ -96,16 +95,17 @@ struct Rocket {
 //Orbital velocity: https://en.wikipedia.org/wiki/Vis-viva_equation
 struct Orbit {
 	Orbit(Body *origin, glm::vec3 pos, glm::vec3 vel, bool simulated);
-	Orbit(Body *origin_, float c_, float p_, float phi_, float theta_);
+	Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool retrograde);
 
 	float compute_dtheta() {
 		//vis-viva equation: https://en.wikipedia.org/wiki/Vis-viva_equation
-		dtheta = std::sqrt(mu * (2.0f / r - 1.0f / a)) / r;
+		dtheta = std::sqrt(mu * (2.0f / r - inv_a)) / r;
 		return dtheta;
 	}
 	float compute_r() {
 		//Kepler orbit equation: https://en.wikipedia.org/wiki/Kepler_orbit
-		r = p / (1.0f + c * std::cos(theta));
+		float denom = (1.0f + c * std::cos(theta));
+		r = denom != 0.0f ? p / denom : p;
 		return r;
 	}
 	void update(float elapsed);
@@ -128,24 +128,31 @@ struct Orbit {
 	static int constexpr MaxLevel = 1;
 	//Fixed values
 	Body *origin;
-	float mu; //standard gravitation parameter, mu = G * origin->mass;
 
 	//Future trajectory, populated by predict()
 	std::array< glm::vec3, PredictDetail > points; //Cache of orbit points for drawing
 	Orbit *continuation = nullptr; //Continuation in next SOI
 
 	//Values defining orbit
-	float c; //eccentricity
-	float p; //semi-latus rectum
-	float phi; //radial component of periapsis
+	float c; //eccentricity (unitless)
+	float p; //semi-latus rectum, in Megameters
+	float a; //semi-major axis, in Megameters
+	float phi; //radial component of periapsis, in radians
+	float incl; //inclination, in radians
 
-	//Useful parameters
-	float a; //semi-major axis
+	//Cached for performance
+	float mu; //standard gravitation parameter, mu = G * origin->mass;
+	float mu_over_h; //=mu/h, h is magnitude of specific orbital angular momentum
+	float inv_a; //=1/a
+	glm::mat3 rot; //rotation matrix from orbital plane to world
 
 	//Dynamics
-	float r; //orbital distance, a.k.a distance from center of origin
-	float theta; //true anomaly, a.k.a angle from periapsis
-	float dtheta; //orbital angular velocity
+	float r; //orbital distance, a.k.a distance from center of origin, in Megameters
+	float theta; //true anomaly, a.k.a angle from periapsis, in radians
+	float dtheta; //orbital angular velocity, in radians
+
+	glm::vec3 rpos; //only used for degenerate case
+	glm::vec3 rvel; //only used for degenerate case
 
 	//Dynamics under simulation
 	struct Simulation {
@@ -154,6 +161,9 @@ struct Orbit {
 		float dtheta;
 		glm::vec3 pos;
 		glm::vec3 vel;
+
+		glm::vec3 rpos; //only used for degenerate case
+		glm::vec3 rvel; //only used for degenerate case
 	};
 
 	Simulation sim;

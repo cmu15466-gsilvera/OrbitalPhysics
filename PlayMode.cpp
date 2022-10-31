@@ -109,7 +109,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		bodies.emplace_back(Body(10.0, 6.0e18f, 1000.0f));
 		Body *planet = &bodies.back();
 
-		orbits.emplace_back(Orbit(star, 0.0f, 100000.0f, 0.0f, 0.0f));
+		orbits.emplace_back(Orbit(star, 0.0f, 100000.0f, 0.0f, 0.0f, false));
 		Orbit *planet_orbit = &orbits.back();
 
 		planet->set_orbit(planet_orbit);
@@ -129,7 +129,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			bodies.emplace_back(Body(1.0, 7.0e16f, 50.0));
 			Body *moon = &bodies.back();
 
-			orbits.emplace_back(Orbit(planet, 0.1f, 200.0f, glm::radians(30.0f), glm::radians(-120.0f)));
+			orbits.emplace_back(Orbit(planet, 0.1f, 200.0f, glm::radians(30.0f), glm::radians(-120.0f), false));
 			Orbit *moon_orbit = &orbits.back();
 
 			moon->set_orbit(moon_orbit);
@@ -150,7 +150,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
 
-			orbits.emplace_back(Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), 0.0f));
+			orbits.emplace_back(Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false));
 			Orbit *spaceship_orbit = &orbits.back();
 
 			spaceship.init(spaceship_orbit, spaceship_trans);
@@ -366,21 +366,25 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines vector_lines(world_to_clip);
 
+		Orbit const &orbit = *spaceship.orbit;
+
 		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff); //rpos
 		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
 		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
 		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
 		static float constexpr display_multiplier = 1000.0f;
 
-		float x = spaceship.orbit->r * std::cos(spaceship.orbit->theta + spaceship.orbit->phi);
-		float y = spaceship.orbit->r * std::sin(spaceship.orbit->theta + spaceship.orbit->phi);
+		glm::vec3 rpos = orbit.rot * glm::vec3(
+			orbit.r * std::cos(orbit.theta),
+			orbit.r * std::sin(orbit.theta),
+			0.0f // r * std::sin(incl) + origin->pos.z
+		);
 
-		glm::vec3 rpos = glm::vec3(x, y, 0.0f);
-		static float constexpr pi_over_2 = glm::radians(90.0f);
-
-		float dx = spaceship.orbit->dtheta * spaceship.orbit->r * std::cos(spaceship.orbit->theta + spaceship.orbit->phi + pi_over_2);
-		float dy = spaceship.orbit->dtheta * spaceship.orbit->r * std::sin(spaceship.orbit->theta + spaceship.orbit->phi + pi_over_2);
-		glm::vec3 rvel = glm::vec3(dx, dy, 0.0f);
+		glm::vec3 rvel = orbit.rot * glm::vec3(
+			-orbit.mu_over_h * std::sin(orbit.theta),
+			orbit.mu_over_h * (orbit.c + std::cos(orbit.theta)),
+			0.0f
+		);
 
 		glm::vec3 heading = glm::vec3(
 			std::cos(spaceship.theta),
@@ -392,8 +396,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
 		vector_lines.draw(spaceship.pos, spaceship.pos + rvel * 1000.0f, green);
 		vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
-
-		LOG("rvel: " << glm::to_string(rvel) << " acc: " << glm::to_string(spaceship.acc));
 	}
 
 	{ //use DrawLines to overlay some text:
