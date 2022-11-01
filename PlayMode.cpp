@@ -173,7 +173,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		camera_arms.at(entity).ScrollSensitivity = entity->radius;
 	}
 	// tune custom params as follows
-	camera_arms.at(&spaceship).ScrollSensitivity = 1.f;
+	camera_arms.at(&spaceship).scroll_zoom = 40.f;
 }
 
 PlayMode::~PlayMode() {
@@ -254,6 +254,12 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
+			return true;
+		}
+	} else if (evt.type == SDL_MOUSEBUTTONUP) {
+		// show the mouse cursor again once the mouse is released
+		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+			SDL_SetRelativeMouseMode(SDL_FALSE);
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEMOTION) {
