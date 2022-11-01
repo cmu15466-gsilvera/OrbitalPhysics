@@ -312,7 +312,12 @@ void PlayMode::update(float elapsed) {
 		dilation--;
 	}
 
-	if (dilation == LEVEL_0){ // update rocket controls
+	{ // update rocket controls
+		{ // reset dilation on controls
+			if (left.downs || right.downs || up.downs || down.downs ||  shift.downs || control.downs)
+				dilation = LEVEL_0; // reset time so user inputs are used
+		}
+
 		if (left.downs > 0 && right.downs == 0) {
 			spaceship.control_dtheta = 2.0f;
 		} else if (right.downs > 0 && left.downs == 0) {
@@ -321,12 +326,14 @@ void PlayMode::update(float elapsed) {
 			spaceship.control_dtheta = 0.f;
 		}
 
-		if (shift.pressed) {
+		if (shift.pressed || up.pressed) {
 			spaceship.thrust_percent = std::min(spaceship.thrust_percent + 0.1f , 100.0f);
-		} else if (control.pressed) {
+		} else if (control.pressed || down.pressed) {
 			spaceship.thrust_percent = std::max(spaceship.thrust_percent - 0.1f , 0.0f);
 		}
-	} else {
+	}
+
+	if (dilation != LEVEL_0) {
 		spaceship.dtheta = 0.f;
 		spaceship.thrust_percent = 0.f;
 	}
