@@ -180,77 +180,33 @@ PlayMode::~PlayMode() {
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
-	//TODO: update controls
 	if (evt.type == SDL_KEYDOWN) {
-		if (evt.key.keysym.sym == SDLK_ESCAPE) {
-			SDL_SetRelativeMouseMode(SDL_FALSE);
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_a) {
-			left.downs += 1;
-			left.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_d) {
-			right.downs += 1;
-			right.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_w) {
-			up.downs += 1;
-			up.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_s) {
-			down.downs += 1;
-			down.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_TAB) {
-			tab.downs += 1;
-			tab.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_LSHIFT) {
-			shift.downs += 1;
-			shift.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_LCTRL) {
-			control.downs += 1;
-			control.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_e || evt.key.keysym.sym == SDLK_KP_PLUS) {
-			plus.downs += 1;
-			plus.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_q || evt.key.keysym.sym == SDLK_KP_MINUS) {
-			minus.downs += 1;
-			minus.pressed = true;
-			return true;
-		}
+		bool was_key_down = false;
+		for (auto& key_action : keybindings) {
+			Button &button = *key_action.first;
+			const std::vector<int> &keys = key_action.second;
+			for (int keysym : keys){
+				if (evt.key.keysym.sym == keysym) {
+					button.pressed = true;
+					button.downs += 1;
+					was_key_down = true;
+				}
+			}
+        }
+		return was_key_down;
 	} else if (evt.type == SDL_KEYUP) {
-		if (evt.key.keysym.sym == SDLK_a) {
-			left.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_d) {
-			right.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_w) {
-			up.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_s) {
-			down.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_TAB) {
-			tab.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_LSHIFT) {
-			shift.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_LCTRL) {
-			control.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_PLUS || evt.key.keysym.sym == SDLK_KP_PLUS) {
-			plus.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_MINUS || evt.key.keysym.sym == SDLK_KP_MINUS) {
-			minus.pressed = false;
-			return true;
-		}
+		bool was_key_up = false;
+		for (auto& key_action : keybindings) {
+			Button &button = *key_action.first;
+			const std::vector<int> &keys = key_action.second;
+			for (int keysym : keys){
+				if (evt.key.keysym.sym == keysym) {
+					button.pressed = false;
+					was_key_up = true;
+				}
+			}
+        }
+		return was_key_up;
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -356,15 +312,10 @@ void PlayMode::update(float elapsed) {
 	}
 
 	//reset button press counters:
-	left.downs = 0;
-	right.downs = 0;
-	up.downs = 0;
-	down.downs = 0;
-	tab.downs = 0;
-	shift.downs = 0;
-	control.downs = 0;
-	plus.downs = 0;
-	minus.downs = 0;
+	for (auto &keybinding : keybindings) {
+		Button &button = *keybinding.first;
+		button.downs = 0;
+	}
 	mouse_motion_rel = glm::vec2(0, 0);
 }
 

@@ -28,6 +28,20 @@ struct PlayMode : Mode {
 	} left, right, down, up, tab, shift, control, plus, minus;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 
+	std::unordered_map<Button*, std::vector<int>> keybindings = {
+		// association between action/button and list of keybindings
+        { &left, {SDLK_LEFT, SDLK_a} },
+        { &right, {SDLK_RIGHT, SDLK_d} },
+        { &up, {SDLK_UP, SDLK_w} },
+        { &down, {SDLK_DOWN, SDLK_s} },
+        { &tab, {SDLK_TAB} },
+        { &shift, {SDLK_LSHIFT} }, // and rshift?
+        { &control, {SDLK_LCTRL} },
+        { &plus, {SDLK_e, SDLK_PLUS} },
+		{ &minus, {SDLK_q, SDLK_MINUS} },
+		/// TODO: add SDL_ESCAPE for quit?
+    };
+
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
 
