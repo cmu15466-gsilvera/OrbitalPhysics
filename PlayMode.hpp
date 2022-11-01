@@ -4,6 +4,7 @@
 
 #include "Scene.hpp"
 #include "Sound.hpp"
+#include "Text.hpp"
 
 #include <glm/glm.hpp>
 
@@ -67,5 +68,7 @@ struct PlayMode : Mode {
 	CameraArm camera_arm;
 
 	void update_camera_view();
+
+	Text UI;
 
 };

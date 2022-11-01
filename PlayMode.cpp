@@ -166,6 +166,10 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	for (Body &body : bodies) {
 		camera_arm.focus_points.emplace_back(std::make_pair(&body.pos, body.radius));
 	}
+
+	{ // load text
+		UI.init();
+	}
 }
 
 PlayMode::~PlayMode() {
@@ -411,16 +415,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);
-		float aspect = float(drawable_size.x) / float(drawable_size.y);
-		DrawLines lines(glm::mat4(
-			1.0f / aspect, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f
-		));
-
-		constexpr float H = 0.09f;
-
 		std::stringstream stream;
 		stream << std::fixed << std::setprecision(2)
 			<< "thrust percent: " << spaceship.thrust_percent
@@ -428,15 +422,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 			<< " dilation: " << static_cast< float >(dilation);
 
 		std::string text = stream.str();
-		lines.draw_text(text,
-			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
-			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
-			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
-		float ofs = 2.0f / drawable_size.y;
-		lines.draw_text(text,
-			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + + 0.1f * H + ofs, 0.0),
-			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
-			glm::u8vec4(0xff, 0xff, 0xff, 0x00));
+		UI.set_text(text);
+		float x = drawable_size.x * 0.5f;
+		float y = drawable_size.y * 0.6f;
+		float width = drawable_size.x * 0.75f;
+		UI.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
 	}
 	GL_ERRORS();
 }
