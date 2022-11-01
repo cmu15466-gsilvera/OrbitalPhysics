@@ -29,9 +29,19 @@ extern DilationLevel dilation;
 DilationLevel operator++(DilationLevel &level, int);
 DilationLevel operator--(DilationLevel &level, int);
 
+// Thing in the space
+struct Entity {
+	Entity(float r, float m) : radius(r), mass(m) {}
+	glm::vec3 pos{0.f};
+	glm::vec3 vel{0.f};
+	glm::vec3 acc{0.f};
+	float radius; //collision radius, Megameters (1000 kilometers)
+	float mass; //mass used for gravity calculation, Gigagrams (1 million kilograms)
+};
+
 //Stars, Planets, Moons, Asteroids, etc.
-struct Body {
-	Body(float r, float m, float sr) : radius(r), mass(m), soi_radius(sr) {}
+struct Body : public Entity {
+	Body(float r, float m, float sr) : Entity(r, m), soi_radius(sr) {}
 
 	void set_orbit(Orbit *orbit_);
 	void set_transform(Scene::Transform *transform_)  {
@@ -56,18 +66,12 @@ struct Body {
 	Scene::Transform *transform = nullptr;
 
 	//Fixed values
-	float radius; //collision radius, Megameters (1000 kilometers)
-	float mass; //mass used for gravity calculation, Gigagrams (1 million kilograms)
 	float soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
-
-	//Variable values
-	glm::vec3 pos = glm::vec3(0.0f);
-	glm::vec3 vel = glm::vec3(0.0f);
 };
 
 // Player
-struct Rocket {
-	Rocket() {}
+struct Rocket : public Entity {
+	Rocket() : Entity(1.f, 0.01f) {}
 
 	void init(Orbit *orbit_, Scene::Transform *transform_, Body *root, std::list< Orbit > &orbits);
 	void update(float elapsed, Body *root, std::list< Orbit > &orbits);
@@ -75,10 +79,6 @@ struct Rocket {
 
 	Orbit *orbit;
 	Scene::Transform *transform;
-
-	glm::vec3 pos;
-	glm::vec3 vel;
-	glm::vec3 acc;
 
 	static float constexpr DryMass = 4.0f; // Megagram
 	static float constexpr MaxThrust = 0.5f; // MegaNewtons

@@ -80,6 +80,9 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	}
 	camera = &scene.cameras.front();
 
+	// first focus should be on the spaceship!
+	entities.push_back(&spaceship);
+
 	//start music loop playing:
 	// (note: position will be over-ridden in update())
 	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
@@ -94,6 +97,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 		bodies.emplace_back(Body(275.0, 8.0e23f, std::numeric_limits< float >::infinity()));
 		star = &bodies.back();
+		entities.push_back(star);
 
 		star->set_transform(star_trans);
 
@@ -108,6 +112,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 		bodies.emplace_back(Body(10.0, 6.0e18f, 1000.0f));
 		Body *planet = &bodies.back();
+		entities.push_back(planet);
 
 		orbits.emplace_back(Orbit(star, 0.0f, 100000.0f, 0.0f, 0.0f, false));
 		Orbit *planet_orbit = &orbits.back();
@@ -128,6 +133,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 			bodies.emplace_back(Body(1.0, 7.0e16f, 50.0));
 			Body *moon = &bodies.back();
+			entities.push_back(moon);
 
 			orbits.emplace_back(Orbit(planet, 0.1f, 200.0f, glm::radians(30.0f), glm::radians(-120.0f), false));
 			Orbit *moon_orbit = &orbits.back();
@@ -161,11 +167,13 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	}
 
 	// track order of focus points for camera
-	// HACK: can also clean this up by making Body, Rocket inherit from a parent with a pos/radius member
-	camera_arm.focus_points = {std::make_pair(&spaceship.pos, 5.f)};
-	for (Body &body : bodies) {
-		camera_arm.focus_points.emplace_back(std::make_pair(&body.pos, body.radius));
+	for (const Entity *entity : entities) {
+		camera_arms.insert({entity, CameraArm(entity)});
+		camera_views.push_back(entity);
+		camera_arms.at(entity).ScrollSensitivity = entity->radius;
 	}
+	// tune custom params as follows
+	camera_arms.at(&spaceship).ScrollSensitivity = 1.f;
 }
 
 PlayMode::~PlayMode() {
@@ -257,7 +265,8 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		}
 	} else if(evt.type == SDL_MOUSEWHEEL) {
-		camera_arm.scroll_zoom = std::max(camera_arm.scroll_zoom - evt.wheel.y * camera_arm.ScrollSensitivity, 0.0f);
+		auto &camarm = CurrentCameraArm();
+		camarm.scroll_zoom = std::max(camarm.scroll_zoom - evt.wheel.y * camarm.ScrollSensitivity, 0.0f);
 		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
@@ -266,30 +275,26 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	return false;
 }
 
-void PlayMode::update_camera_view() {
-	const glm::vec3 &focus_point = *(camera_arm.focus_points[camera_arm.camera_view_idx].first);
-	const float radius = camera_arm.focus_points[camera_arm.camera_view_idx].second;
-
-	float camera_arm_length = radius * (10.0f + camera_arm.scroll_zoom);
+void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_y) {
+	const glm::vec3 &focus_point = entity->pos;
+	float camera_arm_length = entity->radius * (10.0f + scroll_zoom);
 
 	// camera arm length depends on radius
 	{
-		glm::mat4x3 frame = camera->transform->make_local_to_parent();
+		glm::mat4x3 frame = cam->transform->make_local_to_parent();
 		glm::vec3 right_vec = frame[0];
 		glm::vec3 up_vec = frame[1];
 
-		camera_arm.camera_offset -= (mouse_motion_rel.x * right_vec + mouse_motion_rel.y * up_vec)
-			* camera_arm_length * camera_arm.MouseSensitivity;
+		this->camera_offset -= (mouse_x * right_vec + mouse_y * up_vec) * camera_arm_length * MouseSensitivity;
+		this->camera_offset = camera_arm_length * glm::normalize(camera_offset);
 
-		camera_arm.camera_offset = camera_arm_length * glm::normalize(camera_arm.camera_offset);
-
-		glm::vec3 new_pos = focus_point + camera_arm.camera_offset;
+		glm::vec3 new_pos = focus_point + camera_offset;
 		glm::vec3 dir = glm::normalize(focus_point - new_pos);
 
 		//TODO: fix the spinning when go directly over and up is parallel to dir
 		// Doing this probably requires not using the transformation matrix's vectors for finding right and up vecs
-		camera->transform->position = new_pos;
-		camera->transform->rotation = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
+		cam->transform->position = new_pos;
+		cam->transform->rotation = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
 	}
 }
 
@@ -297,9 +302,10 @@ void PlayMode::update(float elapsed) {
 	{ // update camera controls
 		if (tab.downs > 0) {
 			uint8_t dir = shift.pressed ? -1 : 1;
-			camera_arm.camera_view_idx = (camera_arm.camera_view_idx + dir) % camera_arm.focus_points.size();
+			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
 		}
-		update_camera_view();
+		CameraArm &camarm = CurrentCameraArm(); 
+		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
 	}
 
 	if (plus.downs > 0 && minus.downs == 0) {
