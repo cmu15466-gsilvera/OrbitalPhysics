@@ -29,6 +29,20 @@ struct PlayMode : Mode {
 	} left, right, down, up, tab, shift, control, plus, minus;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 
+	std::unordered_map<Button*, std::vector<int>> keybindings = {
+		// association between action/button and list of keybindings
+        { &left, {SDLK_LEFT, SDLK_a} },
+        { &right, {SDLK_RIGHT, SDLK_d} },
+        { &up, {SDLK_UP, SDLK_w} },
+        { &down, {SDLK_DOWN, SDLK_s} },
+        { &tab, {SDLK_TAB} },
+        { &shift, {SDLK_LSHIFT} }, // and rshift?
+        { &control, {SDLK_LCTRL} },
+        { &plus, {SDLK_e, SDLK_PLUS} },
+		{ &minus, {SDLK_q, SDLK_MINUS} },
+		/// TODO: add SDL_ESCAPE for quit?
+    };
+
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
 
@@ -48,27 +62,42 @@ struct PlayMode : Mode {
 
 	Rocket spaceship;
 	Body *star; //All body updates cascade off of star update, should be done prior to spaceship update
+	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
 	std::list< Orbit > orbits;
 
 	//camera:
 	Scene::Camera *camera = nullptr;
 	struct CameraArm { //Encapsulated so that we can have individually tracked views per body later on
-		static float constexpr ScrollSensitivity = 30.0f;
-		static float constexpr MouseSensitivity = 5.0f;
+
+		CameraArm() = delete; // must pass in an Entity to focus on!
+		CameraArm(const Entity *e) : entity(e) {}
+		void update(Scene::Camera *camera, float mouse_x, float mouse_y);
+
+		const Entity *entity = nullptr;
+
+		float ScrollSensitivity = 30.0f;
+		float MouseSensitivity = 5.0f;
 
 		//Controls position
-		glm::vec3 camera_offset{0.0f, 10.0f, 10.0f};
-		float scroll_zoom = 0.0f;
-
-		// track locations and radii
-		std::vector< std::pair< glm::vec3 *, float > > focus_points;
-		size_t camera_view_idx = 0;
+		glm::vec3 camera_offset{0.0f, 1.0f, 1.0f};
+		float scroll_zoom = 10.0f;
 	};
-	CameraArm camera_arm;
 
-	void update_camera_view();
+	std::unordered_map< const Entity*, CameraArm > camera_arms;
+	std::vector< const Entity* > camera_views;
+	size_t camera_view_idx = 0;
 
+	CameraArm &CurrentCameraArm() {
+		if (camera_view_idx > camera_views.size() || camera_view_idx > camera_arms.size()) 
+			throw std::runtime_error("camera view index " + std::to_string(camera_view_idx) + " oob");
+		const Entity* entity = camera_views[camera_view_idx];
+		if (camera_arms.find(entity) == camera_arms.end())
+			throw std::runtime_error("camera entity " + std::to_string(camera_view_idx) + " not in arm map");
+		return camera_arms.at(entity);
+	}
+
+	// text UI
 	Text UI_text;
 
 };
