@@ -203,7 +203,7 @@ struct Text {
             font_size = new_font_size;
             font_scale = new_font_scale;
             // std::cout << "setting font size to " << font_size << " and scale to " << font_scale << std::endl;
-            FT_Set_Char_Size(typeface, 0, (unsigned int)font_size * font_scale, 0, 0); // 64 units per pixel
+            FT_Set_Char_Size(typeface, 0, static_cast< unsigned int>(font_size * font_scale), 0, 0); // 64 units per pixel
             if (FT_Load_Char(typeface, 'X', FT_LOAD_RENDER))
                 throw std::runtime_error("Failed to load char \"X\" from typeface!");
             // reset these characters to regenerate them with the new font size
@@ -268,7 +268,7 @@ struct Text {
         float amnt = std::min(time / anim_time, 1.f);
 
         // this loop was taken almost verbatim from https://learnopengl.com/In-Practice/Text-Rendering
-        for (unsigned int i = 0; i < static_cast<int>(amnt * num_chars); i++) {
+        for (unsigned int i = 0; i < static_cast< unsigned int >(amnt * num_chars); i++) {
             hb_codepoint_t char_req = glyph_info[i].codepoint;
             if (chars.find(char_req) == chars.end()) { // not already loaded
                 Character ch = Character::Load(char_req, typeface);
