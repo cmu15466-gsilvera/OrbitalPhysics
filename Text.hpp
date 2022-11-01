@@ -84,14 +84,24 @@ struct Text {
     GLuint VAO = 0;
     GLuint VBO = 0;
 
+    // text anchor
+    enum AnchorType : uint8_t {
+        LEFT=0,
+        RIGHT,
+        CENTER,
+    };
+
+    AnchorType anchor = AnchorType::LEFT;
+
     // for actual text content
     std::string text_content;
 
     // using hb_codepoint_t as the codepoint type from hb_buffer_get_glyph_positions
     std::map<hb_codepoint_t, Character> chars;
 
-    void init()
+    void init(AnchorType _anchor)
     {
+        anchor = _anchor;
         // (try to) load freetype library and typeface
         {
             FT_Library ftlibrary;
@@ -242,7 +252,15 @@ struct Text {
             final_width += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
         }
 
-        float char_x = pos.x - final_width / 2.f; // horizontally centered
+        float anchor_x_start = pos.x; // default (left)
+        if (anchor == Text::AnchorType::CENTER) {
+            anchor_x_start -= final_width / 2.f; // to be horizontally centered
+        }
+        else if (anchor == Text::AnchorType::RIGHT) {
+            anchor_x_start -= final_width; // all the way to the right
+        }
+
+        float char_x = anchor_x_start;
         float char_y = pos.y;
 
         // handle animation (only draw fraction of total depending on time)
@@ -258,36 +276,37 @@ struct Text {
             }
 
             const Character& ch = chars[char_req];
-            float xpos = char_x + ch.Bearing.x * ss_scale;
-            float ypos = char_y - (ch.Size.y - ch.Bearing.y) * ss_scale;
-            float w = ch.Size.x * ss_scale;
-            float h = ch.Size.y * ss_scale;
+            if (char_req != hb_codepoint_t{'\0'}){
+                float xpos = char_x + ch.Bearing.x * ss_scale;
+                float ypos = char_y - (ch.Size.y - ch.Bearing.y) * ss_scale;
+                float w = ch.Size.x * ss_scale;
+                float h = ch.Size.y * ss_scale;
 
-            // update VBO for each character
-            float vertices[6][4] = {
-                { xpos, ypos + h, 0.0f, 0.0f },
-                { xpos, ypos, 0.0f, 1.0f },
-                { xpos + w, ypos, 1.0f, 1.0f },
+                // update VBO for each character
+                float vertices[6][4] = {
+                    { xpos, ypos + h, 0.0f, 0.0f },
+                    { xpos, ypos, 0.0f, 1.0f },
+                    { xpos + w, ypos, 1.0f, 1.0f },
 
-                { xpos, ypos + h, 0.0f, 0.0f },
-                { xpos + w, ypos, 1.0f, 1.0f },
-                { xpos + w, ypos + h, 1.0f, 0.0f }
-            };
+                    { xpos, ypos + h, 0.0f, 0.0f },
+                    { xpos + w, ypos, 1.0f, 1.0f },
+                    { xpos + w, ypos + h, 1.0f, 0.0f }
+                };
 
-            glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO);
-            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+                glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+                glBindBuffer(GL_ARRAY_BUFFER, VBO);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
 
-            // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-            char_x += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
-
-            /// TODO: logic for newline? (reset x, increase y?)
-            // if ((char)char_req == '\0') {
-            //     char_x = pos.x - final_width / 2.f;
-            //     char_y += ch.Size.y;
-            // }
+                // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+                char_x += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
+            }
+            // / TODO: logic for newline? (reset x, increase y?)
+            else {
+                char_x = anchor_x_start; // reset x
+                char_y -= ch.Size.y; // increment Y
+            }
         }
 
         // reset openGL stuff

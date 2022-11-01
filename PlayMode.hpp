@@ -69,6 +69,6 @@ struct PlayMode : Mode {
 
 	void update_camera_view();
 
-	Text UI;
+	Text UI_text;
 
 };

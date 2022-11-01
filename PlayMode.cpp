@@ -168,7 +168,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	}
 
 	{ // load text
-		UI.init();
+		UI_text.init(Text::AnchorType::LEFT);
 	}
 }
 
@@ -331,6 +331,16 @@ void PlayMode::update(float elapsed) {
 		spaceship.thrust_percent = 0.f;
 	}
 
+	// update text UI
+	{
+		std::stringstream stream;
+		stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
+			   << '\n' << "fuel: " << spaceship.fuel << '\n' 
+			   << '\n' << "time speedup: " << dilation << "x";
+		// stream << "a" << std::endl << "b";
+		UI_text.set_text(stream.str());
+	}
+
 	{ //update listener to camera position:
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
 		glm::vec3 frame_right = frame[0];
@@ -415,18 +425,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);
-		std::stringstream stream;
-		stream << std::fixed << std::setprecision(2)
-			<< "thrust percent: " << spaceship.thrust_percent
-			<< " fuel: " << spaceship.fuel
-			<< " dilation: " << static_cast< float >(dilation);
-
-		std::string text = stream.str();
-		UI.set_text(text);
-		float x = drawable_size.x * 0.5f;
-		float y = drawable_size.y * 0.6f;
-		float width = drawable_size.x * 0.75f;
-		UI.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
+		float x = drawable_size.x * 0.03f;
+		float y = drawable_size.y * (1.0f - 0.1f); // top is 1.f bottom is 0.f
+		float width = drawable_size.x * 0.2f;
+		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
 	}
 	GL_ERRORS();
 }
