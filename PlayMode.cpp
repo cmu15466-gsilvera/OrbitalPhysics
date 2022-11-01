@@ -153,7 +153,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			orbits.emplace_back(Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false));
 			Orbit *spaceship_orbit = &orbits.back();
 
-			spaceship.init(spaceship_orbit, spaceship_trans);
+			spaceship.init(spaceship_orbit, spaceship_trans, star, orbits);
 
 			make_drawable(scene, spaceship_trans);
 			LOG("Loaded Spaceship");
@@ -406,6 +406,9 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		spaceship.orbit->draw(orbit_lines, blue);
 	}
 
+	//Everything from this point on is part of the HUD overlay
+	glDisable(GL_DEPTH_TEST);
+
 	{ //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines vector_lines(world_to_clip);
@@ -422,7 +425,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 			std::cos(spaceship.theta),
 			std::sin(spaceship.theta),
 			0.0f
-		) * 10.0f;
+		) * 4.0f;
 
 		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rpos, white);
 		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
