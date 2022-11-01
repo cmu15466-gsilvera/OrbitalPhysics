@@ -28,6 +28,7 @@ extern DilationLevel dilation;
 
 DilationLevel operator++(DilationLevel &level, int);
 DilationLevel operator--(DilationLevel &level, int);
+glm::vec3 DilationColor(const DilationLevel &level);
 
 // Thing in the space
 struct Entity {

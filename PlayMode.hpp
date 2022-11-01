@@ -4,6 +4,7 @@
 
 #include "Scene.hpp"
 #include "Sound.hpp"
+#include "Text.hpp"
 
 #include <glm/glm.hpp>
 
@@ -95,4 +96,8 @@ struct PlayMode : Mode {
 			throw std::runtime_error("camera entity " + std::to_string(camera_view_idx) + " not in arm map");
 		return camera_arms.at(entity);
 	}
+
+	// text UI
+	Text UI_text;
+
 };

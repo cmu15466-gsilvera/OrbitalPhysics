@@ -174,6 +174,10 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	}
 	// tune custom params as follows
 	camera_arms.at(&spaceship).scroll_zoom = 40.f;
+
+	{ // load text
+		UI_text.init(Text::AnchorType::LEFT);
+	}
 }
 
 PlayMode::~PlayMode() {
@@ -276,9 +280,12 @@ void PlayMode::update(float elapsed) {
 		dilation--;
 	}
 
-	if (dilation == LEVEL_0){ // update rocket controls
+	{ // update rocket controls
+		{ // reset dilation on controls
+			if (left.downs || right.downs || up.downs || down.downs ||  shift.downs || control.downs)
+				dilation = LEVEL_0; // reset time so user inputs are used
+		}
 
-		// accumulate angular acceleration
 		if (left.downs > 0 && right.downs == 0) {
 			spaceship.control_dtheta += 2.0f * (M_PI / 180.f);
 		} else if (right.downs > 0 && left.downs == 0) {
@@ -289,14 +296,26 @@ void PlayMode::update(float elapsed) {
 				spaceship.control_dtheta = 0.f;
 		}
 
-		if (shift.pressed) {
+		if (shift.pressed || up.pressed) {
 			spaceship.thrust_percent = std::min(spaceship.thrust_percent + 0.1f , 100.0f);
-		} else if (control.pressed) {
+		} else if (control.pressed || down.pressed) {
 			spaceship.thrust_percent = std::max(spaceship.thrust_percent - 0.1f , 0.0f);
 		}
-	} else {
+	}
+
+	if (dilation != LEVEL_0) {
 		spaceship.dtheta = 0.f;
 		spaceship.thrust_percent = 0.f;
+	}
+
+	// update text UI
+	{
+		std::stringstream stream;
+		stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
+			   << '\n' << "fuel: " << spaceship.fuel << '\n' 
+			   << '\n' << "time speedup: " << dilation << "x";
+		// stream << "a" << std::endl << "b";
+		UI_text.set_text(stream.str());
 	}
 
 	{ //update listener to camera position:
@@ -380,32 +399,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	}
 
 	{ //use DrawLines to overlay some text:
-		float aspect = float(drawable_size.x) / float(drawable_size.y);
-		DrawLines lines(glm::mat4(
-			1.0f / aspect, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f
-		));
-
-		constexpr float H = 0.09f;
-
-		std::stringstream stream;
-		stream << std::fixed << std::setprecision(2)
-			<< "thrust percent: " << spaceship.thrust_percent
-			<< " fuel: " << spaceship.fuel
-			<< " dilation: " << static_cast< float >(dilation);
-
-		std::string text = stream.str();
-		lines.draw_text(text,
-			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
-			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
-			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
-		float ofs = 2.0f / drawable_size.y;
-		lines.draw_text(text,
-			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + + 0.1f * H + ofs, 0.0),
-			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
-			glm::u8vec4(0xff, 0xff, 0xff, 0x00));
+		glDisable(GL_DEPTH_TEST);
+		float x = drawable_size.x * 0.03f;
+		float y = drawable_size.y * (1.0f - 0.1f); // top is 1.f bottom is 0.f
+		float width = drawable_size.x * 0.2f;
+		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
 	}
 	GL_ERRORS();
 }
