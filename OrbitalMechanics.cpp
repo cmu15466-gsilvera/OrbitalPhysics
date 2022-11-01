@@ -49,6 +49,21 @@ DilationLevel operator--(DilationLevel &level, int) {
 	}
 }
 
+glm::vec3 DilationColor(const DilationLevel &level) {
+	switch (level) {
+	case LEVEL_0:
+		return glm::vec3(1.0f); // white
+	case LEVEL_1:
+		return glm::vec3(1.0f, 1.0f, 0.0f); // yellow
+	case LEVEL_2:
+		return glm::vec3(1.0f, 0.64f, 0.0f); // orange
+	case LEVEL_3:
+	case LEVEL_4:
+	default:
+		return glm::vec3(1.0f, 0.0f, 0.0f); // red
+	}
+}
+
 void Body::set_orbit(Orbit *orbit_) {
 	orbit = orbit_;
 	if (orbit == nullptr) return;
