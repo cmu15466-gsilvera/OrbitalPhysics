@@ -309,12 +309,16 @@ void PlayMode::update(float elapsed) {
 	}
 
 	if (dilation == LEVEL_0){ // update rocket controls
+
+		// accumulate angular acceleration
 		if (left.downs > 0 && right.downs == 0) {
-			spaceship.control_dtheta = 2.0f;
+			spaceship.control_dtheta += 2.0f * (M_PI / 180.f);
 		} else if (right.downs > 0 && left.downs == 0) {
-			spaceship.control_dtheta = -2.0f;
+			spaceship.control_dtheta += -2.0f * (M_PI / 180.f);
 		} else {
-			spaceship.control_dtheta = 0.f;
+			spaceship.control_dtheta *= 0.99; // slow decay
+			if (std::fabs(spaceship.control_dtheta) < 0.01) // threshold to 0
+				spaceship.control_dtheta = 0.f;
 		}
 
 		if (shift.pressed) {
