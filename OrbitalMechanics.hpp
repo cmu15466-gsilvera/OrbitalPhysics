@@ -74,11 +74,11 @@ struct Body : public Entity {
 struct Rocket : public Entity {
 	Rocket() : Entity(1.f, 0.01f) {}
 
-	void init(Orbit *orbit_, Scene::Transform *transform_, Body *root, std::list< Orbit > &orbits);
-	void update(float elapsed, Body *root, std::list< Orbit > &orbits);
+	void init(Scene::Transform *transform_, Body *root);
+	void update(float elapsed);
 
-
-	Orbit *orbit;
+	Body *root;
+	std::list< Orbit > orbits;
 	Scene::Transform *transform;
 
 	static float constexpr DryMass = 4.0f; // Megagram
@@ -142,7 +142,7 @@ struct Orbit {
 	void predict();
 	void init_sim();
 	void simulate(float time);
-	void sim_predict(Body *root, std::list< Orbit > &orbits, int level);
+	void sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it);
 	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants

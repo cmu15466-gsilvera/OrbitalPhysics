@@ -76,8 +76,8 @@ struct PlayMode : Mode {
 
 		const Entity *entity = nullptr;
 
-		float ScrollSensitivity = 30.0f;
-		float MouseSensitivity = 5.0f;
+		static float constexpr ScrollSensitivity = 30.0f;
+		static float constexpr MouseSensitivity = 5.0f;
 
 		//Controls position
 		glm::vec3 camera_offset{0.0f, 1.0f, 1.0f};
@@ -89,7 +89,7 @@ struct PlayMode : Mode {
 	size_t camera_view_idx = 0;
 
 	CameraArm &CurrentCameraArm() {
-		if (camera_view_idx > camera_views.size() || camera_view_idx > camera_arms.size()) 
+		if (camera_view_idx > camera_views.size() || camera_view_idx > camera_arms.size())
 			throw std::runtime_error("camera view index " + std::to_string(camera_view_idx) + " oob");
 		const Entity* entity = camera_views[camera_view_idx];
 		if (camera_arms.find(entity) == camera_arms.end())

@@ -156,10 +156,11 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
 
-			orbits.emplace_back(Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false));
-			Orbit *spaceship_orbit = &orbits.back();
+			spaceship.orbits.emplace_front(
+				Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
+			);
 
-			spaceship.init(spaceship_orbit, spaceship_trans, star, orbits);
+			spaceship.init(spaceship_trans, star);
 
 			make_drawable(scene, spaceship_trans);
 			LOG("Loaded Spaceship");
@@ -170,7 +171,6 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	for (const Entity *entity : entities) {
 		camera_arms.insert({entity, CameraArm(entity)});
 		camera_views.push_back(entity);
-		camera_arms.at(entity).ScrollSensitivity = entity->radius;
 	}
 	// tune custom params as follows
 	camera_arms.at(&spaceship).scroll_zoom = 40.f;
@@ -270,7 +270,7 @@ void PlayMode::update(float elapsed) {
 			uint8_t dir = shift.pressed ? -1 : 1;
 			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
 		}
-		CameraArm &camarm = CurrentCameraArm(); 
+		CameraArm &camarm = CurrentCameraArm();
 		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
 	}
 
@@ -286,11 +286,11 @@ void PlayMode::update(float elapsed) {
 				dilation = LEVEL_0; // reset time so user inputs are used
 		}
 
-		constexpr float deg_to_rad = static_cast<float>(M_PI) / 180.f;
+		static float constexpr dtheta_update_amount = glm::radians(2.0f);
 		if (left.downs > 0 && right.downs == 0) {
-			spaceship.control_dtheta += 2.0f * deg_to_rad;
+			spaceship.control_dtheta += dtheta_update_amount;
 		} else if (right.downs > 0 && left.downs == 0) {
-			spaceship.control_dtheta += -2.0f * deg_to_rad;
+			spaceship.control_dtheta -= dtheta_update_amount;
 		} else {
 			spaceship.control_dtheta *= 0.99f; // slow decay
 			if (std::fabs(spaceship.control_dtheta) < 0.01) // threshold to 0
@@ -313,7 +313,7 @@ void PlayMode::update(float elapsed) {
 	{
 		std::stringstream stream;
 		stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
-			   << '\n' << "fuel: " << spaceship.fuel << '\n' 
+			   << '\n' << "fuel: " << spaceship.fuel << '\n'
 			   << '\n' << "time speedup: " << dilation << "x";
 		// stream << "a" << std::endl << "b";
 		UI_text.set_text(stream.str());
@@ -328,7 +328,7 @@ void PlayMode::update(float elapsed) {
 
 	{ //basic orbital simulation demo
 		star->update(elapsed);
-		spaceship.update(elapsed, star, orbits);
+		spaceship.update(elapsed);
 	}
 
 	//reset button press counters:
@@ -369,7 +369,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		static constexpr glm::u8vec4 blue = glm::u8vec4(0x00, 0x00, 0xff, 0xff);
 
 		star->draw_orbits(orbit_lines, purple);
-		spaceship.orbit->draw(orbit_lines, blue);
+		spaceship.orbits.front().draw(orbit_lines, blue);
 	}
 
 	//Everything from this point on is part of the HUD overlay
@@ -379,7 +379,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines vector_lines(world_to_clip);
 
-		Orbit const &orbit = *spaceship.orbit;
+		Orbit const &orbit = spaceship.orbits.front();
 
 		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff); //rpos
 		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
