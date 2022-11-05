@@ -61,6 +61,7 @@ struct PlayMode : Mode {
 	// std::shared_ptr< Sound::PlayingSample > leg_tip_loop;
 
 	Rocket spaceship;
+	Asteroid asteroid = Asteroid(1.0f, 0.2f); //TODO: reduce asteroid radius and scale down model
 	Body *star; //All body updates cascade off of star update, should be done prior to spaceship update
 	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
@@ -76,8 +77,8 @@ struct PlayMode : Mode {
 
 		const Entity *entity = nullptr;
 
-		float ScrollSensitivity = 30.0f;
-		float MouseSensitivity = 5.0f;
+		static float constexpr ScrollSensitivity = 30.0f;
+		static float constexpr MouseSensitivity = 5.0f;
 
 		//Controls position
 		glm::vec3 camera_offset{0.0f, 1.0f, 1.0f};
@@ -89,7 +90,7 @@ struct PlayMode : Mode {
 	size_t camera_view_idx = 0;
 
 	CameraArm &CurrentCameraArm() {
-		if (camera_view_idx > camera_views.size() || camera_view_idx > camera_arms.size()) 
+		if (camera_view_idx > camera_views.size() || camera_view_idx > camera_arms.size())
 			throw std::runtime_error("camera view index " + std::to_string(camera_view_idx) + " oob");
 		const Entity* entity = camera_views[camera_view_idx];
 		if (camera_arms.find(entity) == camera_arms.end())

@@ -83,18 +83,19 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	// first focus should be on the spaceship!
 	entities.push_back(&spaceship);
 
+	// next on asteroid
+	entities.push_back(&asteroid);
+
 	//start music loop playing:
 	// (note: position will be over-ridden in update())
 	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
 
-	//TODO: This is hacked together for dev demo purposes, mostly so we can test orbital simulation
-	// The masses and distances are fudged for now. Things would normally be much futher away and move much
-	// slower (if we're going for realism)
 	{ //Load star
 		scene.transforms.emplace_back();
 		Scene::Transform *star_trans = &scene.transforms.back();
 		star_trans->name = "Star";
 
+		//a slightly large red dwarf that's 0.4x the mass of the sun
 		bodies.emplace_back(Body(275.0, 8.0e23f, std::numeric_limits< float >::infinity()));
 		star = &bodies.back();
 		entities.push_back(star);
@@ -110,7 +111,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		Scene::Transform *planet_trans = &scene.transforms.back();
 		planet_trans->name = "Planet";
 
-		bodies.emplace_back(Body(10.0, 6.0e18f, 1000.0f));
+		//a very large but not very dense rocky planet (same mass as Earth, about 1.66x the radius)
+		bodies.emplace_back(Body(10.0f, 6.0e18f, 1000.0f));
 		Body *planet = &bodies.back();
 		entities.push_back(planet);
 
@@ -131,7 +133,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			Scene::Transform *moon_trans = &scene.transforms.back();
 			moon_trans->name = "Moon";
 
-			bodies.emplace_back(Body(1.0, 7.0e16f, 50.0));
+			//a Moon-sized moon with similar mass and rius
+			bodies.emplace_back(Body(1.7f, 7.0e16f, 50.0f));
 			Body *moon = &bodies.back();
 			entities.push_back(moon);
 
@@ -156,13 +159,28 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
 
-			orbits.emplace_back(Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false));
-			Orbit *spaceship_orbit = &orbits.back();
+			spaceship.orbits.emplace_front(
+				Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
+			);
 
-			spaceship.init(spaceship_orbit, spaceship_trans, star, orbits);
+			spaceship.init(spaceship_trans, star);
 
 			make_drawable(scene, spaceship_trans);
 			LOG("Loaded Spaceship");
+		}
+		{ //Load asteroid
+			scene.transforms.emplace_back();
+			Scene::Transform *asteroid_trans = &scene.transforms.back();
+			asteroid_trans->name = "Asteroid";
+
+			asteroid.orbits.emplace_front(
+				Orbit(planet, 0.5f, 200.0f, glm::radians(30.0f), glm::radians(60.0f), false)
+			);
+
+			asteroid.init(asteroid_trans, star);
+
+			make_drawable(scene, asteroid_trans);
+			LOG("Loaded Asteroid");
 		}
 	}
 
@@ -170,7 +188,6 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	for (const Entity *entity : entities) {
 		camera_arms.insert({entity, CameraArm(entity)});
 		camera_views.push_back(entity);
-		camera_arms.at(entity).ScrollSensitivity = entity->radius;
 	}
 	// tune custom params as follows
 	camera_arms.at(&spaceship).scroll_zoom = 40.f;
@@ -270,7 +287,7 @@ void PlayMode::update(float elapsed) {
 			uint8_t dir = shift.pressed ? -1 : 1;
 			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
 		}
-		CameraArm &camarm = CurrentCameraArm(); 
+		CameraArm &camarm = CurrentCameraArm();
 		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
 	}
 
@@ -286,11 +303,11 @@ void PlayMode::update(float elapsed) {
 				dilation = LEVEL_0; // reset time so user inputs are used
 		}
 
-		constexpr float deg_to_rad = static_cast<float>(M_PI) / 180.f;
+		static float constexpr dtheta_update_amount = glm::radians(2.0f);
 		if (left.downs > 0 && right.downs == 0) {
-			spaceship.control_dtheta += 2.0f * deg_to_rad;
+			spaceship.control_dtheta += dtheta_update_amount;
 		} else if (right.downs > 0 && left.downs == 0) {
-			spaceship.control_dtheta += -2.0f * deg_to_rad;
+			spaceship.control_dtheta -= dtheta_update_amount;
 		} else {
 			spaceship.control_dtheta *= 0.99f; // slow decay
 			if (std::fabs(spaceship.control_dtheta) < 0.01) // threshold to 0
@@ -309,11 +326,10 @@ void PlayMode::update(float elapsed) {
 		spaceship.thrust_percent = 0.f;
 	}
 
-	// update text UI
-	{
+	{ //update text UI
 		std::stringstream stream;
 		stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
-			   << '\n' << "fuel: " << spaceship.fuel << '\n' 
+			   << '\n' << "fuel: " << spaceship.fuel << '\n'
 			   << '\n' << "time speedup: " << dilation << "x";
 		// stream << "a" << std::endl << "b";
 		UI_text.set_text(stream.str());
@@ -328,7 +344,8 @@ void PlayMode::update(float elapsed) {
 
 	{ //basic orbital simulation demo
 		star->update(elapsed);
-		spaceship.update(elapsed, star, orbits);
+		spaceship.update(elapsed);
+		asteroid.update(elapsed);
 	}
 
 	//reset button press counters:
@@ -367,9 +384,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 		static constexpr glm::u8vec4 purple = glm::u8vec4(0xff, 0x00, 0xff, 0xff);
 		static constexpr glm::u8vec4 blue = glm::u8vec4(0x00, 0x00, 0xff, 0xff);
+		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x00, 0xff);
 
 		star->draw_orbits(orbit_lines, purple);
-		spaceship.orbit->draw(orbit_lines, blue);
+		spaceship.orbits.front().draw(orbit_lines, blue);
+		asteroid.orbits.front().draw(orbit_lines, green);
 	}
 
 	//Everything from this point on is part of the HUD overlay
@@ -379,7 +398,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines vector_lines(world_to_clip);
 
-		Orbit const &orbit = *spaceship.orbit;
+		Orbit const &orbit = spaceship.orbits.front();
 
 		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff); //rpos
 		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading

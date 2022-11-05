@@ -40,7 +40,7 @@ struct Entity {
 	float mass; //mass used for gravity calculation, Gigagrams (1 million kilograms)
 };
 
-//Stars, Planets, Moons, Asteroids, etc.
+//Stars, Planets, Moons, etc.
 struct Body : public Entity {
 	Body(float r, float m, float sr) : Entity(r, m), soi_radius(sr) {}
 
@@ -59,6 +59,7 @@ struct Body : public Entity {
 		return glm::distance(pos, target_pos) <= soi_radius;
 	}
 	void update(float elapsed);
+	void init_sim();
 	void simulate(float time);
 	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color);
 
@@ -70,15 +71,15 @@ struct Body : public Entity {
 	float soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
 };
 
-// Player
+//Player
 struct Rocket : public Entity {
-	Rocket() : Entity(1.f, 0.01f) {}
+	Rocket() : Entity(1.0f, 0.01f) {} //TODO: reduce player radius and scale down model
 
-	void init(Orbit *orbit_, Scene::Transform *transform_, Body *root, std::list< Orbit > &orbits);
-	void update(float elapsed, Body *root, std::list< Orbit > &orbits);
+	void init(Scene::Transform *transform_, Body *root);
+	void update(float elapsed);
 
-
-	Orbit *orbit;
+	Body *root;
+	std::list< Orbit > orbits;
 	Scene::Transform *transform;
 
 	static float constexpr DryMass = 4.0f; // Megagram
@@ -92,6 +93,19 @@ struct Rocket : public Entity {
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
 };
+
+//Asteroid
+struct Asteroid : public Entity {
+	Asteroid(float r_, float m_) : Entity(r_, m_) {}
+
+	void init(Scene::Transform *transform_, Body *root);
+	void update(float elapsed);
+
+	Body *root;
+	std::list< Orbit > orbits;
+	Scene::Transform *transform;
+};
+
 
 //Keplerian orbital mechanics
 //See example: https://www.desmos.com/calculator/j0z5ksh8ed
@@ -142,14 +156,14 @@ struct Orbit {
 	void predict();
 	void init_sim();
 	void simulate(float time);
-	void sim_predict(Body *root, std::list< Orbit > &orbits, int level);
+	void sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it);
 	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants
 	static float constexpr G = 6.67430e-23f; //Standard gravitational constant
 	static float constexpr MinPForDegen = 1.0e-4f;
 	static size_t constexpr UpdateSteps = 100;
-	static size_t constexpr PredictDetail = 1440; //number of points to generate when predicting
+	static size_t constexpr PredictDetail = 3600; //number of points to generate when predicting
 	static float constexpr PredictAngle = glm::radians(360.0f / static_cast< float >(PredictDetail)); //change btwn pts
 	static float constexpr TimeStep = 1.0f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI

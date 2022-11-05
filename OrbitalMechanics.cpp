@@ -91,6 +91,13 @@ void Body::update(float elapsed) {
 	}
 }
 
+void  Body::init_sim() {
+	if (orbit != nullptr) orbit->init_sim();
+	for (Body *satellite : satellites) {
+		satellite->init_sim();
+	}
+}
+
 void Body::simulate(float time) {
 	if (orbit != nullptr) {
 		orbit->simulate(time);
@@ -113,20 +120,21 @@ void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color) {
 }
 
 
-void Rocket::init(Orbit *orbit_, Scene::Transform *transform_, Body *root, std::list< Orbit > &orbits) {
+void Rocket::init(Scene::Transform *transform_, Body *root_) {
 	assert(transform_ != nullptr);
 
-	orbit = orbit_;
-	pos = orbit->get_pos();
-	vel = orbit->get_vel();
+	root = root_;
+	Orbit &orbit = orbits.front();
+	pos = orbit.get_pos();
+	vel = orbit.get_vel();
 	acc = glm::vec3(0.0f);
-	orbit->sim_predict(root, orbits, 0);
+	orbit.sim_predict(root, orbits, 0, orbits.begin());
 
 	transform = transform_;
 	transform->position = pos;
 }
 
-void Rocket::update(float elapsed, Body *root, std::list< Orbit > &orbits) {
+void Rocket::update(float elapsed) {
 	bool moved = false;
 	{ //rocket controls & physics
 		//Going to assume stability assist via reaction wheels is always on and the controller is perfect to simplify
@@ -162,35 +170,93 @@ void Rocket::update(float elapsed, Body *root, std::list< Orbit > &orbits) {
 	}
 
 	{ //orbital mechanics
+		Orbit &orbit = orbits.front();
 		if (moved) {
 			//recalculate orbit due to thrust
-			Orbit *temp = orbit->continuation;
-			*orbit = Orbit(orbit->origin, pos, vel, false);
-			orbit->continuation = temp;
-			orbit->sim_predict(root, orbits, 0);
+			Orbit *temp = orbit.continuation;
+			orbit = Orbit(orbit.origin, pos, vel, false);
+			orbit.continuation = temp;
+			orbit.sim_predict(root, orbits, 0, orbits.begin());
 		}
 
-		orbit->update(elapsed);
-		assert(orbit->r > orbit->origin->radius);
-		pos = orbit->get_pos();
-		vel = orbit->get_vel();
+		orbit.update(elapsed);
+		assert(orbit.r > orbit.origin->radius);
+		pos = orbit.get_pos();
+		vel = orbit.get_vel();
 
-		Body *origin = orbit->origin;
+		Body *origin = orbit.origin;
 
 		if (!origin->in_soi(pos)) {
-			//TODO: cleanup old orbit and continuations
+			assert(origin->orbit != nullptr);
 			Body *new_origin = origin->orbit->origin;
-			assert(new_origin != nullptr);
 
-			*orbit = Orbit(new_origin, pos, vel, false);
-			orbit->sim_predict(root, orbits, 0);
+			orbit = Orbit(new_origin, pos, vel, false);
+			orbit.sim_predict(root, orbits, 0, orbits.begin());
 		}
 
 		for (Body *satellite : origin->satellites) {
 			if (satellite->in_soi(pos)) {
-				//TODO: cleanup old orbit and continuations
-				*orbit = Orbit(satellite, pos, vel, false);
-				orbit->sim_predict(root, orbits, 0);
+				orbit = Orbit(satellite, pos, vel, false);
+				orbit.sim_predict(root, orbits, 0, orbits.begin());
+				break;
+			}
+		}
+
+		assert(transform != nullptr);
+		transform->position = pos;
+	}
+}
+
+
+void Asteroid::init(Scene::Transform *transform_, Body *root_) {
+	assert(transform_ != nullptr);
+
+	root = root_;
+	Orbit &orbit = orbits.front();
+	pos = orbit.get_pos();
+	vel = orbit.get_vel();
+	acc = glm::vec3(0.0f);
+	orbit.sim_predict(root, orbits, 0, orbits.begin());
+
+	transform = transform_;
+	transform->position = pos;
+}
+
+void Asteroid::update(float elapsed) {
+	bool moved = false;
+	{ //TODO: this is a placeholder for when rocket and asteroid interact
+
+	}
+
+	{ //orbital mechanics
+		Orbit &orbit = orbits.front();
+		if (moved) {
+			//recalculate orbit due to thrust
+			Orbit *temp = orbit.continuation;
+			orbit = Orbit(orbit.origin, pos, vel, false);
+			orbit.continuation = temp;
+			orbit.sim_predict(root, orbits, 0, orbits.begin());
+		}
+
+		orbit.update(elapsed);
+		assert(orbit.r > orbit.origin->radius);
+		pos = orbit.get_pos();
+		vel = orbit.get_vel();
+
+		Body *origin = orbit.origin;
+
+		if (!origin->in_soi(pos)) {
+			assert(origin->orbit != nullptr);
+			Body *new_origin = origin->orbit->origin;
+
+			orbit = Orbit(new_origin, pos, vel, false);
+			orbit.sim_predict(root, orbits, 0, orbits.begin());
+		}
+
+		for (Body *satellite : origin->satellites) {
+			if (satellite->in_soi(pos)) {
+				orbit = Orbit(satellite, pos, vel, false);
+				orbit.sim_predict(root, orbits, 0, orbits.begin());
 				break;
 			}
 		}
@@ -285,8 +351,6 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel, bool simulated) : orig
 
 	// LOG("\tnew pos: " << glm::to_string(get_pos()));
 	// LOG("\tnew vel: " << glm::to_string(get_vel()));
-
-	init_sim();
 }
 
 Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool retrograde)
@@ -315,7 +379,6 @@ Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool r
 	LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a << " incl: " << incl);
 
 	init_dynamics();
-	init_sim();
 }
 
 glm::vec3 Orbit::get_rpos(float theta_, float r_) {
@@ -360,8 +423,6 @@ void Orbit::update(float elapsed) {
 		rpos = get_rpos(theta, r);
 		rvel = get_rvel(theta);
 	}
-
-	init_sim();
 }
 
 void Orbit::predict() {
@@ -387,9 +448,13 @@ void Orbit::init_sim() {
 	sim.rvel = rvel;
 }
 
-void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
+void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it) {
+	root->init_sim();
+	init_sim();
+
 	points[0] = sim.rpos;
-	//TODO: handle degenerate case separately
+	++it;
+
 	if (p == 0.0f) { //degenerate case
 		points[1] = glm::vec3(0.0f);
 		points[2] = Invalid;
@@ -409,16 +474,18 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
 			if (level >= MaxLevel) return;
 
 			// SOI transfer to origin of origin
-			if (continuation == nullptr) {
+			if (it == orbits.end()) {
 				assert(origin->orbit != nullptr);
 				orbits.emplace_back(Orbit(origin->orbit->origin, sim.pos, sim.vel, true));
+				it = --orbits.end();
 				continuation = &orbits.back();
 			} else {
+				continuation = &(*it);
 				Orbit *temp = continuation->continuation;
 				*continuation = Orbit(origin->orbit->origin, sim.pos, sim.vel, true);
 				continuation->continuation = temp;
 			}
-			continuation->sim_predict(root, orbits, level+1);
+			continuation->sim_predict(root, orbits, level+1, it);
 			return;
 		}
 
@@ -430,15 +497,17 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
 				if (level >= MaxLevel) return;
 
 				// SOI transfer to satellite of origin
-				if (continuation == nullptr) {
+				if (it == orbits.end()) {
 					orbits.emplace_back(Orbit(satellite, sim.pos, sim.vel, true));
+					it = --orbits.end();
 					continuation = &orbits.back();
 				} else {
+					continuation = &(*it);
 					Orbit *temp = continuation->continuation;
 					*continuation = Orbit(satellite, sim.pos, sim.vel, true);
 					continuation->continuation = temp;
 				}
-				continuation->sim_predict(root, orbits, level+1);
+				continuation->sim_predict(root, orbits, level+1, it);
 				return;
 			}
 		}
@@ -447,7 +516,6 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level) {
 	}
 
 	if (continuation != nullptr) {
-		//TODO: cleanup continuation since there's no longer an SOI transition
 		continuation = nullptr;
 	}
 }
