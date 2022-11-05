@@ -83,18 +83,19 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	// first focus should be on the spaceship!
 	entities.push_back(&spaceship);
 
+	// next on asteroid
+	entities.push_back(&asteroid);
+
 	//start music loop playing:
 	// (note: position will be over-ridden in update())
 	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
 
-	//TODO: This is hacked together for dev demo purposes, mostly so we can test orbital simulation
-	// The masses and distances are fudged for now. Things would normally be much futher away and move much
-	// slower (if we're going for realism)
 	{ //Load star
 		scene.transforms.emplace_back();
 		Scene::Transform *star_trans = &scene.transforms.back();
 		star_trans->name = "Star";
 
+		//a slightly large red dwarf that's 0.4x the mass of the sun
 		bodies.emplace_back(Body(275.0, 8.0e23f, std::numeric_limits< float >::infinity()));
 		star = &bodies.back();
 		entities.push_back(star);
@@ -110,7 +111,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		Scene::Transform *planet_trans = &scene.transforms.back();
 		planet_trans->name = "Planet";
 
-		bodies.emplace_back(Body(10.0, 6.0e18f, 1000.0f));
+		//a very large but not very dense rocky planet (same mass as Earth, about 1.66x the radius)
+		bodies.emplace_back(Body(10.0f, 6.0e18f, 1000.0f));
 		Body *planet = &bodies.back();
 		entities.push_back(planet);
 
@@ -131,7 +133,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			Scene::Transform *moon_trans = &scene.transforms.back();
 			moon_trans->name = "Moon";
 
-			bodies.emplace_back(Body(1.0, 7.0e16f, 50.0));
+			//a Moon-sized moon with similar mass and rius
+			bodies.emplace_back(Body(1.7f, 7.0e16f, 50.0f));
 			Body *moon = &bodies.back();
 			entities.push_back(moon);
 
@@ -164,6 +167,20 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 			make_drawable(scene, spaceship_trans);
 			LOG("Loaded Spaceship");
+		}
+		{ //Load asteroid
+			scene.transforms.emplace_back();
+			Scene::Transform *asteroid_trans = &scene.transforms.back();
+			asteroid_trans->name = "Asteroid";
+
+			asteroid.orbits.emplace_front(
+				Orbit(planet, 0.5f, 200.0f, glm::radians(30.0f), glm::radians(60.0f), false)
+			);
+
+			asteroid.init(asteroid_trans, star);
+
+			make_drawable(scene, asteroid_trans);
+			LOG("Loaded Asteroid");
 		}
 	}
 
@@ -309,8 +326,7 @@ void PlayMode::update(float elapsed) {
 		spaceship.thrust_percent = 0.f;
 	}
 
-	// update text UI
-	{
+	{ //update text UI
 		std::stringstream stream;
 		stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
 			   << '\n' << "fuel: " << spaceship.fuel << '\n'
@@ -329,6 +345,7 @@ void PlayMode::update(float elapsed) {
 	{ //basic orbital simulation demo
 		star->update(elapsed);
 		spaceship.update(elapsed);
+		asteroid.update(elapsed);
 	}
 
 	//reset button press counters:
@@ -367,9 +384,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 		static constexpr glm::u8vec4 purple = glm::u8vec4(0xff, 0x00, 0xff, 0xff);
 		static constexpr glm::u8vec4 blue = glm::u8vec4(0x00, 0x00, 0xff, 0xff);
+		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x00, 0xff);
 
 		star->draw_orbits(orbit_lines, purple);
 		spaceship.orbits.front().draw(orbit_lines, blue);
+		asteroid.orbits.front().draw(orbit_lines, green);
 	}
 
 	//Everything from this point on is part of the HUD overlay

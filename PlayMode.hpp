@@ -61,6 +61,7 @@ struct PlayMode : Mode {
 	// std::shared_ptr< Sound::PlayingSample > leg_tip_loop;
 
 	Rocket spaceship;
+	Asteroid asteroid = Asteroid(1.0f, 0.2f); //TODO: reduce asteroid radius and scale down model
 	Body *star; //All body updates cascade off of star update, should be done prior to spaceship update
 	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;

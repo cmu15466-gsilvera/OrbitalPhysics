@@ -40,7 +40,7 @@ struct Entity {
 	float mass; //mass used for gravity calculation, Gigagrams (1 million kilograms)
 };
 
-//Stars, Planets, Moons, Asteroids, etc.
+//Stars, Planets, Moons, etc.
 struct Body : public Entity {
 	Body(float r, float m, float sr) : Entity(r, m), soi_radius(sr) {}
 
@@ -59,6 +59,7 @@ struct Body : public Entity {
 		return glm::distance(pos, target_pos) <= soi_radius;
 	}
 	void update(float elapsed);
+	void init_sim();
 	void simulate(float time);
 	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color);
 
@@ -70,9 +71,9 @@ struct Body : public Entity {
 	float soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
 };
 
-// Player
+//Player
 struct Rocket : public Entity {
-	Rocket() : Entity(1.f, 0.01f) {}
+	Rocket() : Entity(1.0f, 0.01f) {} //TODO: reduce player radius and scale down model
 
 	void init(Scene::Transform *transform_, Body *root);
 	void update(float elapsed);
@@ -92,6 +93,19 @@ struct Rocket : public Entity {
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
 };
+
+//Asteroid
+struct Asteroid : public Entity {
+	Asteroid(float r_, float m_) : Entity(r_, m_) {}
+
+	void init(Scene::Transform *transform_, Body *root);
+	void update(float elapsed);
+
+	Body *root;
+	std::list< Orbit > orbits;
+	Scene::Transform *transform;
+};
+
 
 //Keplerian orbital mechanics
 //See example: https://www.desmos.com/calculator/j0z5ksh8ed

@@ -91,6 +91,13 @@ void Body::update(float elapsed) {
 	}
 }
 
+void  Body::init_sim() {
+	if (orbit != nullptr) orbit->init_sim();
+	for (Body *satellite : satellites) {
+		satellite->init_sim();
+	}
+}
+
 void Body::simulate(float time) {
 	if (orbit != nullptr) {
 		orbit->simulate(time);
@@ -160,6 +167,65 @@ void Rocket::update(float elapsed) {
 		} else {
 			acc = glm::vec3(0.0f);
 		}
+	}
+
+	{ //orbital mechanics
+		Orbit &orbit = orbits.front();
+		if (moved) {
+			//recalculate orbit due to thrust
+			Orbit *temp = orbit.continuation;
+			orbit = Orbit(orbit.origin, pos, vel, false);
+			orbit.continuation = temp;
+			orbit.sim_predict(root, orbits, 0, orbits.begin());
+		}
+
+		orbit.update(elapsed);
+		assert(orbit.r > orbit.origin->radius);
+		pos = orbit.get_pos();
+		vel = orbit.get_vel();
+
+		Body *origin = orbit.origin;
+
+		if (!origin->in_soi(pos)) {
+			assert(origin->orbit != nullptr);
+			Body *new_origin = origin->orbit->origin;
+
+			orbit = Orbit(new_origin, pos, vel, false);
+			orbit.sim_predict(root, orbits, 0, orbits.begin());
+		}
+
+		for (Body *satellite : origin->satellites) {
+			if (satellite->in_soi(pos)) {
+				orbit = Orbit(satellite, pos, vel, false);
+				orbit.sim_predict(root, orbits, 0, orbits.begin());
+				break;
+			}
+		}
+
+		assert(transform != nullptr);
+		transform->position = pos;
+	}
+}
+
+
+void Asteroid::init(Scene::Transform *transform_, Body *root_) {
+	assert(transform_ != nullptr);
+
+	root = root_;
+	Orbit &orbit = orbits.front();
+	pos = orbit.get_pos();
+	vel = orbit.get_vel();
+	acc = glm::vec3(0.0f);
+	orbit.sim_predict(root, orbits, 0, orbits.begin());
+
+	transform = transform_;
+	transform->position = pos;
+}
+
+void Asteroid::update(float elapsed) {
+	bool moved = false;
+	{ //TODO: this is a placeholder for when rocket and asteroid interact
+
 	}
 
 	{ //orbital mechanics
@@ -285,8 +351,6 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel, bool simulated) : orig
 
 	// LOG("\tnew pos: " << glm::to_string(get_pos()));
 	// LOG("\tnew vel: " << glm::to_string(get_vel()));
-
-	init_sim();
 }
 
 Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool retrograde)
@@ -315,7 +379,6 @@ Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool r
 	LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a << " incl: " << incl);
 
 	init_dynamics();
-	init_sim();
 }
 
 glm::vec3 Orbit::get_rpos(float theta_, float r_) {
@@ -360,8 +423,6 @@ void Orbit::update(float elapsed) {
 		rpos = get_rpos(theta, r);
 		rvel = get_rvel(theta);
 	}
-
-	init_sim();
 }
 
 void Orbit::predict() {
@@ -388,6 +449,9 @@ void Orbit::init_sim() {
 }
 
 void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it) {
+	root->init_sim();
+	init_sim();
+
 	points[0] = sim.rpos;
 	++it;
 
