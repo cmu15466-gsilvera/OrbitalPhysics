@@ -282,15 +282,6 @@ void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_
 }
 
 void PlayMode::update(float elapsed) {
-	{ // update camera controls
-		if (tab.downs > 0) {
-			uint8_t dir = shift.pressed ? -1 : 1;
-			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
-		}
-		CameraArm &camarm = CurrentCameraArm();
-		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
-	}
-
 	if (plus.downs > 0 && minus.downs == 0) {
 		dilation++;
 	} else if (minus.downs > 0 && plus.downs == 0) {
@@ -330,7 +321,7 @@ void PlayMode::update(float elapsed) {
 		std::stringstream stream;
 		stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
 			   << '\n' << "fuel: " << spaceship.fuel << '\n'
-			   << '\n' << "time speedup: " << dilation << "x";
+			   << '\n' << "time: " << DilationSchematic(dilation) << " ("  << dilation << "x)";
 		// stream << "a" << std::endl << "b";
 		UI_text.set_text(stream.str());
 	}
@@ -346,6 +337,15 @@ void PlayMode::update(float elapsed) {
 		star->update(elapsed);
 		spaceship.update(elapsed);
 		asteroid.update(elapsed);
+	}
+
+	{ // update camera controls (after spaceship update for smooth motion)
+		if (tab.downs > 0) {
+			uint8_t dir = shift.pressed ? -1 : 1;
+			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
+		}
+		CameraArm &camarm = CurrentCameraArm();
+		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
 	}
 
 	//reset button press counters:
