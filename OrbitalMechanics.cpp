@@ -172,18 +172,19 @@ void Rocket::update(float elapsed, Scene *scene) {
 
 	{
 		/* if(thrust_percent > 0){ */
-		if(true){
-			while(timeSinceLastParticle > 0.001f){
+		if(thrust_percent > 0){
+			float rate = glm::mix(0.0f, 250.0f, std::min((thrust_percent / 10.0f), 1.0f));
+			while(timeSinceLastParticle > (1.0f / rate)){
 				auto particle = &thrustParticles[lastParticle];
 				auto trans = thrustParticles[lastParticle].transform;
 				trans->position = transform->make_local_to_world() * glm::vec4( -3.5f, Utils::RandBetween(-0.5f, 0.5f), Utils::RandBetween(-0.5f, 0.5f), 1);
 				trans->scale = glm::vec3(0.1f,0.1f,0.1f);
 				particle->_t = 0;
-				timeSinceLastParticle -= 0.001f;
-				glm::vec3 velocity = transform->make_local_to_world() * glm::vec4(Utils::RandBetween(-60.5f, -40.0f), 0, 0, 0.0f); 
+				timeSinceLastParticle -= (1.0f / rate);
+				glm::vec3 velocity = transform->make_local_to_world() * glm::vec4(Utils::RandBetween(-10.5f, -5.0f), 0, 0, 0.0f); 
 				particle->velocity = velocity;
 				particle->color = glm::vec4(1, 0, 0, 1);
-				particle->lifeTime = Utils::RandBetween(0.04f, 0.06f);
+				particle->lifeTime = Utils::RandBetween(0.34f, 0.36f);
 				trans->enabled = true;
 				lastParticle = (1 + lastParticle) % PARTICLE_COUNT;
 			}
