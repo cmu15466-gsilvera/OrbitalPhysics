@@ -410,16 +410,21 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
 		// static float constexpr display_multiplier = 1000.0f;
 
-		glm::vec3 heading = glm::vec3(
-			std::cos(spaceship.theta),
-			std::sin(spaceship.theta),
-			0.0f
-		) * 4.0f;
+		glm::vec3 heading = spaceship.get_heading() * 4.0f;
 
 		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rpos, white);
 		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
 		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rvel * 1000.0f, green);
 		vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
+	}
+
+	{ // draw spaceship laser beams (screenspace)
+		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
+		DrawLines line_drawer(world_to_clip);
+
+		for (const Beam &L : spaceship.lasers){
+			L.draw(line_drawer);
+		}
 	}
 
 	{ //use DrawLines to overlay some text:

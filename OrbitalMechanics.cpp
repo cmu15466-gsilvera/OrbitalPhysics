@@ -136,6 +136,14 @@ void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color) {
 	}
 }
 
+void Beam::draw(DrawLines &DL) const {
+	DL.draw(pos, pos + compute_delta_pos(), col);
+}
+
+glm::vec3 Beam::compute_delta_pos() const {
+	// used to compute the delta to where this beam will be in 1 timestep (dt)
+	return vel * heading * dt * static_cast< float >(dilation);
+}
 
 void Rocket::init(Scene::Transform *transform_, Body *root_) {
 	assert(transform_ != nullptr);
@@ -149,6 +157,10 @@ void Rocket::init(Scene::Transform *transform_, Body *root_) {
 
 	transform = transform_;
 	transform->position = pos;
+}
+
+glm::vec3 Rocket::get_heading() const {
+	return {std::cos(theta), std::sin(theta), 0.0f};
 }
 
 void Rocket::update(float elapsed) {
@@ -183,6 +195,19 @@ void Rocket::update(float elapsed) {
 			vel += acc * elapsed;
 		} else {
 			acc = glm::vec3(0.0f);
+		}
+	}
+
+	{ // update lights physics
+		for (Beam &b : lasers) {
+			b.dt = elapsed;
+			b.pos += b.compute_delta_pos();
+		}
+
+		// delete beams once we have too many
+		int num_to_remove = std::max(0, static_cast<int>(lasers.size()) - MAX_BEAMS);
+		for (int i = num_to_remove; i > 0; i--) {
+			lasers.pop_front();
 		}
 	}
 

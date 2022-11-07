@@ -10,6 +10,7 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <deque>
 
 
 //Forward declarations
@@ -72,12 +73,27 @@ struct Body : public Entity {
 	float soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
 };
 
+struct Beam {
+	Beam() = delete;
+	Beam(glm::vec3 &p, glm::vec3 h) : pos(p), heading(h) {};
+	static constexpr glm::u8vec4 col = glm::u8vec4(0x00, 0xff, 0x00, 0xff); // green lasers
+	static constexpr float vel = 299.792f; // speed of light in megameters/sec
+	glm::vec3 pos;
+	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
+	float dt = 0.f;
+
+	glm::vec3 compute_delta_pos() const;
+	void draw(DrawLines &DL) const;
+};
+
 //Player
 struct Rocket : public Entity {
 	Rocket() : Entity(1.0f, 0.01f) {} //TODO: reduce player radius and scale down model
 
 	void init(Scene::Transform *transform_, Body *root);
 	void update(float elapsed);
+
+	glm::vec3 get_heading() const;
 
 	Body *root;
 	std::list< Orbit > orbits;
@@ -86,6 +102,9 @@ struct Rocket : public Entity {
 	static float constexpr DryMass = 4.0f; // Megagram
 	static float constexpr MaxThrust = 0.5f; // MegaNewtons
 	static float constexpr MaxFuelConsumption = 0.0f; // Measured by mass, Megagram
+
+	static int constexpr MAX_BEAMS = 1000; // don't have more than this
+	std::deque<Beam> lasers; // fast insertion/deletion at both ends
 
 	float control_dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
 	float dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)

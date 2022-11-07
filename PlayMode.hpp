@@ -26,7 +26,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, tab, shift, control, plus, minus;
+	} left, right, down, up, tab, shift, control, plus, minus, space;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 
 	std::unordered_map<Button*, std::vector<int>> keybindings = {
@@ -40,6 +40,7 @@ struct PlayMode : Mode {
         { &control, {SDLK_LCTRL} },
         { &plus, {SDLK_e, SDLK_PLUS} },
 		{ &minus, {SDLK_q, SDLK_MINUS} },
+		{ &space, {SDLK_SPACE} },
 		/// TODO: add SDL_ESCAPE for quit?
     };
 
