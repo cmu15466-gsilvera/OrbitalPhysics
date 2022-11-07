@@ -134,7 +134,7 @@ void Rocket::init(Scene::Transform *transform_, Body *root_) {
 	transform->position = pos;
 }
 
-void Rocket::update(float elapsed) {
+void Rocket::update(float elapsed, Scene *scene) {
 	bool moved = false;
 	{ //rocket controls & physics
 		//Going to assume stability assist via reaction wheels is always on and the controller is perfect to simplify
@@ -204,6 +204,17 @@ void Rocket::update(float elapsed) {
 
 		assert(transform != nullptr);
 		transform->position = pos;
+	}
+
+	{
+		timeSinceLastParticle += elapsed;
+		if(timeSinceLastParticle >= 0.1f){
+			scene->transforms.emplace_back();
+			Scene::Transform *particle_transform = &scene->transforms.back();
+		}
+
+		for(ThrustParticle particle : thrustParticles){
+		}
 	}
 }
 

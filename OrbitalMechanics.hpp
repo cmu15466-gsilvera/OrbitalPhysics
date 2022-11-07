@@ -76,7 +76,10 @@ struct Rocket : public Entity {
 	Rocket() : Entity(1.0f, 0.01f) {} //TODO: reduce player radius and scale down model
 
 	void init(Scene::Transform *transform_, Body *root);
-	void update(float elapsed);
+
+	// Pass scene for spawning particles
+	// could be cleaner
+	void update(float elapsed, Scene *scene);
 
 	Body *root;
 	std::list< Orbit > orbits;
@@ -92,6 +95,19 @@ struct Rocket : public Entity {
 	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
+	
+	float timeSinceLastParticle = 0.0f;
+
+	struct ThrustParticle {
+		float lifeTime;
+		glm::vec3 velocity;
+		float _t;
+		Scene::Transform *transform;
+		ThrustParticle(Scene::Transform *trans_, float lifeTime_, glm::vec3 v_) : lifeTime(lifeTime_), transform(trans_), velocity(v_) {
+			_t = 0;
+		}
+	};
+	std::list<ThrustParticle> thrustParticles;
 };
 
 //Asteroid

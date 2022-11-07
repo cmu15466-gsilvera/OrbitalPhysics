@@ -1,5 +1,4 @@
 #include "PlayMode.hpp"
-
 #include "LitColorTextureProgram.hpp"
 
 #include "DrawLines.hpp"
@@ -344,7 +343,7 @@ void PlayMode::update(float elapsed) {
 
 	{ //basic orbital simulation demo
 		star->update(elapsed);
-		spaceship.update(elapsed);
+		spaceship.update(elapsed, &scene);
 		asteroid.update(elapsed);
 	}
 
