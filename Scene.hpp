@@ -11,6 +11,7 @@
  */
 
 #include "GL.hpp"
+#include "Mesh.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -35,6 +36,8 @@ struct Scene {
 		//The transform above may be relative to some parent transform:
 		Transform *parent = nullptr;
 
+		bool enabled = true;
+
 		//It is often convenient to construct matrices representing this transformation:
 		// ..relative to its parent:
 		glm::mat4x3 make_local_to_parent() const;
@@ -53,6 +56,8 @@ struct Scene {
 		//a 'Drawable' attaches attribute data to a transform:
 		Drawable(Transform *transform_) : transform(transform_) { assert(transform); }
 		Transform * transform;
+
+		std::function< void() > set_uniforms; 
 
 		//Contains all the data needed to run the OpenGL pipeline:
 		struct Pipeline {
@@ -80,6 +85,15 @@ struct Scene {
 			} textures[TextureCount];
 		} pipeline;
 	};
+
+	//connect vao and program
+	struct RenderSet {
+		GLuint vao;
+		MeshBuffer const *meshes;
+		Drawable::Pipeline pipeline;
+	};
+	static Drawable* make_drawable(Scene &scene, Scene::Transform *transform, RenderSet const *renderSet);
+
 
 	struct Camera {
 		//a 'Camera' attaches camera data to a transform:

@@ -147,6 +147,7 @@ const game_names = [
 ];
 
 const common_names = [
+	maek.CPP('EmissiveShaderProgram.cpp'),
 	maek.CPP('data_path.cpp'),
 	maek.CPP('PathFont.cpp'),
 	maek.CPP('PathFont-font.cpp'),

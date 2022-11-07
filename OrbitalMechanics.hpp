@@ -10,7 +10,7 @@
 #include <list>
 #include <string>
 #include <vector>
-
+#include "EmissiveShaderProgram.hpp"
 
 //Forward declarations
 struct Body;
@@ -75,7 +75,7 @@ struct Body : public Entity {
 struct Rocket : public Entity {
 	Rocket() : Entity(1.0f, 0.01f) {} //TODO: reduce player radius and scale down model
 
-	void init(Scene::Transform *transform_, Body *root);
+	void init(Scene::Transform *transform_, Body *root, Scene *scene);
 
 	// Pass scene for spawning particles
 	// could be cleaner
@@ -97,17 +97,20 @@ struct Rocket : public Entity {
 	float fuel = 8.0f; //measured by mass, Megagram
 	
 	float timeSinceLastParticle = 0.0f;
+	int lastParticle = 0;
 
 	struct ThrustParticle {
 		float lifeTime;
 		glm::vec3 velocity;
+		float scale;
 		float _t;
-		Scene::Transform *transform;
-		ThrustParticle(Scene::Transform *trans_, float lifeTime_, glm::vec3 v_) : lifeTime(lifeTime_), transform(trans_), velocity(v_) {
+		glm::vec4 color;
+		std::list<Scene::Transform>::iterator transform;
+		ThrustParticle(std::list<Scene::Transform>::iterator trans_, float lifeTime_, glm::vec3 v_, float scale) : lifeTime(lifeTime_), transform(trans_), velocity(v_), scale(scale) {
 			_t = 0;
 		}
 	};
-	std::list<ThrustParticle> thrustParticles;
+	std::vector<ThrustParticle> thrustParticles;
 };
 
 //Asteroid

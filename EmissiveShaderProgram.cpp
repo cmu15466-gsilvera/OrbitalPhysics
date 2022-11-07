@@ -7,7 +7,7 @@ Load< EmissiveShaderProgram > background_program(LoadTagEarly);
 
 Scene::Drawable::Pipeline emissive_program_pipeline;
 
-Load< EmissiveShaderProgram > emissive_texture_program(LoadTagEarly, []() -> EmissiveShaderProgram const * {
+Load< EmissiveShaderProgram > emissive_program(LoadTagEarly, []() -> EmissiveShaderProgram const * {
 	EmissiveShaderProgram *ret = new EmissiveShaderProgram();
 
 	//----- build the pipeline template -----
