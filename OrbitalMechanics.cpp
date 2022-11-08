@@ -137,7 +137,9 @@ void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color) {
 }
 
 void Beam::draw(DrawLines &DL) const {
-	DL.draw(pos, pos + compute_delta_pos(), col);
+	// drawing one timestep "ago" since the time dilation makes it really fast
+	// ==> so that we always see the start of the beam at the rocket
+	DL.draw(pos - compute_delta_pos(), pos, col);
 }
 
 glm::vec3 Beam::compute_delta_pos() const {
