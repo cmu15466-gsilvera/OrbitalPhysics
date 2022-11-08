@@ -106,7 +106,7 @@ struct Rocket : public Entity {
 		float _t;
 		glm::vec4 color;
 		std::list<Scene::Transform>::iterator transform;
-		ThrustParticle(std::list<Scene::Transform>::iterator trans_, float lifeTime_, glm::vec3 v_, float scale) : lifeTime(lifeTime_), transform(trans_), velocity(v_), scale(scale) {
+		ThrustParticle(std::list<Scene::Transform>::iterator trans_, float lifeTime_, glm::vec3 v_, float scale) : lifeTime(lifeTime_), velocity(v_), scale(scale), transform(trans_) {
 			_t = 0;
 		}
 	};
