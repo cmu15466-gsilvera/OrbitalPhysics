@@ -294,13 +294,13 @@ void PlayMode::update(float elapsed) {
 				dilation = LEVEL_0; // reset time so user inputs are used
 		}
 
-		static float constexpr dtheta_update_amount = glm::radians(2.0f);
+		static float constexpr dtheta_update_amount = glm::radians(20.0f);
 		if (left.downs > 0 && right.downs == 0) {
 			spaceship.control_dtheta += dtheta_update_amount;
 		} else if (right.downs > 0 && left.downs == 0) {
 			spaceship.control_dtheta -= dtheta_update_amount;
 		} else {
-			spaceship.control_dtheta *= 0.99f; // slow decay
+			spaceship.control_dtheta *= 0.9f; // slow decay
 			if (std::fabs(spaceship.control_dtheta) < 0.01) // threshold to 0
 				spaceship.control_dtheta = 0.f;
 		}
