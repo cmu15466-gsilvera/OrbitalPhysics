@@ -81,6 +81,23 @@ glm::vec3 DilationColor(const DilationLevel &level) {
 	}
 }
 
+std::string DilationSchematic(const DilationLevel &level) {
+	// used as a visual indicator in the UI
+	switch (level) {
+	case LEVEL_0:
+		return "[|....]";
+	case LEVEL_1:
+		return "[||...]";
+	case LEVEL_2:
+		return "[|||..]";
+	case LEVEL_3:
+		return "[||||.]";
+	case LEVEL_4:
+	default:
+		return "[|||||]";
+	}
+}
+
 void Body::set_orbit(Orbit *orbit_) {
 	orbit = orbit_;
 	if (orbit == nullptr) return;

@@ -273,15 +273,6 @@ void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_
 }
 
 void PlayMode::update(float elapsed) {
-	{ // update camera controls
-		if (tab.downs > 0) {
-			uint8_t dir = shift.pressed ? -1 : 1;
-			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
-		}
-		CameraArm &camarm = CurrentCameraArm();
-		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
-	}
-
 	if (plus.downs > 0 && minus.downs == 0) {
 		dilation++;
 	} else if (minus.downs > 0 && plus.downs == 0) {
@@ -294,13 +285,13 @@ void PlayMode::update(float elapsed) {
 				dilation = LEVEL_0; // reset time so user inputs are used
 		}
 
-		static float constexpr dtheta_update_amount = glm::radians(2.0f);
+		static float constexpr dtheta_update_amount = glm::radians(20.0f);
 		if (left.downs > 0 && right.downs == 0) {
 			spaceship.control_dtheta += dtheta_update_amount;
 		} else if (right.downs > 0 && left.downs == 0) {
 			spaceship.control_dtheta -= dtheta_update_amount;
 		} else {
-			spaceship.control_dtheta *= 0.99f; // slow decay
+			spaceship.control_dtheta *= 0.9f; // slow decay
 			if (std::fabs(spaceship.control_dtheta) < 0.01) // threshold to 0
 				spaceship.control_dtheta = 0.f;
 		}
@@ -321,7 +312,7 @@ void PlayMode::update(float elapsed) {
 		std::stringstream stream;
 		stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
 			   << '\n' << "fuel: " << spaceship.fuel << '\n'
-			   << '\n' << "time speedup: " << dilation << "x";
+			   << '\n' << "time: " << DilationSchematic(dilation) << " ("  << dilation << "x)";
 		// stream << "a" << std::endl << "b";
 		UI_text.set_text(stream.str());
 	}
@@ -337,6 +328,15 @@ void PlayMode::update(float elapsed) {
 		star->update(elapsed);
 		spaceship.update(elapsed, &scene);
 		asteroid.update(elapsed);
+	}
+
+	{ // update camera controls (after spaceship update for smooth motion)
+		if (tab.downs > 0) {
+			uint8_t dir = shift.pressed ? -1 : 1;
+			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
+		}
+		CameraArm &camarm = CurrentCameraArm();
+		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
 	}
 
 	//reset button press counters:
