@@ -151,7 +151,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
 
 			spaceship.orbits.emplace_front(
-				Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
+				Orbit(planet, 0.0f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
 			);
 
 			spaceship.init(spaceship_trans, star, &scene);
@@ -165,7 +165,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			asteroid_trans->name = "Asteroid";
 
 			asteroid.orbits.emplace_front(
-				Orbit(planet, 0.5f, 200.0f, glm::radians(30.0f), glm::radians(60.0f), false)
+				Orbit(planet, 0.507543f, 201.459f, 0.53f, glm::radians(60.0f), false)
 			);
 
 			asteroid.init(asteroid_trans, star);
@@ -204,7 +204,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 					was_key_down = true;
 				}
 			}
-        }
+		}
 		return was_key_down;
 	} else if (evt.type == SDL_KEYUP) {
 		bool was_key_up = false;
@@ -217,7 +217,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 					was_key_up = true;
 				}
 			}
-        }
+		}
 		return was_key_up;
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {

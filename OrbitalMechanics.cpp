@@ -45,14 +45,18 @@ DilationLevel operator++(DilationLevel &level, int) {
 	case LEVEL_2:
 		return level = LEVEL_3;
 	case LEVEL_3:
-	case LEVEL_4:
-	default:
 		return level = LEVEL_4;
+	case LEVEL_4:
+	case LEVEL_5:
+	default:
+		return level = LEVEL_5;
 	}
 }
 
 DilationLevel operator--(DilationLevel &level, int) {
 	switch (level) {
+	case LEVEL_5:
+		return level = LEVEL_4;
 	case LEVEL_4:
 		return level = LEVEL_3;
 	case LEVEL_3:
@@ -76,6 +80,7 @@ glm::vec3 DilationColor(const DilationLevel &level) {
 		return glm::vec3(1.0f, 0.64f, 0.0f); // orange
 	case LEVEL_3:
 	case LEVEL_4:
+	case LEVEL_5:
 	default:
 		return glm::vec3(1.0f, 0.0f, 0.0f); // red
 	}
@@ -85,16 +90,18 @@ std::string DilationSchematic(const DilationLevel &level) {
 	// used as a visual indicator in the UI
 	switch (level) {
 	case LEVEL_0:
-		return "[|....]";
+		return "[|.....]";
 	case LEVEL_1:
-		return "[||...]";
+		return "[||....]";
 	case LEVEL_2:
-		return "[|||..]";
+		return "[|||...]";
 	case LEVEL_3:
-		return "[||||.]";
+		return "[||||..]";
 	case LEVEL_4:
+		return "[|||||.]";
+	case LEVEL_5:
 	default:
-		return "[|||||]";
+		return "[||||||]";
 	}
 }
 
