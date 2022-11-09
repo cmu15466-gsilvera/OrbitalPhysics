@@ -29,6 +29,7 @@ extern DilationLevel dilation;
 
 DilationLevel operator++(DilationLevel &level, int);
 DilationLevel operator--(DilationLevel &level, int);
+bool operator>(DilationLevel a, DilationLevel b);
 glm::vec3 DilationColor(const DilationLevel &level);
 std::string DilationSchematic(const DilationLevel &level);
 
@@ -178,6 +179,9 @@ struct Orbit {
 	void init_sim();
 	void simulate(float time);
 	void sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it);
+	bool will_soi_transit(float elapsed)  {
+		return theta + 4.0f * dtheta * elapsed * static_cast< float >(dilation) >= soi_transit;
+	}
 	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants
@@ -194,6 +198,7 @@ struct Orbit {
 
 	//Future trajectory, populated by predict()
 	std::array< glm::vec3, PredictDetail > points; //Cache of orbit points for drawing
+	float soi_transit; //theta value for SOI transit
 	Orbit *continuation = nullptr; //Continuation in next SOI
 
 	//Values defining orbit

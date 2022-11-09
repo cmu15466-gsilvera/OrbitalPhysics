@@ -35,6 +35,7 @@ Load< Scene::RenderSet > particles(LoadTagDefault, []() -> Scene::RenderSet cons
 
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
+static DilationLevel constexpr MAX_SOI_TRANS_DILATION = LEVEL_3;
 
 DilationLevel operator++(DilationLevel &level, int) {
 	switch (level) {
@@ -68,6 +69,10 @@ DilationLevel operator--(DilationLevel &level, int) {
 	default:
 		return level = LEVEL_0;
 	}
+}
+
+bool operator>(DilationLevel a, DilationLevel b) {
+	return static_cast< int >(a) > static_cast< int >(b);
 }
 
 glm::vec3 DilationColor(const DilationLevel &level) {
@@ -270,6 +275,10 @@ void Rocket::update(float elapsed, Scene *scene) {
 			orbit.sim_predict(root, orbits, 0, orbits.begin());
 		}
 
+		while (orbit.will_soi_transit(elapsed) && dilation > MAX_SOI_TRANS_DILATION) {
+			dilation--;
+		}
+
 		orbit.update(elapsed);
 		assert(orbit.r > orbit.origin->radius);
 		pos = orbit.get_pos();
@@ -327,6 +336,10 @@ void Asteroid::update(float elapsed) {
 			orbit = Orbit(orbit.origin, pos, vel, false);
 			orbit.continuation = temp;
 			orbit.sim_predict(root, orbits, 0, orbits.begin());
+		}
+
+		while (orbit.will_soi_transit(elapsed) && dilation > MAX_SOI_TRANS_DILATION) {
+			dilation--;
 		}
 
 		orbit.update(elapsed);
@@ -561,6 +574,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 
 		if (sim.r > origin->soi_radius) {
 			points[i] = Invalid;
+			soi_transit = sim.theta;
 
 			if (level >= MaxLevel) return;
 
@@ -584,6 +598,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 			assert(satellite != nullptr && satellite->orbit != nullptr);
 			if (glm::distance(sim.pos, satellite->orbit->sim.pos) < satellite->soi_radius) {
 				points[i] = Invalid;
+				soi_transit = sim.theta;
 
 				if (level >= MaxLevel) return;
 
@@ -607,6 +622,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 	}
 
 	if (continuation != nullptr) {
+		soi_transit = std::numeric_limits< float >::infinity();
 		continuation = nullptr;
 	}
 }

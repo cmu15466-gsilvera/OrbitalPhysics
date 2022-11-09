@@ -273,11 +273,14 @@ void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_
 }
 
 void PlayMode::update(float elapsed) {
-	if (plus.downs > 0 && minus.downs == 0) {
-		dilation++;
-	} else if (minus.downs > 0 && plus.downs == 0) {
-		dilation--;
+	{ //update dilation
+		if (plus.downs > 0 && minus.downs == 0) {
+			dilation++;
+		} else if (minus.downs > 0 && plus.downs == 0) {
+			dilation--;
+		}
 	}
+
 
 	{ // update rocket controls
 		{ // reset dilation on controls
