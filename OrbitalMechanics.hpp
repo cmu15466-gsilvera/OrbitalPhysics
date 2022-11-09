@@ -198,7 +198,7 @@ struct Orbit {
 
 	//Future trajectory, populated by predict()
 	std::array< glm::vec3, PredictDetail > points; //Cache of orbit points for drawing
-	float soi_transit; //theta value for SOI transit
+	float soi_transit = std::numeric_limits< float >::infinity(); //theta value for SOI transit
 	Orbit *continuation = nullptr; //Continuation in next SOI
 
 	//Values defining orbit
