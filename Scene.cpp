@@ -8,6 +8,23 @@
 #include <fstream>
 
 //-------------------------
+//Helper to set up a drawable given a transform. Note that mesh_name comes from transform->name.
+Scene::Drawable *Scene::make_drawable(Scene &scene, Scene::Transform *transform, RenderSet const *renderSet) {
+	assert(transform != nullptr);
+	Mesh const &mesh = renderSet->meshes->lookup(transform->name);
+
+	scene.drawables.emplace_back(transform);
+	Scene::Drawable &drawable = scene.drawables.back();
+
+	drawable.pipeline = renderSet->pipeline;
+
+	drawable.pipeline.vao = renderSet->vao;
+	drawable.pipeline.type = mesh.type;
+	drawable.pipeline.start = mesh.start;
+	drawable.pipeline.count = mesh.count;
+
+	return &drawable;
+}
 
 glm::mat4x3 Scene::Transform::make_local_to_parent() const {
 	//compute:
@@ -100,6 +117,8 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 		if (pipeline.vao == 0) continue;
 		//skip any drawables that don't contain any vertices:
 		if (pipeline.count == 0) continue;
+		//skip any disabled objects
+		if (!drawable.transform->enabled) continue;
 
 
 		//Set shader program:
@@ -136,6 +155,7 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 
 		//set any requested custom uniforms:
 		if (pipeline.set_uniforms) pipeline.set_uniforms();
+		if (drawable.set_uniforms) drawable.set_uniforms();
 
 		//set up textures:
 		for (uint32_t i = 0; i < Drawable::Pipeline::TextureCount; ++i) {

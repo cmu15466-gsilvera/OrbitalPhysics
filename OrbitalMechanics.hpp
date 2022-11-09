@@ -12,6 +12,7 @@
 #include <vector>
 #include <deque>
 
+#include "EmissiveShaderProgram.hpp"
 
 //Forward declarations
 struct Body;
@@ -90,8 +91,11 @@ struct Beam {
 struct Rocket : public Entity {
 	Rocket() : Entity(1.0f, 0.01f) {} //TODO: reduce player radius and scale down model
 
-	void init(Scene::Transform *transform_, Body *root);
-	void update(float elapsed);
+	void init(Scene::Transform *transform_, Body *root, Scene *scene);
+
+	// Pass scene for spawning particles
+	// could be cleaner
+	void update(float elapsed, Scene *scene);
 
 	glm::vec3 get_heading() const;
 
@@ -112,6 +116,22 @@ struct Rocket : public Entity {
 	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
+	
+	float timeSinceLastParticle = 0.0f;
+	int lastParticle = 0;
+
+	struct ThrustParticle {
+		float lifeTime;
+		glm::vec3 velocity;
+		float scale;
+		float _t;
+		glm::vec4 color;
+		std::list<Scene::Transform>::iterator transform;
+		ThrustParticle(std::list<Scene::Transform>::iterator trans_, float lifeTime_, glm::vec3 v_, float scale) : lifeTime(lifeTime_), velocity(v_), scale(scale), transform(trans_) {
+			_t = 0;
+		}
+	};
+	std::vector<ThrustParticle> thrustParticles;
 };
 
 //Asteroid

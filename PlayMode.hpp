@@ -2,6 +2,7 @@
 
 #include "OrbitalMechanics.hpp"
 
+#include "Mesh.hpp"
 #include "Scene.hpp"
 #include "Sound.hpp"
 #include "Text.hpp"

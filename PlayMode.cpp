@@ -1,10 +1,10 @@
 #include "PlayMode.hpp"
-
 #include "LitColorTextureProgram.hpp"
+#include "Utils.hpp"
 
 #include "DrawLines.hpp"
-#include "Mesh.hpp"
 #include "Load.hpp"
+#include "Scene.hpp"
 #include "gl_errors.hpp"
 #include "data_path.hpp"
 
@@ -12,6 +12,7 @@
 #include <glm/gtx/string_cast.hpp>
 
 #include <iomanip>
+#include <iterator>
 #include <sstream>
 
 
@@ -24,11 +25,14 @@
 #define LOG(ARGS)
 #endif
 
-GLuint orbit_meshes_for_lit_color_texture_program = 0;
-Load< MeshBuffer > main_meshes(LoadTagDefault, []() -> MeshBuffer const * {
+Load< Scene::RenderSet > main_meshes(LoadTagDefault, []() -> Scene::RenderSet const * {
+	Scene::RenderSet *renderSet = new Scene::RenderSet();
 	MeshBuffer const *ret = new MeshBuffer(data_path("orbit.pnct"));
-	orbit_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
-	return ret;
+	renderSet->vao = ret->make_vao_for_program(lit_color_texture_program->program);
+	renderSet->meshes = ret;
+	renderSet->pipeline = lit_color_texture_program_pipeline;
+
+	return renderSet;
 });
 
 Load< Scene > orbit_scene(LoadTagDefault, []() -> Scene const * {
@@ -42,21 +46,6 @@ Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample c
 	return new Sound::Sample(data_path("dusty-floor.opus"));
 });
 
-//Helper to set up a drawable given a transform. Note that mesh_name comes from transform->name.
-static void make_drawable(Scene &scene, Scene::Transform *transform) {
-	assert(transform != nullptr);
-	Mesh const &mesh = main_meshes->lookup(transform->name);
-
-	scene.drawables.emplace_back(transform);
-	Scene::Drawable &drawable = scene.drawables.back();
-
-	drawable.pipeline = lit_color_texture_program_pipeline;
-
-	drawable.pipeline.vao = orbit_meshes_for_lit_color_texture_program;
-	drawable.pipeline.type = mesh.type;
-	drawable.pipeline.start = mesh.start;
-	drawable.pipeline.count = mesh.count;
-}
 
 PlayMode::PlayMode() : scene(*orbit_scene) {
 	//get pointers to leg for convenience:
@@ -72,6 +61,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	// hip_base_rotation = hip->rotation;
 	// upper_leg_base_rotation = upper_leg->rotation;
 	// lower_leg_base_rotation = lower_leg->rotation;
+	//
+	Utils::InitRand();
 
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) {
@@ -102,7 +93,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 		star->set_transform(star_trans);
 
-		make_drawable(scene, star_trans);
+		Scene::make_drawable(scene, star_trans, main_meshes.value);
 		LOG("Loaded Star");
 	}
 
@@ -124,7 +115,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 		star->add_satellite(planet);
 
-		make_drawable(scene, planet_trans);
+		Scene::make_drawable(scene, planet_trans, main_meshes.value);
 		LOG("Loaded Planet");
 
 		//Load all things orbiting planet
@@ -146,7 +137,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 			planet->add_satellite(moon);
 
-			make_drawable(scene, moon_trans);
+			Scene::make_drawable(scene, moon_trans, main_meshes.value);
 			LOG("Loaded Moon");
 		}
 		{ //Load player
@@ -163,9 +154,9 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 				Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
 			);
 
-			spaceship.init(spaceship_trans, star);
+			spaceship.init(spaceship_trans, star, &scene);
 
-			make_drawable(scene, spaceship_trans);
+			Scene::make_drawable(scene, spaceship_trans, main_meshes.value);
 			LOG("Loaded Spaceship");
 		}
 		{ //Load asteroid
@@ -179,7 +170,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 			asteroid.init(asteroid_trans, star);
 
-			make_drawable(scene, asteroid_trans);
+			Scene::make_drawable(scene, asteroid_trans, main_meshes.value);
 			LOG("Loaded Asteroid");
 		}
 	}
@@ -339,7 +330,7 @@ void PlayMode::update(float elapsed) {
 
 	{ //basic orbital simulation demo
 		star->update(elapsed);
-		spaceship.update(elapsed);
+		spaceship.update(elapsed, &scene);
 		asteroid.update(elapsed);
 	}
 
