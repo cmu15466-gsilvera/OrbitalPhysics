@@ -1,4 +1,9 @@
 #include "OrbitalMechanics.hpp"
+#include "Load.hpp"
+#include "Scene.hpp"
+#include "data_path.hpp"
+#include "Utils.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 #include <glm/gtx/norm.hpp>
 
@@ -15,6 +20,18 @@
 #ifndef M_PI // but other OS's do
 #define M_PI 3.141529f
 #endif
+
+#define PARTICLE_COUNT 100
+
+Load< Scene::RenderSet > particles(LoadTagDefault, []() -> Scene::RenderSet const * {
+	Scene::RenderSet *renderSet = new Scene::RenderSet();
+	MeshBuffer const *ret = new MeshBuffer(data_path("particles.pnct"));
+	renderSet->vao = ret->make_vao_for_program(emissive_program->program);
+	renderSet->meshes = ret;
+	renderSet->pipeline = emissive_program_pipeline;
+
+	return renderSet;
+});
 
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
@@ -120,7 +137,7 @@ void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color) {
 }
 
 
-void Rocket::init(Scene::Transform *transform_, Body *root_) {
+void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 	assert(transform_ != nullptr);
 
 	root = root_;
@@ -132,10 +149,60 @@ void Rocket::init(Scene::Transform *transform_, Body *root_) {
 
 	transform = transform_;
 	transform->position = pos;
+
+	thrustParticles.reserve(PARTICLE_COUNT);
+	for(int i = 0; i < PARTICLE_COUNT; i++){
+		scene->transforms.emplace_back();
+		auto it = scene->transforms.end();
+		it--;
+		it->name = "Particle";
+		auto drawable = Scene::make_drawable(*scene, &(*it), particles);
+		thrustParticles.push_back(ThrustParticle(it, 5.0f, glm::vec3(0), 0.2f));
+		ThrustParticle *currentParticle = &thrustParticles[thrustParticles.size() - 1];
+		drawable->set_uniforms = [currentParticle]() { 
+			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(currentParticle->color)); 
+		};
+		it->enabled = false;
+	}
+
 }
 
-void Rocket::update(float elapsed) {
+void Rocket::update(float elapsed, Scene *scene) {
 	bool moved = false;
+
+	{
+		/* if(thrust_percent > 0){ */
+		if(thrust_percent > 0){
+			float rate = glm::mix(0.0f, 250.0f, std::min((thrust_percent / 10.0f), 1.0f));
+			while(timeSinceLastParticle > (1.0f / rate)){
+				auto particle = &thrustParticles[lastParticle];
+				auto trans = thrustParticles[lastParticle].transform;
+				trans->position = transform->make_local_to_world() * glm::vec4( -3.5f, Utils::RandBetween(-0.5f, 0.5f), Utils::RandBetween(-0.5f, 0.5f), 1);
+				trans->scale = glm::vec3(0.1f,0.1f,0.1f);
+				particle->_t = 0;
+				timeSinceLastParticle -= (1.0f / rate);
+				glm::vec3 velocity = transform->make_local_to_world() * glm::vec4(Utils::RandBetween(-10.5f, -5.0f), 0, 0, 0.0f); 
+				particle->velocity = velocity;
+				particle->color = glm::vec4(1, 0, 0, 1);
+				particle->lifeTime = Utils::RandBetween(0.34f, 0.36f);
+				trans->enabled = true;
+				lastParticle = (1 + lastParticle) % PARTICLE_COUNT;
+			}
+			timeSinceLastParticle += elapsed;
+			for(auto it = thrustParticles.begin(); it != thrustParticles.end(); it++){
+				if(!it->transform->enabled)
+					continue;
+				it->_t += elapsed;
+				if(it->_t >= it->lifeTime){
+					it->transform->enabled = false;
+				}
+				it->transform->position += it->velocity * elapsed;
+				float a = ((it->lifeTime - it->_t) / it->lifeTime);
+				it->transform->scale = glm::vec3(it->scale * a);
+				it->color = (glm::vec4(1,(1 - a),0,1));
+			}
+		}
+	}
 	{ //rocket controls & physics
 		//Going to assume stability assist via reaction wheels is always on and the controller is perfect to simplify
 		// things. We can make the game harder later on by changing this to RCS based if need.
