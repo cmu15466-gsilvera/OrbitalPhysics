@@ -173,7 +173,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
 
 			spaceship.orbits.emplace_front(
-				Orbit(planet, 0.0f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
+				Orbit(planet, 0.0f, 30.0f, glm::radians(120.0f), glm::radians(220.0f), false)
 			);
 
 			//use this is you're bad at the game
