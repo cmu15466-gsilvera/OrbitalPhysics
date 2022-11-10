@@ -31,7 +31,9 @@ struct PlayMode : Mode {
 	} left, right, down, up, tab, shift, control, plus, minus;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 
-	HUD::Sprite test;
+	HUD::Sprite *throttle;
+	HUD::Sprite *handle;
+	HUD::Sprite *bar;
 
 	std::unordered_map<Button*, std::vector<int>> keybindings = {
 		// association between action/button and list of keybindings

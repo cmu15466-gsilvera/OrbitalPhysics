@@ -3,7 +3,19 @@
 #include "gl_compile_program.hpp"
 #include "gl_errors.hpp"
 
-Load< ColorTextureProgram > color_texture_program(LoadTagEarly);
+Scene::Drawable::Pipeline color_texture_program_pipeline;
+
+Load< ColorTextureProgram > color_texture_program(LoadTagEarly, []() -> ColorTextureProgram const * {
+	ColorTextureProgram *ret = new ColorTextureProgram();
+
+	//----- build the pipeline template -----
+	color_texture_program_pipeline.program = ret->program;
+
+	color_texture_program_pipeline.OBJECT_TO_CLIP_mat4 = ret->OBJECT_TO_CLIP_mat4;
+
+	return ret;
+});
+
 
 ColorTextureProgram::ColorTextureProgram() {
 	//Compile vertex and fragment shaders using the convenient 'gl_compile_program' helper function:
@@ -11,12 +23,18 @@ ColorTextureProgram::ColorTextureProgram() {
 		//vertex shader:
 		"#version 330\n"
 		"uniform mat4 OBJECT_TO_CLIP;\n"
+		"uniform vec4 OFFSET;\n"
 		"in vec4 Position;\n"
 		"in vec2 TexCoord;\n"
 		"out vec4 color;\n"
 		"out vec2 texCoord;\n"
 		"void main() {\n"
-		"	gl_Position = OBJECT_TO_CLIP * Position;\n"
+		"   vec4 newPosition = Position;\n"
+		"   newPosition.x *= OFFSET.x;\n"
+		"   newPosition.y *= OFFSET.y;\n"
+		"   newPosition.x += OFFSET.z;\n"
+		"   newPosition.y += OFFSET.w;\n"
+		"	gl_Position = OBJECT_TO_CLIP * newPosition;\n"
 		"	texCoord = TexCoord;\n"
 		"}\n"
 	,
@@ -38,6 +56,7 @@ ColorTextureProgram::ColorTextureProgram() {
 
 	//look up the locations of uniforms:
 	OBJECT_TO_CLIP_mat4 = glGetUniformLocation(program, "OBJECT_TO_CLIP");
+	OFFSET_vec4 = glGetUniformLocation(program, "OFFSET");
 	GLuint TEX_sampler2D = glGetUniformLocation(program, "TEX");
 
 	//set TEX to always refer to texture binding zero:

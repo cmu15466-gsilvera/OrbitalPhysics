@@ -1,4 +1,5 @@
 #include "PlayMode.hpp"
+#include "GL.hpp"
 #include "LitColorTextureProgram.hpp"
 #include "Utils.hpp"
 
@@ -24,10 +25,6 @@
 #else
 #define LOG(ARGS)
 #endif
-
-Load<HUD::Sprite> testSprite(LoadTagDefault, []() -> HUD::Sprite const * {
-	return HUD::loadSprite("./UI/test.png");
-});
 
 
 Load< Scene::RenderSet > main_meshes(LoadTagDefault, []() -> Scene::RenderSet const * {
@@ -76,6 +73,9 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	}
 	camera = &scene.cameras.front();
 
+	throttle = HUD::loadSprite(data_path("throttle.png"));
+	bar = HUD::loadSprite(data_path("bar.png"));
+	handle = HUD::loadSprite(data_path("handle.png"));
 	// first focus should be on the spaceship!
 	entities.push_back(&spaceship);
 
@@ -194,6 +194,9 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 }
 
 PlayMode::~PlayMode() {
+	free(throttle);
+	free(handle);
+	free(bar);
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
@@ -373,6 +376,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 
 	scene.draw(*camera);
+	glDisable(GL_DEPTH_TEST);
+	HUD::drawElement(glm::vec2(100, 300), glm::vec2(300, 700), throttle, (float)drawable_size.x, (float)drawable_size.y);
+	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(310, 412 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
+	HUD::drawElement(glm::vec2(120, 30), glm::vec2(290, 440 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
+	glEnable(GL_DEPTH_TEST);
 
 	{ //TODO: this is a demo of drawing the orbit
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
