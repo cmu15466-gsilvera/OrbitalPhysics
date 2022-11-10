@@ -201,8 +201,7 @@ void Rocket::update(float elapsed, Scene *scene) {
 	bool moved = false;
 
 	{
-		/* if(thrust_percent > 0){ */
-		if(thrust_percent > 0){
+		if(thrustParticles.size() > 0){ // while there exist active particles
 			float rate = glm::mix(0.0f, 250.0f, std::min((thrust_percent / 10.0f), 1.0f));
 			while(timeSinceLastParticle > (1.0f / rate)){
 				auto particle = &thrustParticles[lastParticle];

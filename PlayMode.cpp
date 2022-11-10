@@ -181,7 +181,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		camera_views.push_back(entity);
 	}
 	// tune custom params as follows
-	camera_arms.at(&spaceship).scroll_zoom = 40.f;
+	camera_arms.at(&spaceship).scroll_zoom = 5.f;
 
 	{ // load text
 		UI_text.init(Text::AnchorType::LEFT);
@@ -240,7 +240,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 	} else if(evt.type == SDL_MOUSEWHEEL) {
 		auto &camarm = CurrentCameraArm();
-		camarm.scroll_zoom = std::max(camarm.scroll_zoom * (1.0f - evt.wheel.y * camarm.ScrollSensitivity), 10.0f);
+		camarm.scroll_zoom = std::max(camarm.scroll_zoom * (1.0f - evt.wheel.y * camarm.ScrollSensitivity), 5.f);
 		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
