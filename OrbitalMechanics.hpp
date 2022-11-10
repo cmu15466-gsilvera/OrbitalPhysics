@@ -25,7 +25,8 @@ enum DilationLevel {
 	LEVEL_1 = 10,
 	LEVEL_2 = 100,
 	LEVEL_3 = 1000,
-	LEVEL_4 = 10000
+	LEVEL_4 = 10000,
+	LEVEL_5 = 100000
 };
 
 extern DilationLevel dilation;
