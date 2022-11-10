@@ -3,6 +3,8 @@
 #include "Scene.hpp"
 #include "DrawLines.hpp"
 
+#define GLM_PRECISION_HIGHP_FLOAT
+#define GLM_PRECISION_HIGHP_DOUBLE
 #include <glm/glm.hpp>
 
 #include <array>
@@ -10,6 +12,8 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <deque>
+
 #include "EmissiveShaderProgram.hpp"
 
 //Forward declarations
@@ -74,15 +78,33 @@ struct Body : public Entity {
 	float soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
 };
 
+struct Beam {
+	Beam() = delete;
+	Beam(glm::vec3 &p, glm::vec3 h) : pos(p), heading(h), start_pos(p) {};
+	static constexpr glm::u8vec4 col = glm::u8vec4(0x00, 0xff, 0x00, 0xff); // green lasers
+	static constexpr float vel = 299.792f; // speed of light in megameters/sec
+	static constexpr float MaxStrength = 1.0e-5f; // MegaNewtons
+	glm::vec3 pos;
+	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
+	float dt = 0.f;
+	const glm::vec3 start_pos;
+
+	glm::vec3 compute_delta_pos() const;
+	bool collide(glm::vec3 x) const;
+	float get_mass(glm::vec3 x) const;
+	void draw(DrawLines &DL) const;
+};
+
 //Player
 struct Rocket : public Entity {
 	Rocket() : Entity(0.1f, 0.01f) {}
 
 	void init(Scene::Transform *transform_, Body *root, Scene *scene);
 
-	// Pass scene for spawning particles
-	// could be cleaner
-	void update(float elapsed, Scene *scene);
+	void update(float elapsed);
+	void update_lasers(float elapsed);
+
+	glm::vec3 get_heading() const;
 
 	Body *root;
 	std::list< Orbit > orbits;
@@ -91,6 +113,10 @@ struct Rocket : public Entity {
 	static float constexpr DryMass = 4.0f; // Megagram
 	static float constexpr MaxThrust = 0.5f; // MegaNewtons
 	static float constexpr MaxFuelConsumption = 0.0f; // Measured by mass, Megagram
+
+	static int constexpr MAX_BEAMS = 1000; // don't have more than this
+	glm::vec3 aim_dir;
+	std::deque<Beam> lasers; // fast insertion/deletion at both ends
 
 	float control_dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
 	float dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
@@ -121,7 +147,10 @@ struct Asteroid : public Entity {
 	Asteroid(float r_, float m_) : Entity(r_, m_) {}
 
 	void init(Scene::Transform *transform_, Body *root);
-	void update(float elapsed);
+	void update(float elapsed, std::deque< Beam > const &lasers);
+
+	float dvel_mag_accum = 0.0f; // Using an accumulator to avoid updating orbit frequently (and precision issues)
+	size_t accum_cnt = 0;
 
 	Body *root;
 	std::list< Orbit > orbits;

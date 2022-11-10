@@ -11,6 +11,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <iomanip>
 #include <iterator>
@@ -200,6 +201,7 @@ PlayMode::~PlayMode() {
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
+	window_dims = window_size;
 	if (evt.type == SDL_KEYDOWN) {
 		bool was_key_down = false;
 		for (auto& key_action : keybindings) {
@@ -230,18 +232,22 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
+			can_pan_camera = true;
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEBUTTONUP) {
 		// show the mouse cursor again once the mouse is released
 		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
+			can_pan_camera = false;
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEMOTION) {
-		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-		 	mouse_motion_rel = glm::vec2(
-				evt.motion.xrel / float(window_size.y),
+		{
+			// mouse_motion is (1, 1) in top right, (-1, -1) in bottom left
+			mouse_motion = 2.f * glm::vec2(evt.motion.x / float(window_size.x) - 0.5f, -evt.motion.y / float(window_size.y) + 0.5f);
+			mouse_motion_rel = glm::vec2(
+				evt.motion.xrel / float(window_size.x),
 				-evt.motion.yrel / float(window_size.y)
 			);
 			return true;
@@ -292,7 +298,7 @@ void PlayMode::update(float elapsed) {
 
 	{ // update rocket controls
 		{ // reset dilation on controls
-			if (left.downs || right.downs || up.downs || down.downs ||  shift.downs || control.downs)
+			if (up.downs || down.downs ||  shift.downs || control.downs)
 				dilation = LEVEL_0; // reset time so user inputs are used
 		}
 
@@ -335,19 +341,87 @@ void PlayMode::update(float elapsed) {
 		Sound::listener.set_position_right(frame_at, frame_right, 1.0f / 60.0f);
 	}
 
-	{ //basic orbital simulation demo
+	{ //orbital simulation
 		star->update(elapsed);
-		spaceship.update(elapsed, &scene);
-		asteroid.update(elapsed);
+		asteroid.update(elapsed, spaceship.lasers);
+		spaceship.update(elapsed);
 	}
 
-	{ // update camera controls (after spaceship update for smooth motion)
+	{ // reticle tracker
+		// make the reticle follow the mouse
+		reticle_aim = mouse_motion;
+
+		// unless it is "close" to another body, in which case track to that one
+		glm::mat4 world_to_screen = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
+		float min_dist = std::numeric_limits<float>::max(); // infinity
+		glm::vec2 homing_reticle_pos = reticle_aim;
+		glm::vec3 homing_target{0.f, 0.f, 0.f};
+		/// TODO: fix bug where bodies 'offscreen' can still affect this computation and you might "lock" onto nothing!
+		for (const Entity *entity : entities) {
+			if (entity == (&spaceship))
+				continue; // don't shoot laser at self
+			glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(entity->pos, 1.0f));
+			glm::vec2 pos2d{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)};
+			float ss_dist = glm::length(reticle_aim - pos2d); // screen-space distance (for comparisons)
+			if (ss_dist < homing_threshold && ss_dist < min_dist) {
+				min_dist = ss_dist;
+				homing_reticle_pos = pos2d;
+				homing_target = entity->pos;
+			}
+		}
+		reticle_homing = (homing_reticle_pos != reticle_aim); // whether or not we locked onto a target
+		reticle_aim = homing_reticle_pos;
+
+		// now make sure the rocket laser launcher system follows this direction
+		glm::vec3 world_target{0.f, 0.f, 0.f};
+		if (reticle_homing) {
+			world_target = homing_target; // already know what position the target is
+		}
+		else {
+			// perform a ray trace from camera onto the plane z=0
+			glm::mat4x3 frame = camera->transform->make_local_to_parent();
+			glm::vec3 cam_right = frame[0];
+			glm::vec3 cam_up = frame[1];
+			glm::vec3 cam_forward = -frame[2];
+			const float fovY = camera->fovy;
+			const float fovX = camera->fovy * camera->aspect;
+			const float dX = fovX * mouse_motion.x / 2.f;
+			const float dY = fovY * mouse_motion.y / 2.f;
+			glm::vec3 ray = cam_forward + cam_right * dX + cam_up * dY;
+
+			// extend the ray: origin + t * ray = pt such that pt.z == 0
+			// ==> origin.z + t * ray.z == 0 ==> t = -origin.z / ray.z;
+			auto origin = camera->transform->position;
+			float t = -origin.z / ray.z;
+			world_target = (origin + t * ray);
+		}
+
+		// update rocket blaster aim
+		spaceship.aim_dir = glm::normalize(world_target - spaceship.pos);
+		spaceship.aim_dir.z = 0.f;
+	}
+
+	{ //laser
+		if (space.pressed){
+			spaceship.lasers.emplace_back(Beam(spaceship.pos, spaceship.aim_dir));
+		}
+
+		spaceship.update_lasers(elapsed);
+	}
+
+	{ //update camera controls (after spaceship update for smooth motion)
 		if (tab.downs > 0) {
 			uint8_t dir = shift.pressed ? -1 : 1;
 			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
 		}
 		CameraArm &camarm = CurrentCameraArm();
-		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
+
+		if (can_pan_camera) {
+			camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
+		}
+		else {
+			camarm.update(camera,  0.f,  0.f);
+		}
 	}
 
 	//reset button press counters:
@@ -396,7 +470,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	//Everything from this point on is part of the HUD overlay
 	glDisable(GL_DEPTH_TEST);
 
-	{ //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
+	if (false) { //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines vector_lines(world_to_clip);
 
@@ -408,16 +482,53 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
 		// static float constexpr display_multiplier = 1000.0f;
 
-		glm::vec3 heading = glm::vec3(
-			std::cos(spaceship.theta),
-			std::sin(spaceship.theta),
-			0.0f
-		) * 4.0f;
+		glm::vec3 heading = spaceship.get_heading() * 4.0f;
 
 		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rpos, white);
 		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
 		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rvel * 1000.0f, green);
 		vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
+
+		vector_lines.draw(asteroid.pos, asteroid.pos + glm::vec3(-1.0f, 0.0f, 0.0f), red);
+	}
+
+	{ // draw spaceship laser beams (screenspace)
+		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
+		DrawLines line_drawer(world_to_clip);
+
+		for (const Beam &L : spaceship.lasers){
+			L.draw(line_drawer);
+		}
+	}
+
+	{ // draw mouse cursor reticle
+		glm::mat4 projection = glm::mat4(1.0f / camera->aspect, 0.0f, 0.0f, 0.0f,
+										 0.0f, 1.0f, 0.0f, 0.0f,
+										 0.0f, 0.0f, 1.0f, 0.0f,
+										 0.0f, 0.0f, 0.0f, 1.0f);
+		DrawLines line_drawer(projection);
+		auto draw_circle = [&line_drawer](glm::vec2 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
+										  const int num_verts = 20) {
+			// draw a circle by drawing a bunch of lines
+
+			std::vector<glm::vec2> circ_verts;
+			circ_verts.reserve(num_verts);
+			for (int i = 0; i < num_verts; i++)
+			{
+				circ_verts.emplace_back(glm::vec2{(radius.x * glm::cos(i * 2 * M_PI / num_verts)), (radius.y * glm::sin(i * 2 * M_PI / num_verts))});
+			}
+
+			for (int i = 0; i < num_verts; i++)
+			{
+				auto seg_start = glm::vec3(center.x + circ_verts[(i) % num_verts].x, center.y + circ_verts[i % num_verts].y, 0.0f);
+				auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % num_verts].x, center.y + circ_verts[(i + 1) % num_verts].y, 0.0f);
+				line_drawer.draw(seg_start, seg_end, color);
+			}
+		};
+		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
+		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
+		glm::vec2 reticle_pos{camera->aspect * reticle_aim.x, reticle_aim.y};
+		draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
 	}
 
 	{ //use DrawLines to overlay some text:

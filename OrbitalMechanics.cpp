@@ -137,7 +137,7 @@ void Body::update(float elapsed) {
 	}
 }
 
-void  Body::init_sim() {
+void Body::init_sim() {
 	if (orbit != nullptr) orbit->init_sim();
 	for (Body *satellite : satellites) {
 		satellite->init_sim();
@@ -165,6 +165,37 @@ void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color, float scale) 
 	}
 }
 
+void Beam::draw(DrawLines &DL) const {
+	// drawing one timestep "ago" since the time dilation makes it really fast
+	// ==> so that we always see the start of the beam at the rocket
+	// "mass" equates to beam strength which dissipates over time (opacity)
+	const glm::vec3 start = pos - compute_delta_pos();
+	const glm::vec3 &end = pos;
+
+	/// NOTE: we are drawing many lines per dilation to account for opacity shift
+	const glm::vec3 delta = (end - start) / static_cast<float>(dilation);
+	for (int i = 0; i < dilation; i++) {
+		glm::vec3 istart = start + static_cast<float>(i) * delta;
+		float mass = get_mass(istart + delta);
+		if (mass < 1.0e-2f) break;
+		DL.draw(istart, istart + delta, glm::u8vec4{col.x, col.y, col.z, mass * col.w});
+	}
+}
+
+glm::vec3 Beam::compute_delta_pos() const {
+	// used to compute the delta to where this beam will be in 1 timestep (dt)
+	return vel * heading * dt * static_cast< float >(dilation);
+}
+
+bool Beam::collide(glm::vec3 x) const {
+	glm::vec3 prev_pos = pos - compute_delta_pos();
+	return glm::l2Norm(pos - x) + glm::l2Norm(prev_pos - x) - glm::l2Norm(pos - prev_pos) < 0.1f;
+}
+
+float Beam::get_mass(glm::vec3 x) const {
+	float denom = 1.0f + glm::l2Norm(x - start_pos) * 0.05f;
+	return 1.0f / (denom * denom);
+}
 
 void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 	assert(transform_ != nullptr);
@@ -187,30 +218,51 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 		it--;
 		it->name = "Particle";
 		auto drawable = Scene::make_drawable(*scene, &(*it), particles);
-		thrustParticles.push_back(ThrustParticle(it, 5.0f, glm::vec3(0), 0.2f));
+		thrustParticles.push_back(ThrustParticle(it, 5.0f, glm::vec3(0), 0.02f));
 		ThrustParticle *currentParticle = &thrustParticles[thrustParticles.size() - 1];
-		drawable->set_uniforms = [currentParticle]() { 
-			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(currentParticle->color)); 
+		drawable->set_uniforms = [currentParticle]() {
+			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(currentParticle->color));
 		};
 		it->enabled = false;
 	}
 
 }
 
-void Rocket::update(float elapsed, Scene *scene) {
+glm::vec3 Rocket::get_heading() const {
+	return {std::cos(theta), std::sin(theta), 0.0f};
+}
+
+void Rocket::update_lasers(float elapsed) {
+	for (Beam &b : lasers) {
+		b.dt = elapsed;
+		b.pos += b.compute_delta_pos();
+	}
+
+	// delete beams once we have too many
+	int num_to_remove = std::max(0, static_cast<int>(lasers.size()) - MAX_BEAMS);
+	for (int i = num_to_remove; i > 0; i--) {
+		lasers.pop_front();
+	}
+}
+
+void Rocket::update(float elapsed) {
 	bool moved = false;
 
-	{
-		if(thrustParticles.size() > 0){ // while there exist active particles
+	{ //update thrust particles
+		if (thrust_percent > 0){
 			float rate = glm::mix(0.0f, 250.0f, std::min((thrust_percent / 10.0f), 1.0f));
-			while(timeSinceLastParticle > (1.0f / rate)){
+			while (timeSinceLastParticle > (1.0f / rate)) {
 				auto particle = &thrustParticles[lastParticle];
 				auto trans = thrustParticles[lastParticle].transform;
-				trans->position = transform->make_local_to_world() * glm::vec4( -3.5f, Utils::RandBetween(-0.5f, 0.5f), Utils::RandBetween(-0.5f, 0.5f), 1);
+				trans->position = transform->make_local_to_world() * glm::vec4(
+					-3.5f, Utils::RandBetween(-0.5f, 0.5f), Utils::RandBetween(-0.5f, 0.5f), 1
+				);
 				trans->scale = glm::vec3(0.1f,0.1f,0.1f);
 				particle->_t = 0;
 				timeSinceLastParticle -= (1.0f / rate);
-				glm::vec3 velocity = transform->make_local_to_world() * glm::vec4(Utils::RandBetween(-10.5f, -5.0f), 0, 0, 0.0f); 
+				glm::vec3 velocity = transform->make_local_to_world() * glm::vec4(
+					Utils::RandBetween(-10.5f, -5.0f), 0, 0, 0.0f
+				);
 				particle->velocity = velocity;
 				particle->color = glm::vec4(1, 0, 0, 1);
 				particle->lifeTime = Utils::RandBetween(0.34f, 0.36f);
@@ -218,20 +270,21 @@ void Rocket::update(float elapsed, Scene *scene) {
 				lastParticle = (1 + lastParticle) % PARTICLE_COUNT;
 			}
 			timeSinceLastParticle += elapsed;
-			for(auto it = thrustParticles.begin(); it != thrustParticles.end(); it++){
-				if(!it->transform->enabled)
-					continue;
-				it->_t += elapsed;
-				if(it->_t >= it->lifeTime){
-					it->transform->enabled = false;
-				}
-				it->transform->position += it->velocity * elapsed;
-				float a = ((it->lifeTime - it->_t) / it->lifeTime);
-				it->transform->scale = glm::vec3(it->scale * a);
-				it->color = (glm::vec4(1,(1 - a),0,1));
+		}
+
+		for (auto &particle : thrustParticles) {
+			if (!particle.transform->enabled) continue;
+			particle._t += elapsed;
+			if (particle._t >= particle.lifeTime) {
+				particle.transform->enabled = false;
 			}
+			particle.transform->position += particle.velocity * elapsed;
+			float a = (particle.lifeTime - particle._t) / particle.lifeTime;
+			particle.transform->scale = glm::vec3(particle.scale * a);
+			particle.color = glm::vec4(1, (1 - a), 0, 1);
 		}
 	}
+
 	{ //rocket controls & physics
 		//Going to assume stability assist via reaction wheels is always on and the controller is perfect to simplify
 		// things. We can make the game harder later on by changing this to RCS based if need.
@@ -248,7 +301,7 @@ void Rocket::update(float elapsed, Scene *scene) {
 
 			//calculate acceleration: F = ma ==> acc = thrust * MaxThrust / (DryMass + fuel);
 			//Note conversion from MegaNewtons/Megagram == meter/s^2 to Megameter/s^2
-			float acc_magnitude = thrust_percent * MaxThrust / (DryMass + fuel * 1000.0f);
+			float acc_magnitude = thrust_percent * MaxThrust / ((DryMass + fuel) * 1000.0f);
 			acc = glm::vec3(
 				acc_magnitude * std::cos(theta),
 				acc_magnitude * std::sin(theta),
@@ -323,10 +376,44 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 	transform->scale = glm::vec3(radius);
 }
 
-void Asteroid::update(float elapsed) {
+void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 	bool moved = false;
 	{ //TODO: this is a placeholder for when rocket and asteroid interact
 
+		//simplification: only consider first laser in contact with asteroid
+		const Beam *beam = nullptr;
+		for (auto &laser : lasers) {
+			if (laser.collide(pos)) {
+				beam = &laser;
+				break;
+			}
+		}
+		if (beam != nullptr) {
+			float dvel_magnitude =
+				beam->get_mass(pos) * Beam::MaxStrength / (mass * 1000.0f) * elapsed * static_cast< float >(dilation);
+			dvel_mag_accum += dvel_magnitude;
+			accum_cnt++;
+
+			if (accum_cnt > 100) {
+				dvel_mag_accum = 0;
+				accum_cnt = 0;
+			}
+
+			// LOG("|dvel|: " << dvel_magnitude);
+			// LOG("|accum|: " << dvel_mag_accum);
+			// LOG("|vel|: " << glm::l2Norm(vel));
+			if (dvel_mag_accum > 5.0e-3f * glm::l2Norm(vel)) {
+				moved = true;
+
+				//update velocity
+				vel += dvel_mag_accum * beam->heading;
+				dvel_mag_accum = 0.0f;
+				accum_cnt = 0;
+
+				//If we want to simulate the asteroid being burned away (since lasers move things by ablation)
+				// we can slightly reduce the mass here. Effect should be negligible though.
+			}
+		}
 	}
 
 	{ //orbital mechanics
