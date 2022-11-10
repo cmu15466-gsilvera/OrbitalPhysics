@@ -111,8 +111,8 @@ struct Rocket : public Entity {
 	Scene::Transform *transform;
 
 	static float constexpr DryMass = 4.0f; // Megagram
-	static float constexpr MaxThrust = 0.5f; // MegaNewtons
-	static float constexpr MaxFuelConsumption = 0.0f; // Measured by mass, Megagram
+	static float constexpr MaxThrust = 0.05f; // MegaNewtons
+	static float constexpr MaxFuelConsumption = 0.0001f; // Measured by mass, Megagram
 
 	static int constexpr MAX_BEAMS = 1000; // don't have more than this
 	glm::vec3 aim_dir;
