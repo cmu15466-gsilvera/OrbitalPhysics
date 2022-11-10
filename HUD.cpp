@@ -1,10 +1,35 @@
 #include "HUD.hpp"
-#include "GL.hpp"
+#include "ColorTextureProgram.hpp"
 #include "stb_image.h"
 #include <iostream>
 
-HUD::Sprite HUD::loadSprite(const char *path){
-	HUD::Sprite ret;
+void HUD::init(){
+	glGenBuffers(1, &buffer);
+
+	const float vertexData[] = {
+		-1.0f, 1.0f, 0.0f, 1.0f,
+		-1.0f, 0.0f, 0.0f, 1.0f,
+		1.0f, 0.0f, 0.0f, 1.0f,
+		1.0f, 1.0f, 0.0f, 1.0f,
+		-1.0f, 1.0f, 0.0f, 1.0f,
+		1.0f, 0.0f, 1.0f, 1.0f,
+		0.0f, 1.0f,
+		0.0f, 0.0f,
+		1.0f, 0.0f, 
+		1.0f, 1.0f,
+		0.0f, 1.0f,
+		1.0f, 0.0f,
+	};
+
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)96);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+HUD::Sprite *HUD::loadSprite(const char *path){
+	HUD::Sprite *ret = new HUD::Sprite();
 	unsigned char* data = stbi_load(path, &ret.width, &ret.height, &ret.nrChannels, 0);
 
 	if(!data){
@@ -24,7 +49,9 @@ HUD::Sprite HUD::loadSprite(const char *path){
 }
 
 void HUD::drawElement(glm::vec2 bl, glm::vec2 tr, HUD::Sprite sprite){
-	float vertices[] = {
+	glUseProgram(color_texture_program->program);
 
-	};
+	glBindTexture(GL_TEXTURE_2D, sprite.textureID);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
 }

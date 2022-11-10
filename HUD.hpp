@@ -1,3 +1,4 @@
+#include "GL.hpp"
 #include "glm/glm.hpp"
 
 struct HUD {
@@ -6,6 +7,8 @@ struct HUD {
 		unsigned int textureID;
 	};
 
-	Sprite loadSprite(const char* path);
-	void drawElement(glm::vec2 tl, glm::vec2 tr, Sprite sprite);
+	static Sprite *loadSprite(const char* path);
+	static void drawElement(glm::vec2 tl, glm::vec2 tr, Sprite sprite);
+	static void init();
+	static GLuint buffer;
 };

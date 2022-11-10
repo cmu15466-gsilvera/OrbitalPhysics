@@ -6,6 +6,7 @@
 #include "Scene.hpp"
 #include "Sound.hpp"
 #include "Text.hpp"
+#include "HUD.hpp"
 
 #include <glm/glm.hpp>
 
@@ -29,6 +30,8 @@ struct PlayMode : Mode {
 		uint8_t pressed = 0;
 	} left, right, down, up, tab, shift, control, plus, minus;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
+
+	HUD::Sprite test;
 
 	std::unordered_map<Button*, std::vector<int>> keybindings = {
 		// association between action/button and list of keybindings

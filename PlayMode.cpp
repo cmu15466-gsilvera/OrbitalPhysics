@@ -25,6 +25,11 @@
 #define LOG(ARGS)
 #endif
 
+Load<HUD::Sprite> testSprite(LoadTagDefault, []() -> HUD::Sprite const * {
+	return HUD::loadSprite("./UI/test.png");
+});
+
+
 Load< Scene::RenderSet > main_meshes(LoadTagDefault, []() -> Scene::RenderSet const * {
 	Scene::RenderSet *renderSet = new Scene::RenderSet();
 	MeshBuffer const *ret = new MeshBuffer(data_path("orbit.pnct"));

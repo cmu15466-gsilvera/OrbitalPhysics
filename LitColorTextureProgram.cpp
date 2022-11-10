@@ -3,17 +3,17 @@
 #include "gl_compile_program.hpp"
 #include "gl_errors.hpp"
 
-Scene::Drawable::Pipeline emissive;
+Scene::Drawable::Pipeline lit_color_texture_program_pipeline;
 
-Load< LitColorTextureProgram > emissive_texture_program(LoadTagEarly, []() -> LitColorTextureProgram const * {
+Load< LitColorTextureProgram > lit_color_texture_program(LoadTagEarly, []() -> LitColorTextureProgram const * {
 	LitColorTextureProgram *ret = new LitColorTextureProgram();
 
 	//----- build the pipeline template -----
-	emissive.program = ret->program;
+	lit_color_texture_program_pipeline.program = ret->program;
 
-	emissive.OBJECT_TO_CLIP_mat4 = ret->OBJECT_TO_CLIP_mat4;
-	emissive.OBJECT_TO_LIGHT_mat4x3 = ret->OBJECT_TO_LIGHT_mat4x3;
-	emissive.NORMAL_TO_LIGHT_mat3 = ret->NORMAL_TO_LIGHT_mat3;
+	lit_color_texture_program_pipeline.OBJECT_TO_CLIP_mat4 = ret->OBJECT_TO_CLIP_mat4;
+	lit_color_texture_program_pipeline.OBJECT_TO_LIGHT_mat4x3 = ret->OBJECT_TO_LIGHT_mat4x3;
+	lit_color_texture_program_pipeline.NORMAL_TO_LIGHT_mat3 = ret->NORMAL_TO_LIGHT_mat3;
 
 	/* This will be used later if/when we build a light loop into the Scene:
 	lit_color_texture_program_pipeline.LIGHT_TYPE_int = ret->LIGHT_TYPE_int;
@@ -37,8 +37,8 @@ Load< LitColorTextureProgram > emissive_texture_program(LoadTagEarly, []() -> Li
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 
-	emissive.textures[0].texture = tex;
-	emissive.textures[0].target = GL_TEXTURE_2D;
+	lit_color_texture_program_pipeline.textures[0].texture = tex;
+	lit_color_texture_program_pipeline.textures[0].target = GL_TEXTURE_2D;
 
 	return ret;
 });
