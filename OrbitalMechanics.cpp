@@ -164,6 +164,11 @@ glm::vec3 Beam::compute_delta_pos() const {
 	return vel * heading * dt * static_cast< float >(dilation);
 }
 
+bool Beam::collide(glm::vec3 x) const {
+	glm::vec3 prev_pos = pos - compute_delta_pos();
+	return glm::l2Norm(pos - x) + glm::l2Norm(prev_pos - x) - glm::l2Norm(pos - prev_pos) < 0.1f;
+}
+
 void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 	assert(transform_ != nullptr);
 
@@ -336,33 +341,42 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 	transform->position = pos;
 }
 
-void Asteroid::update(float elapsed) {
+void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 	bool moved = false;
 	{ //TODO: this is a placeholder for when rocket and asteroid interact
-		glm::vec3 beam_direction = glm::vec3(-1.0f, 0.0f, 0.0f); //placeholder
-		float beam_strength = Beam::MaxStrength; // MegaNewtons, replace with real strength, 0.0f indicates no beam
-		float dvel_magnitude = beam_strength / (mass * 1000.0f) * elapsed * static_cast< float >(dilation);
-		dvel_mag_accum += dvel_magnitude;
-		accum_cnt++;
 
-		if (accum_cnt > 100) {
-			dvel_mag_accum = 0;
-			accum_cnt = 0;
+		//simplification: only consider first laser in contact with asteroid
+		const Beam *beam = nullptr;
+		for (auto &laser : lasers) {
+			if (laser.collide(pos)) {
+				beam = &laser;
+				break;
+			}
 		}
+		if (beam != nullptr) {
+			float dvel_magnitude = beam->strength / (mass * 1000.0f) * elapsed * static_cast< float >(dilation);
+			dvel_mag_accum += dvel_magnitude;
+			accum_cnt++;
 
-		// LOG("|dvel|: " << dvel_magnitude);
-		// LOG("|accum|: " << dvel_mag_accum);
-		// LOG("|vel|: " << glm::l2Norm(vel));
-		if (dvel_mag_accum > 5.0e-3f * glm::l2Norm(vel)) {
-			moved = true;
+			if (accum_cnt > 100) {
+				dvel_mag_accum = 0;
+				accum_cnt = 0;
+			}
 
-			//update velocity
-			vel += dvel_mag_accum * beam_direction;
-			dvel_mag_accum = 0.0f;
-			accum_cnt = 0;
+			// LOG("|dvel|: " << dvel_magnitude);
+			// LOG("|accum|: " << dvel_mag_accum);
+			// LOG("|vel|: " << glm::l2Norm(vel));
+			if (dvel_mag_accum > 5.0e-3f * glm::l2Norm(vel)) {
+				moved = true;
 
-			//If we want to simulate the asteroid being burned away (since lasers move things by ablation)
-			// we can slightly reduce the mass here. Effect should be negligible though.
+				//update velocity
+				vel += dvel_mag_accum * beam->heading;
+				dvel_mag_accum = 0.0f;
+				accum_cnt = 0;
+
+				//If we want to simulate the asteroid being burned away (since lasers move things by ablation)
+				// we can slightly reduce the mass here. Effect should be negligible though.
+			}
 		}
 	}
 

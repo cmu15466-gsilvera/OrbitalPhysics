@@ -3,6 +3,8 @@
 #include "Scene.hpp"
 #include "DrawLines.hpp"
 
+#define GLM_PRECISION_HIGHP_FLOAT
+#define GLM_PRECISION_HIGHP_DOUBLE
 #include <glm/glm.hpp>
 
 #include <array>
@@ -81,10 +83,12 @@ struct Beam {
 	static constexpr float vel = 299.792f; // speed of light in megameters/sec
 	static constexpr float MaxStrength = 1.0e-5f; // MegaNewtons
 	glm::vec3 pos;
+	float strength = MaxStrength; //TODO: update this
 	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
 	float dt = 0.f;
 
 	glm::vec3 compute_delta_pos() const;
+	bool collide(glm::vec3 x) const;
 	void draw(DrawLines &DL) const;
 };
 
@@ -141,7 +145,7 @@ struct Asteroid : public Entity {
 	Asteroid(float r_, float m_) : Entity(r_, m_) {}
 
 	void init(Scene::Transform *transform_, Body *root);
-	void update(float elapsed);
+	void update(float elapsed, std::deque< Beam > const &lasers);
 
 	float dvel_mag_accum = 0.0f; // Using an accumulator to avoid updating orbit frequently (and precision issues)
 	size_t accum_cnt = 0;

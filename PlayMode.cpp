@@ -152,7 +152,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
 
 			spaceship.orbits.emplace_front(
-				Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
+				Orbit(planet, 0.0f, 100.0f, glm::radians(120.0f), glm::radians(0.0f), false)
 			);
 
 			spaceship.init(spaceship_trans, star, &scene);
@@ -391,7 +391,7 @@ void PlayMode::update(float elapsed) {
 	{ //basic orbital simulation demo
 		star->update(elapsed);
 		spaceship.update(elapsed, &scene);
-		asteroid.update(elapsed);
+		asteroid.update(elapsed, spaceship.lasers);
 	}
 
 	{ // update camera controls (after spaceship update for smooth motion)
