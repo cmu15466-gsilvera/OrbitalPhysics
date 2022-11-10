@@ -35,6 +35,7 @@ Load< Scene::RenderSet > particles(LoadTagDefault, []() -> Scene::RenderSet cons
 
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
+static DilationLevel constexpr MAX_SOI_TRANS_DILATION = LEVEL_3;
 
 DilationLevel operator++(DilationLevel &level, int) {
 	switch (level) {
@@ -45,14 +46,18 @@ DilationLevel operator++(DilationLevel &level, int) {
 	case LEVEL_2:
 		return level = LEVEL_3;
 	case LEVEL_3:
-	case LEVEL_4:
-	default:
 		return level = LEVEL_4;
+	case LEVEL_4:
+	case LEVEL_5:
+	default:
+		return level = LEVEL_5;
 	}
 }
 
 DilationLevel operator--(DilationLevel &level, int) {
 	switch (level) {
+	case LEVEL_5:
+		return level = LEVEL_4;
 	case LEVEL_4:
 		return level = LEVEL_3;
 	case LEVEL_3:
@@ -66,6 +71,10 @@ DilationLevel operator--(DilationLevel &level, int) {
 	}
 }
 
+bool operator>(DilationLevel a, DilationLevel b) {
+	return static_cast< int >(a) > static_cast< int >(b);
+}
+
 glm::vec3 DilationColor(const DilationLevel &level) {
 	switch (level) {
 	case LEVEL_0:
@@ -76,6 +85,7 @@ glm::vec3 DilationColor(const DilationLevel &level) {
 		return glm::vec3(1.0f, 0.64f, 0.0f); // orange
 	case LEVEL_3:
 	case LEVEL_4:
+	case LEVEL_5:
 	default:
 		return glm::vec3(1.0f, 0.0f, 0.0f); // red
 	}
@@ -85,16 +95,18 @@ std::string DilationSchematic(const DilationLevel &level) {
 	// used as a visual indicator in the UI
 	switch (level) {
 	case LEVEL_0:
-		return "[|....]";
+		return "[|.....]";
 	case LEVEL_1:
-		return "[||...]";
+		return "[||....]";
 	case LEVEL_2:
-		return "[|||..]";
+		return "[|||...]";
 	case LEVEL_3:
-		return "[||||.]";
+		return "[||||..]";
 	case LEVEL_4:
+		return "[|||||.]";
+	case LEVEL_5:
 	default:
-		return "[|||||]";
+		return "[||||||]";
 	}
 }
 
@@ -144,12 +156,12 @@ void Body::simulate(float time) {
 	}
 }
 
-void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color) {
-	if (orbit != nullptr) orbit->draw(lines, color);
+void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color, float scale) {
+	if (orbit != nullptr && scale >= orbit->p) orbit->draw(lines, color);
 
 	for (Body *body : satellites) {
 		assert(body != nullptr);
-		body->draw_orbits(lines, color);
+		body->draw_orbits(lines, color, scale);
 	}
 }
 
@@ -166,6 +178,7 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 
 	transform = transform_;
 	transform->position = pos;
+	transform->scale = glm::vec3(radius);
 
 	thrustParticles.reserve(PARTICLE_COUNT);
 	for(int i = 0; i < PARTICLE_COUNT; i++){
@@ -188,8 +201,7 @@ void Rocket::update(float elapsed, Scene *scene) {
 	bool moved = false;
 
 	{
-		/* if(thrust_percent > 0){ */
-		if(thrust_percent > 0){
+		if(thrustParticles.size() > 0){ // while there exist active particles
 			float rate = glm::mix(0.0f, 250.0f, std::min((thrust_percent / 10.0f), 1.0f));
 			while(timeSinceLastParticle > (1.0f / rate)){
 				auto particle = &thrustParticles[lastParticle];
@@ -263,6 +275,10 @@ void Rocket::update(float elapsed, Scene *scene) {
 			orbit.sim_predict(root, orbits, 0, orbits.begin());
 		}
 
+		while (orbit.will_soi_transit(elapsed) && dilation > MAX_SOI_TRANS_DILATION) {
+			dilation--;
+		}
+
 		orbit.update(elapsed);
 		assert(orbit.r > orbit.origin->radius);
 		pos = orbit.get_pos();
@@ -304,6 +320,7 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 
 	transform = transform_;
 	transform->position = pos;
+	transform->scale = glm::vec3(radius);
 }
 
 void Asteroid::update(float elapsed) {
@@ -320,6 +337,10 @@ void Asteroid::update(float elapsed) {
 			orbit = Orbit(orbit.origin, pos, vel, false);
 			orbit.continuation = temp;
 			orbit.sim_predict(root, orbits, 0, orbits.begin());
+		}
+
+		while (orbit.will_soi_transit(elapsed) && dilation > MAX_SOI_TRANS_DILATION) {
+			dilation--;
 		}
 
 		orbit.update(elapsed);
@@ -554,6 +575,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 
 		if (sim.r > origin->soi_radius) {
 			points[i] = Invalid;
+			soi_transit = sim.theta;
 
 			if (level >= MaxLevel) return;
 
@@ -577,6 +599,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 			assert(satellite != nullptr && satellite->orbit != nullptr);
 			if (glm::distance(sim.pos, satellite->orbit->sim.pos) < satellite->soi_radius) {
 				points[i] = Invalid;
+				soi_transit = sim.theta;
 
 				if (level >= MaxLevel) return;
 
@@ -600,6 +623,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 	}
 
 	if (continuation != nullptr) {
+		soi_transit = std::numeric_limits< float >::infinity();
 		continuation = nullptr;
 	}
 }

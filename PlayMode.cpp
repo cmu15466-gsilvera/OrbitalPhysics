@@ -151,7 +151,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
 
 			spaceship.orbits.emplace_front(
-				Orbit(planet, 0.866f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
+				Orbit(planet, 0.0f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
 			);
 
 			spaceship.init(spaceship_trans, star, &scene);
@@ -165,7 +165,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			asteroid_trans->name = "Asteroid";
 
 			asteroid.orbits.emplace_front(
-				Orbit(planet, 0.5f, 200.0f, glm::radians(30.0f), glm::radians(60.0f), false)
+				Orbit(planet, 0.507543f, 201.459f, 0.53f, glm::radians(60.0f), false)
 			);
 
 			asteroid.init(asteroid_trans, star);
@@ -181,7 +181,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		camera_views.push_back(entity);
 	}
 	// tune custom params as follows
-	camera_arms.at(&spaceship).scroll_zoom = 40.f;
+	camera_arms.at(&spaceship).scroll_zoom = 5.f;
 
 	{ // load text
 		UI_text.init(Text::AnchorType::LEFT);
@@ -204,7 +204,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 					was_key_down = true;
 				}
 			}
-        }
+		}
 		return was_key_down;
 	} else if (evt.type == SDL_KEYUP) {
 		bool was_key_up = false;
@@ -217,7 +217,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 					was_key_up = true;
 				}
 			}
-        }
+		}
 		return was_key_up;
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
@@ -240,7 +240,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 	} else if(evt.type == SDL_MOUSEWHEEL) {
 		auto &camarm = CurrentCameraArm();
-		camarm.scroll_zoom = std::max(camarm.scroll_zoom - evt.wheel.y * camarm.ScrollSensitivity, 0.0f);
+		camarm.scroll_zoom = std::max(camarm.scroll_zoom * (1.0f - evt.wheel.y * camarm.ScrollSensitivity), 5.f);
 		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
@@ -251,7 +251,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_y) {
 	const glm::vec3 &focus_point = entity->pos;
-	float camera_arm_length = entity->radius * (10.0f + scroll_zoom);
+	camera_arm_length = std::max(entity->radius, 1.0f) * scroll_zoom;
 
 	// camera arm length depends on radius
 	{
@@ -273,11 +273,14 @@ void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_
 }
 
 void PlayMode::update(float elapsed) {
-	if (plus.downs > 0 && minus.downs == 0) {
-		dilation++;
-	} else if (minus.downs > 0 && plus.downs == 0) {
-		dilation--;
+	{ //update dilation
+		if (plus.downs > 0 && minus.downs == 0) {
+			dilation++;
+		} else if (minus.downs > 0 && plus.downs == 0) {
+			dilation--;
+		}
 	}
+
 
 	{ // update rocket controls
 		{ // reset dilation on controls
@@ -373,11 +376,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines orbit_lines(world_to_clip);
 
-		static constexpr glm::u8vec4 purple = glm::u8vec4(0xff, 0x00, 0xff, 0xff);
+		static constexpr glm::u8vec4 grey = glm::u8vec4(0x80, 0x80, 0x80, 0xff);
 		static constexpr glm::u8vec4 blue = glm::u8vec4(0x00, 0x00, 0xff, 0xff);
 		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x00, 0xff);
 
-		star->draw_orbits(orbit_lines, purple);
+		star->draw_orbits(orbit_lines, grey, CurrentCameraArm().camera_arm_length);
 		spaceship.orbits.front().draw(orbit_lines, blue);
 		asteroid.orbits.front().draw(orbit_lines, green);
 	}
