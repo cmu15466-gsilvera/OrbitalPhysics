@@ -193,7 +193,8 @@ bool Beam::collide(glm::vec3 x) const {
 }
 
 float Beam::get_mass(glm::vec3 x) const {
-	return 1.0f / (1.0f + glm::l2Norm(x - start_pos) * 0.05f);
+	float denom = 1.0f + glm::l2Norm(x - start_pos) * 0.05f;
+	return 1.0f / (denom * denom);
 }
 
 void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
@@ -217,7 +218,7 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 		it--;
 		it->name = "Particle";
 		auto drawable = Scene::make_drawable(*scene, &(*it), particles);
-		thrustParticles.push_back(ThrustParticle(it, 5.0f, glm::vec3(0), 0.2f));
+		thrustParticles.push_back(ThrustParticle(it, 5.0f, glm::vec3(0), 0.02f));
 		ThrustParticle *currentParticle = &thrustParticles[thrustParticles.size() - 1];
 		drawable->set_uniforms = [currentParticle]() {
 			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(currentParticle->color));
