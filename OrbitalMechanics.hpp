@@ -85,7 +85,7 @@ struct Beam {
 	glm::vec3 pos;
 	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
 	float dt = 0.f;
-	glm::vec3 start_pos;
+	const glm::vec3 start_pos;
 
 	glm::vec3 compute_delta_pos() const;
 	bool collide(glm::vec3 x) const;
@@ -99,9 +99,8 @@ struct Rocket : public Entity {
 
 	void init(Scene::Transform *transform_, Body *root, Scene *scene);
 
-	// Pass scene for spawning particles
-	// could be cleaner
-	void update(float elapsed, Scene *scene);
+	void update(float elapsed);
+	void update_lasers(float elapsed);
 
 	glm::vec3 get_heading() const;
 
@@ -123,7 +122,7 @@ struct Rocket : public Entity {
 	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
-	
+
 	float timeSinceLastParticle = 0.0f;
 	int lastParticle = 0;
 

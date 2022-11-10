@@ -218,7 +218,20 @@ glm::vec3 Rocket::get_heading() const {
 	return {std::cos(theta), std::sin(theta), 0.0f};
 }
 
-void Rocket::update(float elapsed, Scene *scene) {
+void Rocket::update_lasers(float elapsed) {
+	for (Beam &b : lasers) {
+		b.dt = elapsed;
+		b.pos += b.compute_delta_pos();
+	}
+
+	// delete beams once we have too many
+	int num_to_remove = std::max(0, static_cast<int>(lasers.size()) - MAX_BEAMS);
+	for (int i = num_to_remove; i > 0; i--) {
+		lasers.pop_front();
+	}
+}
+
+void Rocket::update(float elapsed) {
 	bool moved = false;
 
 	{ //update thrust particles
@@ -257,6 +270,7 @@ void Rocket::update(float elapsed, Scene *scene) {
 			particle.color = glm::vec4(1, (1 - a), 0, 1);
 		}
 	}
+
 	{ //rocket controls & physics
 		//Going to assume stability assist via reaction wheels is always on and the controller is perfect to simplify
 		// things. We can make the game harder later on by changing this to RCS based if need.
@@ -287,19 +301,6 @@ void Rocket::update(float elapsed, Scene *scene) {
 			vel += acc * elapsed;
 		} else {
 			acc = glm::vec3(0.0f);
-		}
-	}
-
-	{ // update lights physics
-		for (Beam &b : lasers) {
-			b.dt = elapsed;
-			b.pos += b.compute_delta_pos();
-		}
-
-		// delete beams once we have too many
-		int num_to_remove = std::max(0, static_cast<int>(lasers.size()) - MAX_BEAMS);
-		for (int i = num_to_remove; i > 0; i--) {
-			lasers.pop_front();
 		}
 	}
 

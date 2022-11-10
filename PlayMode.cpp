@@ -302,10 +302,6 @@ void PlayMode::update(float elapsed) {
 				spaceship.control_dtheta = 0.f;
 		}
 
-		if (space.pressed){
-			spaceship.lasers.emplace_back(Beam(spaceship.pos, spaceship.aim_dir));
-		}
-
 		if (shift.pressed || up.pressed) {
 			spaceship.thrust_percent = std::min(spaceship.thrust_percent + 0.1f , 100.0f);
 		} else if (control.pressed || down.pressed) {
@@ -332,6 +328,12 @@ void PlayMode::update(float elapsed) {
 		glm::vec3 frame_right = frame[0];
 		glm::vec3 frame_at = frame[3];
 		Sound::listener.set_position_right(frame_at, frame_right, 1.0f / 60.0f);
+	}
+
+	{ //orbital simulation
+		star->update(elapsed);
+		asteroid.update(elapsed, spaceship.lasers);
+		spaceship.update(elapsed);
 	}
 
 	{ // reticle tracker
@@ -388,13 +390,15 @@ void PlayMode::update(float elapsed) {
 		spaceship.aim_dir.z = 0.f;
 	}
 
-	{ //basic orbital simulation demo
-		star->update(elapsed);
-		spaceship.update(elapsed, &scene);
-		asteroid.update(elapsed, spaceship.lasers);
+	{ //laser
+		if (space.pressed){
+			spaceship.lasers.emplace_back(Beam(spaceship.pos, spaceship.aim_dir));
+		}
+
+		spaceship.update_lasers(elapsed);
 	}
 
-	{ // update camera controls (after spaceship update for smooth motion)
+	{ //update camera controls (after spaceship update for smooth motion)
 		if (tab.downs > 0) {
 			uint8_t dir = shift.pressed ? -1 : 1;
 			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
