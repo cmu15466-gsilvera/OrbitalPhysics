@@ -1,4 +1,5 @@
 #include "PlayMode.hpp"
+#include "EmissiveShaderProgram.hpp"
 #include "GL.hpp"
 #include "LitColorTextureProgram.hpp"
 #include "Utils.hpp"
@@ -25,6 +26,16 @@
 #else
 #define LOG(ARGS)
 #endif
+
+Load< Scene::RenderSet > main_meshes_emissives(LoadTagDefault, []() -> Scene::RenderSet const * {
+	Scene::RenderSet *renderSet = new Scene::RenderSet();
+	MeshBuffer const *ret = new MeshBuffer(data_path("orbit.pnct"));
+	renderSet->vao = ret->make_vao_for_program(emissive_program_pipeline.program);
+	renderSet->meshes = ret;
+	renderSet->pipeline = emissive_program_pipeline;
+
+	return renderSet;
+});
 
 
 Load< Scene::RenderSet > main_meshes(LoadTagDefault, []() -> Scene::RenderSet const * {
@@ -97,8 +108,13 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		entities.push_back(star);
 
 		star->set_transform(star_trans);
+		star_trans->scale = glm::vec3(10.0f);
 
-		Scene::make_drawable(scene, star_trans, main_meshes.value);
+		auto drawable = Scene::make_drawable(scene, star_trans, main_meshes_emissives.value);
+		drawable->set_uniforms = []() { 
+			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0f, 0.83f, 0.0f, 1.0f))); 
+		};
+
 		LOG("Loaded Star");
 	}
 
