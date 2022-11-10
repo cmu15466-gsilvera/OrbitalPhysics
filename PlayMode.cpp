@@ -10,6 +10,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <iomanip>
 #include <iterator>
@@ -192,6 +193,7 @@ PlayMode::~PlayMode() {
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
+	window_dims = window_size;
 	if (evt.type == SDL_KEYDOWN) {
 		bool was_key_down = false;
 		for (auto& key_action : keybindings) {
@@ -234,7 +236,8 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 	} else if (evt.type == SDL_MOUSEMOTION) {
 		{
-			mouse_motion = glm::vec2(evt.motion.x / float(window_size.x), -evt.motion.y / float(window_size.y));
+			// mouse_motion is (1, 1) in top right, (-1, -1) in bottom left
+			mouse_motion = 2.f * glm::vec2(evt.motion.x / float(window_size.x) - 0.5f, -evt.motion.y / float(window_size.y) + 0.5f);
 			mouse_motion_rel = glm::vec2(
 				evt.motion.xrel / float(window_size.x),
 				-evt.motion.yrel / float(window_size.y)
@@ -329,6 +332,28 @@ void PlayMode::update(float elapsed) {
 		glm::vec3 frame_right = frame[0];
 		glm::vec3 frame_at = frame[3];
 		Sound::listener.set_position_right(frame_at, frame_right, 1.0f / 60.0f);
+	}
+
+	{ // reticle tracker
+		// make the reticle follow the mouse
+		reticle_aim = mouse_motion;
+
+		// unless it is "close" to another body, in which case track to that one
+		glm::mat4 to_screen_space = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
+		float min_dist = 1e8f;
+		glm::vec2 homing_reticle_pos = reticle_aim;
+		/// TODO: fix bug where bodies 'offscreen' can still affect this computation and you might "lock" onto nothing!
+		for (const Body &body : bodies) {
+			glm::vec3 pos3d = glm::vec3(to_screen_space * glm::vec4(body.pos, 1.0f));
+			glm::vec2 pos2d{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)};
+			float ss_dist = glm::length(reticle_aim - pos2d); // screen-space distance (for comparisons)
+			if (ss_dist < homing_threshold && ss_dist < min_dist) {
+				min_dist = ss_dist;
+				homing_reticle_pos = pos2d;
+			}
+		}
+		reticle_homing = (homing_reticle_pos != reticle_aim); // whether or not we locked onto a target
+		reticle_aim = homing_reticle_pos;
 	}
 
 	{ //basic orbital simulation demo
@@ -451,10 +476,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 				line_drawer.draw(seg_start, seg_end, color);
 			}
 		};
-		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
-		// wonky scaling (probably better to adjust the projection matrix) to get screenspace-coords for mouse tracking
-		glm::vec2 mouse_screen{2.f * camera->aspect * (mouse_motion.x - 0.5f), 2.f * (mouse_motion.y + 0.5f)};
-		draw_circle(mouse_screen, glm::vec2{0.1f, 0.1f}, yellow);
+		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
+		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
+		glm::vec2 reticle_pos{camera->aspect * reticle_aim.x, reticle_aim.y};
+		draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
 	}
 
 	{ //use DrawLines to overlay some text:

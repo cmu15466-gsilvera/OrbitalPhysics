@@ -31,6 +31,7 @@ struct PlayMode : Mode {
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
+	glm::uvec2 window_dims;
 
 	std::unordered_map<Button*, std::vector<int>> keybindings = {
 		// association between action/button and list of keybindings
@@ -50,20 +51,13 @@ struct PlayMode : Mode {
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
 
-	//hexapod leg to wobble:
-	// Scene::Transform *hip = nullptr;
-	// Scene::Transform *upper_leg = nullptr;
-	// Scene::Transform *lower_leg = nullptr;
-	// glm::quat hip_base_rotation;
-	// glm::quat upper_leg_base_rotation;
-	// glm::quat lower_leg_base_rotation;
-	// float wobble = 0.0f;
-
-	// glm::vec3 get_leg_tip_position();
-
-	//music coming from the tip of the leg (as a demonstration):
-	// std::shared_ptr< Sound::PlayingSample > leg_tip_loop;
-
+	// reticle for laser aiming
+	const float reticle_radius_screen = 0.1f; // 10% of the window-size
+	const float homing_threshold = 0.1f; // 1% of the window-size for homing threshold
+	glm::vec2 reticle_aim{0.f, 0.f}; // (0, 0) in center, (1, 1) top right, (-1, -1) bottom left
+	bool reticle_homing = false;
+	
+	// spaceship
 	Rocket spaceship;
 	Asteroid asteroid = Asteroid(1.0f, 0.2f); //TODO: reduce asteroid radius and scale down model
 	Body *star; //All body updates cascade off of star update, should be done prior to spaceship update
