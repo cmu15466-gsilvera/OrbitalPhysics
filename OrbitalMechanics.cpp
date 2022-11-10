@@ -156,12 +156,12 @@ void Body::simulate(float time) {
 	}
 }
 
-void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color) {
-	if (orbit != nullptr) orbit->draw(lines, color);
+void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color, float scale) {
+	if (orbit != nullptr && scale >= orbit->p) orbit->draw(lines, color);
 
 	for (Body *body : satellites) {
 		assert(body != nullptr);
-		body->draw_orbits(lines, color);
+		body->draw_orbits(lines, color, scale);
 	}
 }
 
@@ -178,6 +178,7 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 
 	transform = transform_;
 	transform->position = pos;
+	transform->scale = glm::vec3(radius);
 
 	thrustParticles.reserve(PARTICLE_COUNT);
 	for(int i = 0; i < PARTICLE_COUNT; i++){
@@ -320,6 +321,7 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 
 	transform = transform_;
 	transform->position = pos;
+	transform->scale = glm::vec3(radius);
 }
 
 void Asteroid::update(float elapsed) {

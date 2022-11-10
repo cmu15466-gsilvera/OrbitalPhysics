@@ -62,7 +62,7 @@ struct PlayMode : Mode {
 	// std::shared_ptr< Sound::PlayingSample > leg_tip_loop;
 
 	Rocket spaceship;
-	Asteroid asteroid = Asteroid(1.0f, 0.2f); //TODO: reduce asteroid radius and scale down model
+	Asteroid asteroid = Asteroid(0.5f, 0.2f); //TODO: reduce asteroid radius and scale down model
 	Body *star; //All body updates cascade off of star update, should be done prior to spaceship update
 	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
@@ -78,12 +78,13 @@ struct PlayMode : Mode {
 
 		const Entity *entity = nullptr;
 
-		static float constexpr ScrollSensitivity = 30.0f;
+		static float constexpr ScrollSensitivity = 0.25f;
 		static float constexpr MouseSensitivity = 5.0f;
 
 		//Controls position
 		glm::vec3 camera_offset{0.0f, 1.0f, 1.0f};
 		float scroll_zoom = 10.0f;
+		float camera_arm_length = 20.0f;
 	};
 
 	std::unordered_map< const Entity*, CameraArm > camera_arms;

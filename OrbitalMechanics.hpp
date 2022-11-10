@@ -64,7 +64,7 @@ struct Body : public Entity {
 	void update(float elapsed);
 	void init_sim();
 	void simulate(float time);
-	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color);
+	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color, float scale);
 
 	std::vector< Body * > satellites;
 	Orbit *orbit = nullptr;
@@ -76,7 +76,7 @@ struct Body : public Entity {
 
 //Player
 struct Rocket : public Entity {
-	Rocket() : Entity(1.0f, 0.01f) {} //TODO: reduce player radius and scale down model
+	Rocket() : Entity(0.1f, 0.01f) {}
 
 	void init(Scene::Transform *transform_, Body *root, Scene *scene);
 
@@ -98,7 +98,7 @@ struct Rocket : public Entity {
 	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
-	
+
 	float timeSinceLastParticle = 0.0f;
 	int lastParticle = 0;
 
