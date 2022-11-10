@@ -176,6 +176,11 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 				Orbit(planet, 0.0f, 30.0f, glm::radians(120.0f), glm::radians(0.0f), false)
 			);
 
+			//use this is you're bad at the game
+			// spaceship.orbits.emplace_front(
+			// 	Orbit(planet, 0.507543f, 201.459f, 0.53f, glm::radians(56.0f), false)
+			// );
+
 			spaceship.init(spaceship_trans, star, &scene);
 
 			Scene::make_drawable(scene, spaceship_trans, main_meshes.value);

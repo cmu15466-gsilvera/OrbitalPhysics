@@ -97,7 +97,7 @@ struct Beam {
 
 //Player
 struct Rocket : public Entity {
-	Rocket() : Entity(0.1f, 0.01f) {}
+	Rocket() : Entity(0.2f, 0.01f) {}
 
 	void init(Scene::Transform *transform_, Body *root, Scene *scene);
 

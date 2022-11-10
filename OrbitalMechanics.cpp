@@ -218,7 +218,7 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 		it--;
 		it->name = "Particle";
 		auto drawable = Scene::make_drawable(*scene, &(*it), particles);
-		thrustParticles.push_back(ThrustParticle(it, 5.0f, glm::vec3(0), 0.02f));
+		thrustParticles.push_back(ThrustParticle(it, 5.0f, glm::vec3(0), 0.04f));
 		ThrustParticle *currentParticle = &thrustParticles[thrustParticles.size() - 1];
 		drawable->set_uniforms = [currentParticle]() {
 			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(currentParticle->color));
