@@ -6,6 +6,7 @@
 #include "Scene.hpp"
 #include "Sound.hpp"
 #include "Text.hpp"
+#include "HUD.hpp"
 
 #include <glm/glm.hpp>
 
@@ -32,6 +33,10 @@ struct PlayMode : Mode {
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
 	glm::uvec2 window_dims;
+
+	HUD::Sprite *throttle;
+	HUD::Sprite *handle;
+	HUD::Sprite *bar;
 
 	std::unordered_map<Button*, std::vector<int>> keybindings = {
 		// association between action/button and list of keybindings
