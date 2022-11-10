@@ -253,7 +253,7 @@ void Rocket::update(float elapsed, Scene *scene) {
 
 			//calculate acceleration: F = ma ==> acc = thrust * MaxThrust / (DryMass + fuel);
 			//Note conversion from MegaNewtons/Megagram == meter/s^2 to Megameter/s^2
-			float acc_magnitude = thrust_percent * MaxThrust / (DryMass + fuel * 1000.0f);
+			float acc_magnitude = thrust_percent * MaxThrust / ((DryMass + fuel) * 1000.0f);
 			acc = glm::vec3(
 				acc_magnitude * std::cos(theta),
 				acc_magnitude * std::sin(theta),
@@ -339,7 +339,31 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 void Asteroid::update(float elapsed) {
 	bool moved = false;
 	{ //TODO: this is a placeholder for when rocket and asteroid interact
+		glm::vec3 beam_direction = glm::vec3(-1.0f, 0.0f, 0.0f); //placeholder
+		float beam_strength = Beam::MaxStrength; // MegaNewtons, replace with real strength, 0.0f indicates no beam
+		float dvel_magnitude = beam_strength / (mass * 1000.0f) * elapsed * static_cast< float >(dilation);
+		dvel_mag_accum += dvel_magnitude;
+		accum_cnt++;
 
+		if (accum_cnt > 100) {
+			dvel_mag_accum = 0;
+			accum_cnt = 0;
+		}
+
+		// LOG("|dvel|: " << dvel_magnitude);
+		// LOG("|accum|: " << dvel_mag_accum);
+		// LOG("|vel|: " << glm::l2Norm(vel));
+		if (dvel_mag_accum > 5.0e-3f * glm::l2Norm(vel)) {
+			moved = true;
+
+			//update velocity
+			vel += dvel_mag_accum * beam_direction;
+			dvel_mag_accum = 0.0f;
+			accum_cnt = 0;
+
+			//If we want to simulate the asteroid being burned away (since lasers move things by ablation)
+			// we can slightly reduce the mass here. Effect should be negligible though.
+		}
 	}
 
 	{ //orbital mechanics
