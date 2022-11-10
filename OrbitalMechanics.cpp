@@ -159,20 +159,14 @@ void Beam::draw(DrawLines &DL) const {
 	// "mass" equates to beam strength which dissipates over time (opacity)
 	const glm::vec3 start = pos - compute_delta_pos();
 	const glm::vec3 &end = pos;
-	if (mass_prev == mass) {
-		// don't need to worry about opacity shift
-		DL.draw(start, end, glm::u8vec4{col.x, col.y, col.z, mass * col.w});
-	}
-	else {
-		/// NOTE: we are drawing many lines per dilation to account for opacity shift
-		const glm::vec3 delta = (end - start) / static_cast<float>(dilation);
-		int min_needed = std::min(static_cast<int>(dilation), static_cast<int>(lifetime / dt));
-		for (int i = 0; i < min_needed; i++) {
-			float t = static_cast<float>(i) / min_needed;
-			float interp_alpha = (1.f - t) * mass_prev + t * mass;
-			glm::vec3 istart = start + static_cast<float>(i) * delta;
-			DL.draw(istart, istart + delta, glm::u8vec4{col.x, col.y, col.z, interp_alpha * col.w});
-		}
+
+	/// NOTE: we are drawing many lines per dilation to account for opacity shift
+	const glm::vec3 delta = (end - start) / static_cast<float>(dilation);
+	for (int i = 0; i < dilation; i++) {
+		glm::vec3 istart = start + static_cast<float>(i) * delta;
+		float mass = get_mass(istart + delta);
+		if (mass < 1.0e-2f) break;
+		DL.draw(istart, istart + delta, glm::u8vec4{col.x, col.y, col.z, mass * col.w});
 	}
 }
 
@@ -184,6 +178,10 @@ glm::vec3 Beam::compute_delta_pos() const {
 bool Beam::collide(glm::vec3 x) const {
 	glm::vec3 prev_pos = pos - compute_delta_pos();
 	return glm::l2Norm(pos - x) + glm::l2Norm(prev_pos - x) - glm::l2Norm(pos - prev_pos) < 0.1f;
+}
+
+float Beam::get_mass(glm::vec3 x) const {
+	return 1.0f / (1.0f + glm::l2Norm(x - start_pos) * 0.05f);
 }
 
 void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
@@ -296,8 +294,6 @@ void Rocket::update(float elapsed, Scene *scene) {
 		for (Beam &b : lasers) {
 			b.dt = elapsed;
 			b.pos += b.compute_delta_pos();
-			b.mass_prev = b.mass;
-			b.mass = std::max(0.f, b.mass - (1.f / b.lifetime) * b.dt * static_cast< float >(dilation));
 		}
 
 		// delete beams once we have too many
@@ -373,7 +369,8 @@ void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 			}
 		}
 		if (beam != nullptr) {
-			float dvel_magnitude = beam->strength / (mass * 1000.0f) * elapsed * static_cast< float >(dilation);
+			float dvel_magnitude =
+				beam->get_mass(pos) * Beam::MaxStrength / (mass * 1000.0f) * elapsed * static_cast< float >(dilation);
 			dvel_mag_accum += dvel_magnitude;
 			accum_cnt++;
 

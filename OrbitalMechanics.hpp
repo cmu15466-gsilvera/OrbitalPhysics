@@ -78,20 +78,18 @@ struct Body : public Entity {
 
 struct Beam {
 	Beam() = delete;
-	Beam(glm::vec3 &p, glm::vec3 h) : pos(p), heading(h) {};
+	Beam(glm::vec3 &p, glm::vec3 h) : pos(p), heading(h), start_pos(p) {};
 	static constexpr glm::u8vec4 col = glm::u8vec4(0x00, 0xff, 0x00, 0xff); // green lasers
 	static constexpr float vel = 299.792f; // speed of light in megameters/sec
 	static constexpr float MaxStrength = 1.0e-5f; // MegaNewtons
 	glm::vec3 pos;
-	float strength = MaxStrength; //TODO: update this
 	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
 	float dt = 0.f;
-	float mass = 1.f; // used as "strength" for the photon dissipation
-	float mass_prev = 0.f; // previous "mass" used for interpolation
-	float lifetime = 0.5f; // number of seconds before the beam is completely dissipated
+	glm::vec3 start_pos;
 
 	glm::vec3 compute_delta_pos() const;
 	bool collide(glm::vec3 x) const;
+	float get_mass(glm::vec3 x) const;
 	void draw(DrawLines &DL) const;
 };
 
