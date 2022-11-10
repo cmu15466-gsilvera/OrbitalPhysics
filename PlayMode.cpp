@@ -376,11 +376,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 
 	scene.draw(*camera);
-	glDisable(GL_DEPTH_TEST);
-	HUD::drawElement(glm::vec2(100, 300), glm::vec2(300, 700), throttle, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(310, 412 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(glm::vec2(120, 30), glm::vec2(290, 440 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
-	glEnable(GL_DEPTH_TEST);
 
 	{ //TODO: this is a demo of drawing the orbit
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
@@ -429,6 +424,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		float width = drawable_size.x * 0.2f;
 		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
 	}
+
+	glDisable(GL_DEPTH_TEST);
+	HUD::drawElement(glm::vec2(100, 300), glm::vec2(300, 700), throttle, (float)drawable_size.x, (float)drawable_size.y);
+	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(310, 412 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
+	HUD::drawElement(glm::vec2(120, 30), glm::vec2(290, 440 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
+	glEnable(GL_DEPTH_TEST);
+
 	GL_ERRORS();
 }
 
