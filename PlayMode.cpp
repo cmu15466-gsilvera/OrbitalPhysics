@@ -340,7 +340,7 @@ void PlayMode::update(float elapsed) {
 
 		// unless it is "close" to another body, in which case track to that one
 		glm::mat4 world_to_screen = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
-		float min_dist = 1e8f;
+		float min_dist = std::numeric_limits<float>::max(); // infinity
 		glm::vec2 homing_reticle_pos = reticle_aim;
 		glm::vec3 homing_target{0.f, 0.f, 0.f};
 		/// TODO: fix bug where bodies 'offscreen' can still affect this computation and you might "lock" onto nothing!
@@ -383,7 +383,7 @@ void PlayMode::update(float elapsed) {
 			world_target = (origin + t * ray);
 		}
 
-		// update rocket launcher aim
+		// update rocket blaster aim
 		spaceship.aim_dir = glm::normalize(world_target - spaceship.pos);
 		spaceship.aim_dir.z = 0.f;
 	}
