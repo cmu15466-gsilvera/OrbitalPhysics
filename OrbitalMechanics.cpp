@@ -166,8 +166,9 @@ void Beam::draw(DrawLines &DL) const {
 	else {
 		/// NOTE: we are drawing many lines per dilation to account for opacity shift
 		const glm::vec3 delta = (end - start) / static_cast<float>(dilation);
-		for (int i = 0; i < dilation; i++) {
-			float t = static_cast<float>(i) / dilation;
+		int min_needed = std::min(static_cast<int>(dilation), static_cast<int>(lifetime / dt));
+		for (int i = 0; i < min_needed; i++) {
+			float t = static_cast<float>(i) / min_needed;
 			float interp_alpha = (1.f - t) * mass_prev + t * mass;
 			glm::vec3 istart = start + static_cast<float>(i) * delta;
 			DL.draw(istart, istart + delta, glm::u8vec4{col.x, col.y, col.z, interp_alpha * col.w});
@@ -296,7 +297,7 @@ void Rocket::update(float elapsed, Scene *scene) {
 			b.dt = elapsed;
 			b.pos += b.compute_delta_pos();
 			b.mass_prev = b.mass;
-			b.mass = std::max(0.f, b.mass - 2 * b.dt * static_cast< float >(dilation));
+			b.mass = std::max(0.f, b.mass - (1.f / b.lifetime) * b.dt * static_cast< float >(dilation));
 		}
 
 		// delete beams once we have too many

@@ -88,6 +88,7 @@ struct Beam {
 	float dt = 0.f;
 	float mass = 1.f; // used as "strength" for the photon dissipation
 	float mass_prev = 0.f; // previous "mass" used for interpolation
+	float lifetime = 0.5f; // number of seconds before the beam is completely dissipated
 
 	glm::vec3 compute_delta_pos() const;
 	bool collide(glm::vec3 x) const;
