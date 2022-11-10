@@ -222,18 +222,21 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
+			can_pan_camera = true;
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEBUTTONUP) {
 		// show the mouse cursor again once the mouse is released
 		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
+			can_pan_camera = false;
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEMOTION) {
-		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-		 	mouse_motion_rel = glm::vec2(
-				evt.motion.xrel / float(window_size.y),
+		{
+			mouse_motion = glm::vec2(evt.motion.x / float(window_size.x), -evt.motion.y / float(window_size.y));
+			mouse_motion_rel = glm::vec2(
+				evt.motion.xrel / float(window_size.x),
 				-evt.motion.yrel / float(window_size.y)
 			);
 			return true;
@@ -281,7 +284,7 @@ void PlayMode::update(float elapsed) {
 
 	{ // update rocket controls
 		{ // reset dilation on controls
-			if (left.downs || right.downs || up.downs || down.downs ||  shift.downs || control.downs)
+			if (up.downs || down.downs ||  shift.downs || control.downs)
 				dilation = LEVEL_0; // reset time so user inputs are used
 		}
 
@@ -340,7 +343,13 @@ void PlayMode::update(float elapsed) {
 			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
 		}
 		CameraArm &camarm = CurrentCameraArm();
-		camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
+
+		if (can_pan_camera) {
+			camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
+		}
+		else {
+			camarm.update(camera,  0.f,  0.f);
+		}
 	}
 
 	//reset button press counters:
@@ -389,7 +398,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	//Everything from this point on is part of the HUD overlay
 	glDisable(GL_DEPTH_TEST);
 
-	{ //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
+	if (false) { //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines vector_lines(world_to_clip);
 
@@ -416,6 +425,36 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		for (const Beam &L : spaceship.lasers){
 			L.draw(line_drawer);
 		}
+	}
+
+	{ // draw mouse cursor reticle
+		glm::mat4 projection = glm::mat4(1.0f / camera->aspect, 0.0f, 0.0f, 0.0f,
+										 0.0f, 1.0f, 0.0f, 0.0f,
+										 0.0f, 0.0f, 1.0f, 0.0f,
+										 0.0f, 0.0f, 0.0f, 1.0f);
+		DrawLines line_drawer(projection);
+		auto draw_circle = [&line_drawer](glm::vec2 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
+										  const int num_verts = 20) {
+			// draw a circle by drawing a bunch of lines
+			const int N = num_verts; // of vertices used to draw circle
+
+			glm::vec2 circ_verts[N];
+			for (int i = 0; i < N; i++)
+			{
+				circ_verts[i] = glm::vec2((radius.x * glm::cos(i * 2 * M_PI / N)), (radius.y * glm::sin(i * 2 * M_PI / N)));
+			}
+
+			for (int i = 0; i < N; i++)
+			{
+				auto seg_start = glm::vec3(center.x + circ_verts[(i) % N].x, center.y + circ_verts[i % N].y, 0.0f);
+				auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % N].x, center.y + circ_verts[(i + 1) % N].y, 0.0f);
+				line_drawer.draw(seg_start, seg_end, color);
+			}
+		};
+		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
+		// wonky scaling (probably better to adjust the projection matrix) to get screenspace-coords for mouse tracking
+		glm::vec2 mouse_screen{2.f * camera->aspect * (mouse_motion.x - 0.5f), 2.f * (mouse_motion.y + 0.5f)};
+		draw_circle(mouse_screen, glm::vec2{0.1f, 0.1f}, yellow);
 	}
 
 	{ //use DrawLines to overlay some text:

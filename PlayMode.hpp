@@ -29,6 +29,8 @@ struct PlayMode : Mode {
 		uint8_t pressed = 0;
 	} left, right, down, up, tab, shift, control, plus, minus, space;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
+	glm::vec2 mouse_motion{0.f, 0.f};
+	bool can_pan_camera = false; // true when mouse down
 
 	std::unordered_map<Button*, std::vector<int>> keybindings = {
 		// association between action/button and list of keybindings
