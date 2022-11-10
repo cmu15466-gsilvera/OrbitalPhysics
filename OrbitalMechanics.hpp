@@ -83,6 +83,7 @@ struct Beam {
 	glm::vec3 pos;
 	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
 	float dt = 0.f;
+	float mass = 1.f; // used as "strength" for the photon dissipation
 
 	glm::vec3 compute_delta_pos() const;
 	void draw(DrawLines &DL) const;
