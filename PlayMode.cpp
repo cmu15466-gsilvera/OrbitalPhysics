@@ -303,8 +303,7 @@ void PlayMode::update(float elapsed) {
 		}
 
 		if (space.pressed){
-			spaceship.lasers.emplace_back(Beam(spaceship.pos, spaceship.get_heading()));
-			LOG(spaceship.get_heading().x << " " << spaceship.get_heading().y);
+			spaceship.lasers.emplace_back(Beam(spaceship.pos, spaceship.aim_dir));
 		}
 
 		if (shift.pressed || up.pressed) {
@@ -340,21 +339,53 @@ void PlayMode::update(float elapsed) {
 		reticle_aim = mouse_motion;
 
 		// unless it is "close" to another body, in which case track to that one
-		glm::mat4 to_screen_space = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
+		glm::mat4 world_to_screen = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		float min_dist = 1e8f;
 		glm::vec2 homing_reticle_pos = reticle_aim;
+		glm::vec3 homing_target{0.f, 0.f, 0.f};
 		/// TODO: fix bug where bodies 'offscreen' can still affect this computation and you might "lock" onto nothing!
-		for (const Body &body : bodies) {
-			glm::vec3 pos3d = glm::vec3(to_screen_space * glm::vec4(body.pos, 1.0f));
+		for (const Entity *entity : entities) {
+			if (entity == (&spaceship))
+				continue; // don't shoot laser at self
+			glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(entity->pos, 1.0f));
 			glm::vec2 pos2d{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)};
 			float ss_dist = glm::length(reticle_aim - pos2d); // screen-space distance (for comparisons)
 			if (ss_dist < homing_threshold && ss_dist < min_dist) {
 				min_dist = ss_dist;
 				homing_reticle_pos = pos2d;
+				homing_target = entity->pos;
 			}
 		}
 		reticle_homing = (homing_reticle_pos != reticle_aim); // whether or not we locked onto a target
 		reticle_aim = homing_reticle_pos;
+
+		// now make sure the rocket laser launcher system follows this direction
+		glm::vec3 world_target{0.f, 0.f, 0.f};
+		if (reticle_homing) {
+			world_target = homing_target; // already know what position the target is
+		}
+		else {
+			// perform a ray trace from camera onto the plane z=0
+			glm::mat4x3 frame = camera->transform->make_local_to_parent();
+			glm::vec3 cam_right = frame[0];
+			glm::vec3 cam_up = frame[1];
+			glm::vec3 cam_forward = -frame[2];
+			const float fovY = camera->fovy;
+			const float fovX = camera->fovy * camera->aspect;
+			const float dX = fovX * mouse_motion.x / 2.f;
+			const float dY = fovY * mouse_motion.y / 2.f;
+			glm::vec3 ray = cam_forward + cam_right * dX + cam_up * dY;
+
+			// extend the ray: origin + t * ray = pt such that pt.z == 0
+			// ==> origin.z + t * ray.z == 0 ==> t = -origin.z / ray.z;
+			auto origin = camera->transform->position;
+			float t = -origin.z / ray.z;
+			world_target = (origin + t * ray);
+		}
+
+		// update rocket launcher aim
+		spaceship.aim_dir = glm::normalize(world_target - spaceship.pos);
+		spaceship.aim_dir.z = 0.f;
 	}
 
 	{ //basic orbital simulation demo

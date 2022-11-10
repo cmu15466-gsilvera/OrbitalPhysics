@@ -125,7 +125,7 @@ void Body::update(float elapsed) {
 	}
 }
 
-void  Body::init_sim() {
+void Body::init_sim() {
 	if (orbit != nullptr) orbit->init_sim();
 	for (Body *satellite : satellites) {
 		satellite->init_sim();

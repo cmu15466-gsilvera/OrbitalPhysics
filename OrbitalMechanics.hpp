@@ -109,6 +109,7 @@ struct Rocket : public Entity {
 	static float constexpr MaxFuelConsumption = 0.0f; // Measured by mass, Megagram
 
 	static int constexpr MAX_BEAMS = 1000; // don't have more than this
+	glm::vec3 aim_dir;
 	std::deque<Beam> lasers; // fast insertion/deletion at both ends
 
 	float control_dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
