@@ -79,6 +79,7 @@ struct Beam {
 	Beam(glm::vec3 &p, glm::vec3 h) : pos(p), heading(h) {};
 	static constexpr glm::u8vec4 col = glm::u8vec4(0x00, 0xff, 0x00, 0xff); // green lasers
 	static constexpr float vel = 299.792f; // speed of light in megameters/sec
+	static constexpr float MaxStrength = 1.0e-5f; // MegaNewtons
 	glm::vec3 pos;
 	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
 	float dt = 0.f;
@@ -140,6 +141,9 @@ struct Asteroid : public Entity {
 
 	void init(Scene::Transform *transform_, Body *root);
 	void update(float elapsed);
+
+	float dvel_mag_accum = 0.0f; // Using an accumulator to avoid updating orbit frequently (and precision issues)
+	size_t accum_cnt = 0;
 
 	Body *root;
 	std::list< Orbit > orbits;

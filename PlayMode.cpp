@@ -301,6 +301,7 @@ void PlayMode::update(float elapsed) {
 
 		if (space.pressed){
 			spaceship.lasers.emplace_back(Beam(spaceship.pos, spaceship.get_heading()));
+			LOG(spaceship.get_heading().x << " " << spaceship.get_heading().y);
 		}
 
 		if (shift.pressed || up.pressed) {
@@ -416,6 +417,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
 		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rvel * 1000.0f, green);
 		vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
+
+		vector_lines.draw(asteroid.pos, asteroid.pos + glm::vec3(-1.0f, 0.0f, 0.0f), red);
 	}
 
 	{ // draw spaceship laser beams (screenspace)
