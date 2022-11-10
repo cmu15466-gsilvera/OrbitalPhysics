@@ -436,18 +436,18 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		auto draw_circle = [&line_drawer](glm::vec2 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
 										  const int num_verts = 20) {
 			// draw a circle by drawing a bunch of lines
-			const int N = num_verts; // of vertices used to draw circle
 
-			glm::vec2 circ_verts[N];
-			for (int i = 0; i < N; i++)
+			std::vector<glm::vec2> circ_verts;
+			circ_verts.reserve(num_verts);
+			for (int i = 0; i < num_verts; i++)
 			{
-				circ_verts[i] = glm::vec2((radius.x * glm::cos(i * 2 * M_PI / N)), (radius.y * glm::sin(i * 2 * M_PI / N)));
+				circ_verts.emplace_back(glm::vec2{(radius.x * glm::cos(i * 2 * M_PI / num_verts)), (radius.y * glm::sin(i * 2 * M_PI / num_verts))});
 			}
 
-			for (int i = 0; i < N; i++)
+			for (int i = 0; i < num_verts; i++)
 			{
-				auto seg_start = glm::vec3(center.x + circ_verts[(i) % N].x, center.y + circ_verts[i % N].y, 0.0f);
-				auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % N].x, center.y + circ_verts[(i + 1) % N].y, 0.0f);
+				auto seg_start = glm::vec3(center.x + circ_verts[(i) % num_verts].x, center.y + circ_verts[i % num_verts].y, 0.0f);
+				auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % num_verts].x, center.y + circ_verts[(i + 1) % num_verts].y, 0.0f);
 				line_drawer.draw(seg_start, seg_end, color);
 			}
 		};
