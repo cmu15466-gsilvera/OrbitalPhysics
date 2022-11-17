@@ -55,6 +55,8 @@ HUD::Sprite *HUD::loadSprite(std::string path){
 	if(!data){
 		std::cout << "Failed to load texture " << path << std::endl;
 		return ret;
+	}else{
+		std::cout << "Loaded " << path << "with " << ret->nrChannels << std::endl;
 	}
 
 	glGenTextures(1, &ret->textureID);
@@ -67,7 +69,7 @@ HUD::Sprite *HUD::loadSprite(std::string path){
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, ret->textureID);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, ret->width, ret->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ret->width, ret->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
 
 	stbi_image_free(data);
@@ -81,9 +83,11 @@ void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float 
 	glBindTexture(GL_TEXTURE_2D, sprite->textureID);
 	glBindVertexArray(vao);
 
+	glEnable(GL_BLEND);
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glUniformMatrix4fv(color_texture_program->OBJECT_TO_CLIP_mat4, 1, GL_FALSE, glm::value_ptr(glm::ortho(0.0f, width, 0.f, height, 0.f, 1.0f)));
 	glUniform4fv(color_texture_program->OFFSET_vec4, 1, glm::value_ptr(glm::vec4(size.x, -size.y, pos.x, pos.y)));
 

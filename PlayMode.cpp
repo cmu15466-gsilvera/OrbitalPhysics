@@ -86,6 +86,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	camera = &scene.cameras.front();
 
 	throttle = HUD::loadSprite(data_path("throttle.png"));
+	window = HUD::loadSprite(data_path("window.png"));
 	bar = HUD::loadSprite(data_path("bar.png"));
 	handle = HUD::loadSprite(data_path("handle.png"));
 	// first focus should be on the spaceship!
@@ -560,11 +561,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
 	}
 
-	glDisable(GL_DEPTH_TEST);
 	HUD::drawElement(glm::vec2(100, 300), glm::vec2(300, 700), throttle, (float)drawable_size.x, (float)drawable_size.y);
+	/* HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, (float)drawable_size.x, (float)drawable_size.y); */
 	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(310, 412 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
 	HUD::drawElement(glm::vec2(120, 30), glm::vec2(290, 440 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
-	glEnable(GL_DEPTH_TEST);
 
 	GL_ERRORS();
 }

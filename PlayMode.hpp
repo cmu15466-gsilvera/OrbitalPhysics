@@ -35,6 +35,7 @@ struct PlayMode : Mode {
 	glm::uvec2 window_dims;
 
 	HUD::Sprite *throttle;
+	HUD::Sprite *window;
 	HUD::Sprite *handle;
 	HUD::Sprite *bar;
 
