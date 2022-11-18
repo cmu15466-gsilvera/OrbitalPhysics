@@ -1,3 +1,4 @@
+#include "GL.hpp"
 #include "Mode.hpp"
 
 #include "OrbitalMechanics.hpp"
@@ -33,6 +34,18 @@ struct PlayMode : Mode {
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
 	glm::uvec2 window_dims;
+
+	GLuint hdrFBO = 0;
+	GLuint rboDepth = 0;
+	GLuint attachments[2];
+	GLuint colorBuffers[2];
+    unsigned int pingpongFBO[2];
+    unsigned int pingpongColorbuffers[2];
+	GLuint renderQuadVAO = 0;
+	GLuint renderQuadVBO;
+	void RenderFrameQuad();
+
+	void SetupFramebuffers();
 
 	HUD::Sprite *throttle;
 	HUD::Sprite *window;
