@@ -89,6 +89,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	window = HUD::loadSprite(data_path("window.png"));
 	bar = HUD::loadSprite(data_path("bar.png"));
 	handle = HUD::loadSprite(data_path("handle.png"));
+	target = HUD::loadSprite(data_path("reticle.png"));
+	reticle = HUD::loadSprite(data_path("reticle.png"));
 	// first focus should be on the spaceship!
 	entities.push_back(&spaceship);
 
@@ -237,6 +239,10 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 				}
 			}
 		}
+		if (evt.key.keysym.sym == SDLK_ESCAPE) {
+			SDL_SetRelativeMouseMode(SDL_FALSE);
+			was_key_down = true;
+		}
 		return was_key_down;
 	} else if (evt.type == SDL_KEYUP) {
 		bool was_key_up = false;
@@ -252,18 +258,20 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 		return was_key_up;
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
-		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
-			SDL_SetRelativeMouseMode(SDL_TRUE);
-			can_pan_camera = true;
-			return true;
-		}
+		can_pan_camera = true;
+		SDL_SetRelativeMouseMode(SDL_TRUE);
+		return true;
+		// if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
+		// 	return true;
+		// }
 	} else if (evt.type == SDL_MOUSEBUTTONUP) {
 		// show the mouse cursor again once the mouse is released
-		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-			SDL_SetRelativeMouseMode(SDL_FALSE);
-			can_pan_camera = false;
-			return true;
-		}
+		can_pan_camera = false;
+		SDL_SetRelativeMouseMode(SDL_TRUE);
+		return true;
+		// if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+		// 	return true;
+		// }
 	} else if (evt.type == SDL_MOUSEMOTION) {
 		{
 			// mouse_motion is (1, 1) in top right, (-1, -1) in bottom left
@@ -369,6 +377,12 @@ void PlayMode::update(float elapsed) {
 		spaceship.update(elapsed);
 	}
 
+	{ // asteroid target
+		glm::mat4 world_to_screen = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
+		glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(asteroid.pos, 1.0f)); // [-1..1]^2
+		target_xy = glm::vec2{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)} * 0.5f + 0.5f; // -> [0,1]^2
+	}
+
 	{ // reticle tracker
 		// make the reticle follow the mouse
 		reticle_aim = mouse_motion;
@@ -392,7 +406,7 @@ void PlayMode::update(float elapsed) {
 			}
 		}
 		reticle_homing = (homing_reticle_pos != reticle_aim); // whether or not we locked onto a target
-		reticle_aim = homing_reticle_pos;
+		reticle_aim = homing_reticle_pos * 0.5f + 0.5f; // [-1:1]^2 -> [0:1]^2
 
 		// now make sure the rocket laser launcher system follows this direction
 		glm::vec3 world_target{0.f, 0.f, 0.f};
@@ -524,33 +538,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	}
 
 	{ // draw mouse cursor reticle
-		glm::mat4 projection = glm::mat4(1.0f / camera->aspect, 0.0f, 0.0f, 0.0f,
-										 0.0f, 1.0f, 0.0f, 0.0f,
-										 0.0f, 0.0f, 1.0f, 0.0f,
-										 0.0f, 0.0f, 0.0f, 1.0f);
-		DrawLines line_drawer(projection);
-		auto draw_circle = [&line_drawer](glm::vec2 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
-										  const int num_verts = 20) {
-			// draw a circle by drawing a bunch of lines
-
-			std::vector<glm::vec2> circ_verts;
-			circ_verts.reserve(num_verts);
-			for (int i = 0; i < num_verts; i++)
-			{
-				circ_verts.emplace_back(glm::vec2{(radius.x * glm::cos(i * 2 * M_PI / num_verts)), (radius.y * glm::sin(i * 2 * M_PI / num_verts))});
-			}
-
-			for (int i = 0; i < num_verts; i++)
-			{
-				auto seg_start = glm::vec3(center.x + circ_verts[(i) % num_verts].x, center.y + circ_verts[i % num_verts].y, 0.0f);
-				auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % num_verts].x, center.y + circ_verts[(i + 1) % num_verts].y, 0.0f);
-				line_drawer.draw(seg_start, seg_end, color);
-			}
-		};
-		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
-		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
-		glm::vec2 reticle_pos{camera->aspect * reticle_aim.x, reticle_aim.y};
-		draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
+		/// TODO: change color of drawn element rather than changing size!
+		// static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
+		// static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
+		glm::vec2 reticle_size = reticle_homing ? glm::vec2{200, 200} : glm::vec2{300, 300};
+		glm::vec2 reticle_pos{reticle_aim.x * drawable_size.x - 0.5f * reticle_size.x, reticle_aim.y * drawable_size.y + 0.5f * reticle_size.y};
+		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
+		HUD::drawElement(reticle_size, reticle_pos, target, (float)drawable_size.x, (float)drawable_size.y);
 	}
 
 	{ //use DrawLines to overlay some text:
@@ -566,6 +560,12 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
 	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
 
+	{ // draw asteroid target
+		glm::vec2 target_size = glm::vec2{300, 300};
+		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
+		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
+		HUD::drawElement(target_size, target_pos, reticle, (float)drawable_size.x, (float)drawable_size.y);
+	}
 	GL_ERRORS();
 }
 

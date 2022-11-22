@@ -38,6 +38,10 @@ struct PlayMode : Mode {
 	HUD::Sprite *window;
 	HUD::Sprite *handle;
 	HUD::Sprite *bar;
+	HUD::Sprite *target;
+	HUD::Sprite *reticle;
+
+	glm::vec2 target_xy;
 
 	std::unordered_map<Button*, std::vector<int>> keybindings = {
 		// association between action/button and list of keybindings
