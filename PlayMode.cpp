@@ -346,7 +346,7 @@ void PlayMode::update(float elapsed) {
 		if (shift.pressed || up.pressed) {
 			spaceship.thrust_percent = std::min(spaceship.thrust_percent + 1.0f , 100.0f);
 		} else if (control.pressed || down.pressed) {
-			spaceship.thrust_percent = std::max(spaceship.thrust_percent - 1.0f , 0.0f);
+			spaceship.thrust_percent = std::max(spaceship.thrust_percent - 10.0f , 0.0f);
 		}
 	}
 
