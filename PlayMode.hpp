@@ -79,7 +79,7 @@ struct PlayMode : Mode {
 	const float homing_threshold = 0.1f; // 1% of the window-size for homing threshold
 	glm::vec2 reticle_aim{0.f, 0.f}; // (0, 0) in center, (1, 1) top right, (-1, -1) bottom left
 	bool reticle_homing = false;
-	
+
 	// spaceship
 	Rocket spaceship;
 	Asteroid asteroid = Asteroid(0.5f, 0.2f); //TODO: reduce asteroid radius and scale down model
@@ -123,5 +123,8 @@ struct PlayMode : Mode {
 
 	// text UI
 	Text UI_text;
+
+	// bgm
+	std::shared_ptr< Sound::PlayingSample > bgm_loop;
 
 };

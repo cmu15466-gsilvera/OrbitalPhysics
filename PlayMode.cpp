@@ -57,9 +57,8 @@ Load< Scene > orbit_scene(LoadTagDefault, []() -> Scene const * {
 	});
 });
 
-//TODO: probably need to load rocket sound assets and BGM here
-Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample const * {
-	return new Sound::Sample(data_path("dusty-floor.opus"));
+Load< Sound::Sample > bgm(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("sound/bgm.wav"));
 });
 
 void PlayMode::SetupFramebuffers(){
@@ -116,20 +115,6 @@ void PlayMode::SetupFramebuffers(){
 
 
 PlayMode::PlayMode() : scene(*orbit_scene) {
-	//get pointers to leg for convenience:
-	// for (auto &transform : scene.transforms) {glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	// 	if (transform.name == "Hip.FL") hip = &transform;
-	// 	else if (transform.name == "UpperLeg.FL") upper_leg = &transform;
-	// 	else if (transform.name == "LowerLeg.FL") lower_leg = &transform;
-	// }
-	// if (hip == nullptr) throw std::runtime_error("Hip not found.");
-	// if (upper_leg == nullptr) throw std::runtime_error("Upper leg not found.");
-	// if (lower_leg == nullptr) throw std::runtime_error("Lower leg not found.");
-
-	// hip_base_rotation = hip->rotation;
-	// upper_leg_base_rotation = upper_leg->rotation;
-	// lower_leg_base_rotation = lower_leg->rotation;
-	//
 	Utils::InitRand();
 
 	//get pointer to camera for convenience:
@@ -152,8 +137,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	entities.push_back(&asteroid);
 
 	//start music loop playing:
-	// (note: position will be over-ridden in update())
-	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
+	bgm_loop = Sound::loop(*bgm, 0.5f, 0.0f);
 
 	{ //Load star
 		scene.transforms.emplace_back();
@@ -169,8 +153,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		star_trans->scale = glm::vec3(10.0f);
 
 		auto drawable = Scene::make_drawable(scene, star_trans, main_meshes_emissives.value);
-		drawable->set_uniforms = []() { 
-			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0f, 0.83f, 0.0f, 1.0f))); 
+		drawable->set_uniforms = []() {
+			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0f, 0.83f, 0.0f, 1.0f)));
 		};
 
 		LOG("Loaded Star");
@@ -232,11 +216,6 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			spaceship.orbits.emplace_front(
 				Orbit(planet, 0.0f, 30.0f, glm::radians(120.0f), glm::radians(220.0f), false)
 			);
-
-			//use this is you're bad at the game
-			// spaceship.orbits.emplace_front(
-			// 	Orbit(planet, 0.507543f, 201.459f, 0.53f, glm::radians(56.0f), false)
-			// );
 
 			spaceship.init(spaceship_trans, star, &scene);
 
@@ -496,7 +475,7 @@ void PlayMode::update(float elapsed) {
 
 	{ //laser
 		if (space.pressed){
-			spaceship.lasers.emplace_back(Beam(spaceship.pos, spaceship.aim_dir));
+			spaceship.fire_laser();
 		}
 
 		spaceship.update_lasers(elapsed);

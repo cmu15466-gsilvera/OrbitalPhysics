@@ -1,7 +1,8 @@
 #pragma once
 
-#include "Scene.hpp"
 #include "DrawLines.hpp"
+#include "Scene.hpp"
+#include "Sound.hpp"
 
 #define GLM_PRECISION_HIGHP_FLOAT
 #define GLM_PRECISION_HIGHP_DOUBLE
@@ -103,16 +104,19 @@ struct Rocket : public Entity {
 
 	void update(float elapsed);
 	void update_lasers(float elapsed);
+	void fire_laser();
 
 	glm::vec3 get_heading() const;
 
 	Body *root;
 	std::list< Orbit > orbits;
 	Scene::Transform *transform;
+	std::shared_ptr< Sound::PlayingSample > engine_loop;
 
 	static float constexpr DryMass = 4.0f; // Megagram
 	static float constexpr MaxThrust = 0.05f; // MegaNewtons
 	static float constexpr MaxFuelConsumption = 0.0001f; // Measured by mass, Megagram
+	static float constexpr LaserCooldown = 1.0e0f;
 
 	static int constexpr MAX_BEAMS = 1000; // don't have more than this
 	glm::vec3 aim_dir;
@@ -124,6 +128,8 @@ struct Rocket : public Entity {
 	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
 	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
+
+	float laser_timer = 0.0f; //when 0, laser is fireable
 
 	float timeSinceLastParticle = 0.0f;
 	int lastParticle = 0;

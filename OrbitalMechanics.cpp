@@ -33,6 +33,13 @@ Load< Scene::RenderSet > particles(LoadTagDefault, []() -> Scene::RenderSet cons
 	return renderSet;
 });
 
+Load< Sound::Sample > laser_sfx(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("sound/laser.wav"));
+});
+Load< Sound::Sample > engine_sfx(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("sound/engine.wav"));
+});
+
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
 static DilationLevel constexpr MAX_SOI_TRANS_DILATION = LEVEL_3;
@@ -226,10 +233,20 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 		it->enabled = false;
 	}
 
+	engine_loop = Sound::loop(*engine_sfx, thrust_percent / 100.0f, 0.0f);
 }
 
 glm::vec3 Rocket::get_heading() const {
 	return {std::cos(theta), std::sin(theta), 0.0f};
+}
+
+void Rocket::fire_laser() {
+	if (laser_timer > 0.0f) return;
+
+	lasers.emplace_back(Beam(pos, aim_dir));
+	Sound::play(*laser_sfx, 0.5f, 0.0f);
+
+	laser_timer = LaserCooldown;
 }
 
 void Rocket::update_lasers(float elapsed) {
@@ -247,6 +264,11 @@ void Rocket::update_lasers(float elapsed) {
 
 void Rocket::update(float elapsed) {
 	bool moved = false;
+
+	engine_loop->set_volume(thrust_percent / 100.0f);
+	if (laser_timer > 0.0f) {
+		laser_timer = std::max(laser_timer - elapsed * dilation, 0.0f);
+	}
 
 	{ //update thrust particles
 		if (thrust_percent > 0){
