@@ -334,9 +334,9 @@ void PlayMode::update(float elapsed) {
 
 		static float constexpr dtheta_update_amount = glm::radians(20.0f);
 		if (left.downs > 0 && right.downs == 0) {
-			spaceship.control_dtheta += dtheta_update_amount;
+			spaceship.control_dtheta = std::min(20.f * dtheta_update_amount, spaceship.control_dtheta + dtheta_update_amount);
 		} else if (right.downs > 0 && left.downs == 0) {
-			spaceship.control_dtheta -= dtheta_update_amount;
+			spaceship.control_dtheta = std::max(-20.f * dtheta_update_amount, spaceship.control_dtheta - dtheta_update_amount);;
 		} else {
 			spaceship.control_dtheta *= 0.9f; // slow decay
 			if (std::fabs(spaceship.control_dtheta) < 0.01) // threshold to 0
@@ -506,26 +506,51 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	//Everything from this point on is part of the HUD overlay
 	glDisable(GL_DEPTH_TEST);
 
-	if (false) { //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
+	if (true) { //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines vector_lines(world_to_clip);
 
-		Orbit const &orbit = spaceship.orbits.front();
+		// Orbit const &orbit = spaceship.orbits.front();
 
-		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff); //rpos
-		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
-		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
-		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
+		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff);
+		// static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
+		// static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
+		// static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
 		// static float constexpr display_multiplier = 1000.0f;
 
-		glm::vec3 heading = spaceship.get_heading() * 4.0f;
+		const float radscale = 0.5f;
+		float radius = radscale * CurrentCameraArm().scroll_zoom / CameraArm::init_scroll_zoom;
+		if (radius > 1.f / radscale) {
+			glm::vec3 heading = spaceship.get_heading();
+			vector_lines.draw(spaceship.pos + heading * (0.5f * radius), spaceship.pos + heading * (1.5f * radius), white);
 
-		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rpos, white);
-		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
-		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rvel * 1000.0f, green);
-		vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
+			auto draw_circle = [&vector_lines](glm::vec3 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
+											const int num_verts = 50) {
+				// draw a circle by drawing a bunch of lines
 
-		vector_lines.draw(asteroid.pos, asteroid.pos + glm::vec3(-1.0f, 0.0f, 0.0f), red);
+				std::vector<glm::vec2> circ_verts;
+				circ_verts.reserve(num_verts);
+				for (int i = 0; i < num_verts; i++)
+				{
+					circ_verts.emplace_back(glm::vec2{(radius.x * glm::cos(i * 2 * M_PI / num_verts)), (radius.y * glm::sin(i * 2 * M_PI / num_verts))});
+				}
+
+				for (int i = 0; i < num_verts; i++)
+				{
+					auto seg_start = glm::vec3(center.x + circ_verts[(i) % num_verts].x, center.y + circ_verts[i % num_verts].y, center.z);
+					auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % num_verts].x, center.y + circ_verts[(i + 1) % num_verts].y, center.z);
+					vector_lines.draw(seg_start, seg_end, color);
+				}
+			};
+			draw_circle(spaceship.pos, radius * glm::vec2(1.f, 1.f), white);
+		}
+
+
+		// vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rpos, white);
+		// vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rvel * 1000.0f, green);
+		// vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
+
+		// vector_lines.draw(asteroid.pos, asteroid.pos + glm::vec3(-1.0f, 0.0f, 0.0f), red);
 	}
 
 	{ // draw spaceship laser beams (screenspace)

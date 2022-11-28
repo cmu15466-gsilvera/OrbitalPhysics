@@ -90,7 +90,8 @@ struct PlayMode : Mode {
 
 		//Controls position
 		glm::vec3 camera_offset{0.0f, 1.0f, 1.0f};
-		float scroll_zoom = 10.0f;
+		static constexpr float init_scroll_zoom = 10.0f;
+		float scroll_zoom = init_scroll_zoom;
 		float camera_arm_length = 20.0f;
 	};
 
