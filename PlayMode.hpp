@@ -1,6 +1,7 @@
 #include "Mode.hpp"
 
 #include "OrbitalMechanics.hpp"
+#include "Skybox.hpp"
 
 #include "Mesh.hpp"
 #include "Scene.hpp"
@@ -74,6 +75,7 @@ struct PlayMode : Mode {
 	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
 	std::list< Orbit > orbits;
+    Skybox skybox = Skybox();
 
 	//camera:
 	Scene::Camera *camera = nullptr;

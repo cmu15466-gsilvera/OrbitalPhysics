@@ -204,6 +204,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			LOG("Loaded Asteroid");
 		}
 	}
+    {
+    }
 
 	// track order of focus points for camera
 	for (const Entity *entity : entities) {
@@ -487,8 +489,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
-
+    
 	scene.draw(*camera);
+    skybox.draw(camera);
+
 
 	{ //TODO: this is a demo of drawing the orbit
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
