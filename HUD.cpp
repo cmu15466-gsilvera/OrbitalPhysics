@@ -77,6 +77,10 @@ HUD::Sprite *HUD::loadSprite(std::string path){
 	return ret;
 }
 
+void HUD::drawElement(glm::vec2 size, glm::vec2 pos, Sprite *sprite, glm::uvec2 const &dims) {
+	drawElement(size, pos, sprite, static_cast<float>(dims.x), static_cast<float>(dims.y));
+}
+
 void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float width, float height){
 	glUseProgram(color_texture_program->program);
 	glActiveTexture(GL_TEXTURE0);
