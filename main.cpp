@@ -4,6 +4,9 @@
 //The 'PlayMode' mode plays the game:
 #include "PlayMode.hpp"
 
+//The 'MenuMode' mode enables start/pause menus:
+#include "MenuMode.hpp"
+
 //For asset loading:
 #include "Load.hpp"
 
@@ -112,7 +115,13 @@ int main(int argc, char **argv) {
 	call_load_functions();
 
 	//------------ create game mode + make current --------------
-	Mode::set_current(std::make_shared< PlayMode >());
+
+	std::shared_ptr<Mode> NotPlayingMode = std::make_shared<MenuMode>();
+	std::shared_ptr<Mode> PlayingMode = std::make_shared<PlayMode>();
+	NotPlayingMode->next_mode = PlayingMode;
+	PlayingMode->next_mode = NotPlayingMode;
+
+	Mode::set_current(NotPlayingMode);
 
 	//------------ main loop ------------
 
@@ -163,6 +172,12 @@ int main(int argc, char **argv) {
 						px.a = 0xff;
 					}
 					save_png(filename, glm::uvec2(w,h), data.data(), LowerLeftOrigin);
+				}
+
+				std::shared_ptr<Mode> current_mode = Mode::current;
+				if (current_mode->transition_to != nullptr) {
+					Mode::set_current(current_mode->transition_to);
+					current_mode->transition_to = nullptr; // need to explicitly tell it to transition!
 				}
 			}
 			if (!Mode::current) break;
