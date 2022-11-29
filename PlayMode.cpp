@@ -568,7 +568,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::vec2 reticle_size = reticle_homing ? glm::vec2{200, 200} : glm::vec2{300, 300};
 		glm::vec2 reticle_pos{reticle_aim.x * drawable_size.x - 0.5f * reticle_size.x, reticle_aim.y * drawable_size.y + 0.5f * reticle_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
-		HUD::drawElement(reticle_size, reticle_pos, target, (float)drawable_size.x, (float)drawable_size.y);
+		HUD::drawElement(reticle_size, reticle_pos, target, drawable_size);
 	}
 
 	{ //use DrawLines to overlay some text:
@@ -579,16 +579,16 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
 	}
 
-	HUD::drawElement(glm::vec2(100, 300), glm::vec2(130, 320), throttle, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
+	HUD::drawElement(glm::vec2(100, 300), glm::vec2(130, 320), throttle, drawable_size);
+	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, drawable_size);
+	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, drawable_size);
+	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, drawable_size);
 
 	if (camera->in_view(asteroid.pos)) { // draw asteroid target
 		glm::vec2 target_size = glm::vec2{300, 300};
 		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
-		HUD::drawElement(target_size, target_pos, reticle, (float)drawable_size.x, (float)drawable_size.y);
+		HUD::drawElement(target_size, target_pos, reticle, drawable_size);
 	}
 	GL_ERRORS();
 }
