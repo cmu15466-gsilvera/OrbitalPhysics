@@ -36,9 +36,11 @@ EmissiveShaderProgram::EmissiveShaderProgram() {
 		//fragment shader:
 		"#version 330\n"
 		"in vec4 color;\n"
-		"out vec4 fragColor;\n"
+		"layout (location = 0) out vec4 fragColor;\n"
+		"layout (location = 1) out vec4 brightColor;\n"
 		"void main() {\n"
 		"	fragColor = color;\n"
+		"	brightColor = color;\n"
 		"}\n"
 	);
 	//As you can see above, adjacent strings in C/C++ are concatenated.
@@ -51,10 +53,6 @@ EmissiveShaderProgram::EmissiveShaderProgram() {
 	OBJECT_TO_CLIP_mat4 = glGetUniformLocation(program, "OBJECT_TO_CLIP");
 	COLOR_vec4 = glGetUniformLocation(program, "Color");
 
-	//set TEX to always refer to texture binding zero:
-	glUseProgram(program); //bind program -- glUniform* calls refer to this program now
-
-	glUseProgram(0); //unbind program -- glUniform* calls refer to ??? now
 }
 
 EmissiveShaderProgram::~EmissiveShaderProgram() {
