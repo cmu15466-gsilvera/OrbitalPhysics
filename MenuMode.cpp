@@ -1,7 +1,7 @@
+#include "MenuMode.hpp"
 #include "EmissiveShaderProgram.hpp"
 #include "GL.hpp"
 #include "LitColorTextureProgram.hpp"
-#include "MenuMode.hpp"
 #include "Utils.hpp"
 
 #include "DrawLines.hpp"
@@ -28,12 +28,12 @@
 MenuMode::MenuMode()
 {
     window = HUD::loadSprite(data_path("window.png"));
-	play_button = HUD::loadSprite(data_path("button.png"));
-	exit_button = HUD::loadSprite(data_path("button.png"));
-	
+    play_button = HUD::loadSprite(data_path("button.png"));
+    exit_button = HUD::loadSprite(data_path("button.png"));
+
     { // load text
         start_menu_text.init(Text::AnchorType::CENTER);
-		pause_menu_text.init(Text::AnchorType::CENTER);
+        menu_text_1.init(Text::AnchorType::CENTER);
     }
 }
 
@@ -41,7 +41,7 @@ MenuMode::~MenuMode()
 {
     free(play_button);
     free(exit_button);
-	free(window);
+    free(window);
 }
 
 bool MenuMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
@@ -111,9 +111,30 @@ bool MenuMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
     return false;
 }
 
-
 void MenuMode::update(float elapsed)
 {
+
+    { // update text UI
+        std::stringstream stream;
+        stream << "Project Athena";
+        // stream << "a" << std::endl << "b";
+        start_menu_text.set_text(stream.str());
+    }
+
+    { // update text UI
+        std::stringstream stream;
+        stream << "Press ENTER to begin";
+        // stream << "a" << std::endl << "b";
+        menu_text_1.set_text(stream.str());
+    }
+
+    {
+        if (enter.pressed && next_mode != nullptr)
+        {
+            transition_to = next_mode;
+        }
+    }
+
     // reset button press counters:
     for (auto &keybinding : keybindings)
     {
@@ -135,6 +156,20 @@ void MenuMode::draw(glm::uvec2 const &drawable_size)
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS); // this is the default depth comparison function, but FYI you can change it.
+
+    { // start text
+        float x = drawable_size.x * 0.5f;
+        float y = drawable_size.y * 0.9f; // top is 1.f bottom is 0.f
+        float width = drawable_size.x * 0.6f;
+        start_menu_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.4f, glm::u8vec4{0xff});
+    }
+
+    { // other text
+        float x = drawable_size.x * 0.5f;
+        float y = drawable_size.y * 0.4f; // top is 1.f bottom is 0.f
+        float width = drawable_size.x * 0.5f;
+        menu_text_1.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, glm::u8vec4{0xff});
+    }
 
     GL_ERRORS();
 }

@@ -112,6 +112,9 @@ void PlayMode::SetupFramebuffers(){
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
             std::cout << "Framebuffer not complete!" << std::endl;
     }
+
+	// finally ready to begin rendering
+	framebuffer_ready = true;
 }
 
 
@@ -141,7 +144,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 	throttle = HUD::loadSprite(data_path("throttle.png"));
 	window = HUD::loadSprite(data_path("window.png"));
-	bar = HUD::loadSprite(data_path("bar.png"));
+	bar = HUD::loadSprite(data_path("sqr.png"));
 	handle = HUD::loadSprite(data_path("handle.png"));
 	target = HUD::loadSprite(data_path("reticle.png"));
 	reticle = HUD::loadSprite(data_path("reticle.png"));
@@ -277,11 +280,13 @@ PlayMode::~PlayMode() {
 	free(window);
 	free(handle);
 	free(bar);
+	free(target);
+	free(reticle);
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
 	window_dims = window_size;
-	if(hdrFBO == 0){
+	if(hdrFBO == 0) {
 		SetupFramebuffers();
 	}
 	if (evt.type == SDL_KEYDOWN) {
@@ -578,6 +583,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	scene.draw(*camera);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	if (hdrFBO == 0)
+		return;
 
 	// 2. blur bright fragments with two-pass Gaussian Blur 
 	// --------------------------------------------------
@@ -682,13 +689,12 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	}
 
 	{ // draw mouse cursor reticle
-		/// TODO: change color of drawn element rather than changing size!
-		// static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
-		// static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
-		glm::vec2 reticle_size = reticle_homing ? glm::vec2{200, 200} : glm::vec2{300, 300};
+		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
+		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
+		glm::u8vec4 color = reticle_homing ? red : yellow;
+		glm::vec2 reticle_size= glm::vec2(200, 200);
 		glm::vec2 reticle_pos{reticle_aim.x * drawable_size.x - 0.5f * reticle_size.x, reticle_aim.y * drawable_size.y + 0.5f * reticle_size.y};
-		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
-		HUD::drawElement(reticle_size, reticle_pos, target, drawable_size);
+		HUD::drawElement(reticle_size, reticle_pos, target, drawable_size, color);
 	}
 
 	{ //use DrawLines to overlay some text:
@@ -700,15 +706,23 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	HUD::drawElement(glm::vec2(100, 300), glm::vec2(130, 320), throttle, drawable_size);
 	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, drawable_size);
-	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, drawable_size);
-	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, drawable_size);
+	float thrust_amnt = std::fabs(spaceship.thrust_percent) / 100.0f;
+	glm::u8vec4 color{0xff};
+	if (spaceship.thrust_percent > 0) {
+		color = glm::u8vec4{0, 0xff, 0, 0xff}; // green
+	} else {
+		color = glm::u8vec4{0xff, 0, 0, 0xff}; // red
+	}
+	HUD::drawElement(glm::vec2(80, (250 * thrust_amnt)), glm::vec2(140, 32 + (250 * thrust_amnt)), bar, drawable_size, color);
+	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * thrust_amnt)), handle, drawable_size);
 
 
 	if (camera->in_view(asteroid.pos)) { // draw asteroid target
-		glm::vec2 target_size = glm::vec2{300, 300};
+		glm::vec2 target_size = glm::vec2{150, 150};
 		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
-		HUD::drawElement(target_size, target_pos, reticle, drawable_size);
+		const auto orange = glm::u8vec4{241, 90, 34, 255};
+		HUD::drawElement(target_size, target_pos, reticle, drawable_size, orange);
 	}
 
 	GL_ERRORS();

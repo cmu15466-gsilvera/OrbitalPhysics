@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 
+#include <unordered_map>
 #include <list>
 #include <vector>
 
@@ -41,5 +42,5 @@ struct MenuMode : Mode
     };
 
     Text start_menu_text;
-    Text pause_menu_text;
+    Text menu_text_1;
 };

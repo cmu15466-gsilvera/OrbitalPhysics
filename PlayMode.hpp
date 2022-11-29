@@ -46,6 +46,7 @@ struct PlayMode : Mode {
 	void RenderFrameQuad();
 
 	void SetupFramebuffers();
+	bool framebuffer_ready = false; // needs to initialize
 
 	HUD::Sprite *throttle;
 	HUD::Sprite *window;
