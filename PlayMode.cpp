@@ -261,6 +261,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			LOG("Loaded Asteroid");
 		}
 	}
+    {
+    }
 
 	// track order of focus points for camera
 	for (const Entity *entity : entities) {
@@ -285,8 +287,9 @@ PlayMode::~PlayMode() {
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
+	auto prev_window_dims = window_dims;
 	window_dims = window_size;
-	if(hdrFBO == 0) {
+	if(hdrFBO == 0 || prev_window_dims != window_size){
 		SetupFramebuffers();
 	}
 	if (evt.type == SDL_KEYDOWN) {
@@ -581,6 +584,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	GL_ERRORS();
 
 	scene.draw(*camera);
+    skybox.draw(camera);
+
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	if (hdrFBO == 0)
