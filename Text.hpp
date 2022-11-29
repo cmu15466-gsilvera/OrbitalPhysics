@@ -127,8 +127,8 @@ struct Text {
             // https://learnopengl.com/code_viewer_gh.php?code=src/7.in_practice/2.text_rendering/text.fs
             const auto fragment_shader = "#version 330 core\n"
                                          "in vec2 TexCoords;\n"
-                                         "out vec4 color;\n"
-                                         "out vec4 bright;\n"
+                                         "layout (location = 0) out vec4 color;\n"
+                                         "layout (location = 1) out vec4 bright;\n"
                                          "uniform sampler2D text;\n"
                                          "uniform vec3 textColor;\n"
                                          "void main()\n"
