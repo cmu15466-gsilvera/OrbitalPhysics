@@ -577,6 +577,38 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	scene.draw(*camera);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// 2. blur bright fragments with two-pass Gaussian Blur 
+	// --------------------------------------------------
+	bool horizontal = true, first_iteration = true;
+	unsigned int amount = 100;
+	glUseProgram(bloom_blur_program->program);
+	for (unsigned int i = 0; i < amount; i++)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+		glUniform1i(bloom_blur_program->HORIZONTAL_bool, horizontal);
+		glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
+		RenderFrameQuad();
+		horizontal = !horizontal;
+		if (first_iteration)
+			first_iteration = false;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glUseProgram(frame_quad_program->program);
+	glUniform1i(frame_quad_program->HDR_tex, 0);
+	glUniform1i(frame_quad_program->BLOOM_tex, 1);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
+	glUniform1i(frame_quad_program->BLOOM_bool, true);
+	glUniform1f(frame_quad_program->EXPOSURE_float, 1.0f);
+	RenderFrameQuad();
+
+
 	{ //TODO: this is a demo of drawing the orbit
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines orbit_lines(world_to_clip);
@@ -671,37 +703,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, drawable_size);
 	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, drawable_size);
 	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, drawable_size);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// 2. blur bright fragments with two-pass Gaussian Blur 
-	// --------------------------------------------------
-	bool horizontal = true, first_iteration = true;
-	unsigned int amount = 100;
-	glUseProgram(bloom_blur_program->program);
-	for (unsigned int i = 0; i < amount; i++)
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
-		glUniform1i(bloom_blur_program->HORIZONTAL_bool, horizontal);
-		glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
-		RenderFrameQuad();
-		horizontal = !horizontal;
-		if (first_iteration)
-			first_iteration = false;
-	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glUseProgram(frame_quad_program->program);
-	glUniform1i(frame_quad_program->HDR_tex, 0);
-	glUniform1i(frame_quad_program->BLOOM_tex, 1);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
-	glActiveTexture(GL_TEXTURE0 + 1);
-	glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
-	glUniform1i(frame_quad_program->BLOOM_bool, true);
-	glUniform1f(frame_quad_program->EXPOSURE_float, 1.0f);
-	RenderFrameQuad();
 
 
 	if (camera->in_view(asteroid.pos)) { // draw asteroid target
