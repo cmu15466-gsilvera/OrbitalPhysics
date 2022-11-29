@@ -204,7 +204,7 @@ float Beam::get_mass(glm::vec3 x) const {
 	return 1.0f / (denom * denom);
 }
 
-void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
+void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene, Asteroid const &asteroid) {
 	assert(transform_ != nullptr);
 
 	root = root_;
@@ -212,7 +212,8 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene) {
 	pos = orbit.get_pos();
 	vel = orbit.get_vel();
 	acc = glm::vec3(0.0f);
-	orbit.sim_predict(root, orbits, 0, orbits.begin());
+	orbit.sim_predict(root, orbits, 0, orbits.begin(), 0.0f);
+	orbit.find_closest_approach(asteroid.orbits.front(), 0, 0, closest);
 
 	transform = transform_;
 	transform->position = pos;
@@ -262,7 +263,7 @@ void Rocket::update_lasers(float elapsed) {
 	}
 }
 
-void Rocket::update(float elapsed) {
+void Rocket::update(float elapsed, Asteroid const &asteroid) {
 	bool moved = false;
 
 	engine_loop->set_volume(thrust_percent / 100.0f);
@@ -347,7 +348,9 @@ void Rocket::update(float elapsed) {
 			Orbit *temp = orbit.continuation;
 			orbit = Orbit(orbit.origin, pos, vel, false);
 			orbit.continuation = temp;
-			orbit.sim_predict(root, orbits, 0, orbits.begin());
+			orbit.sim_predict(root, orbits, 0, orbits.begin(), 0.0f);
+			closest.dist = std::numeric_limits< float >::infinity();
+			orbit.find_closest_approach(asteroid.orbits.front(), 0, 0, closest);
 		}
 
 		while (orbit.will_soi_transit(elapsed) && dilation > MAX_SOI_TRANS_DILATION) {
@@ -366,13 +369,17 @@ void Rocket::update(float elapsed) {
 			Body *new_origin = origin->orbit->origin;
 
 			orbit = Orbit(new_origin, pos, vel, false);
-			orbit.sim_predict(root, orbits, 0, orbits.begin());
+			orbit.sim_predict(root, orbits, 0, orbits.begin(), 0.0f);
+			closest.dist = std::numeric_limits< float >::infinity();
+			orbit.find_closest_approach(asteroid.orbits.front(), 0, 0, closest);
 		}
 
 		for (Body *satellite : origin->satellites) {
 			if (satellite->in_soi(pos)) {
 				orbit = Orbit(satellite, pos, vel, false);
-				orbit.sim_predict(root, orbits, 0, orbits.begin());
+				orbit.sim_predict(root, orbits, 0, orbits.begin(), 0.0f);
+				closest.dist = std::numeric_limits< float >::infinity();
+				orbit.find_closest_approach(asteroid.orbits.front(), 0, 0, closest);
 				break;
 			}
 		}
@@ -391,7 +398,7 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 	pos = orbit.get_pos();
 	vel = orbit.get_vel();
 	acc = glm::vec3(0.0f);
-	orbit.sim_predict(root, orbits, 0, orbits.begin());
+	orbit.sim_predict(root, orbits, 0, orbits.begin(), 0.0f);
 
 	transform = transform_;
 	transform->position = pos;
@@ -445,7 +452,7 @@ void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 			Orbit *temp = orbit.continuation;
 			orbit = Orbit(orbit.origin, pos, vel, false);
 			orbit.continuation = temp;
-			orbit.sim_predict(root, orbits, 0, orbits.begin());
+			orbit.sim_predict(root, orbits, 0, orbits.begin(), 0.0f);
 		}
 
 		while (orbit.will_soi_transit(elapsed) && dilation > MAX_SOI_TRANS_DILATION) {
@@ -464,13 +471,13 @@ void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 			Body *new_origin = origin->orbit->origin;
 
 			orbit = Orbit(new_origin, pos, vel, false);
-			orbit.sim_predict(root, orbits, 0, orbits.begin());
+			orbit.sim_predict(root, orbits, 0, orbits.begin(), 0.0f);
 		}
 
 		for (Body *satellite : origin->satellites) {
 			if (satellite->in_soi(pos)) {
 				orbit = Orbit(satellite, pos, vel, false);
-				orbit.sim_predict(root, orbits, 0, orbits.begin());
+				orbit.sim_predict(root, orbits, 0, orbits.begin(), 0.0f);
 				break;
 			}
 		}
@@ -662,11 +669,14 @@ void Orbit::init_sim() {
 	sim.rvel = rvel;
 }
 
-void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it) {
+void Orbit::sim_predict(
+		Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it, float start_time) {
 	root->init_sim();
 	init_sim();
 
+	float current_time = start_time;
 	points[0] = sim.rpos;
+	point_times[0] =  current_time;
 	++it;
 
 	if (p == 0.0f) { //degenerate case
@@ -680,6 +690,8 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 	for (size_t i = 1; i < PredictDetail; i++) {
 		root->simulate(step);
 		simulate(step);
+		current_time += step;
+		point_times[i] = current_time;
 		step = PredictAngle / sim.dtheta;
 
 		if (sim.r > origin->soi_radius) {
@@ -700,7 +712,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 				*continuation = Orbit(origin->orbit->origin, sim.pos, sim.vel, true);
 				continuation->continuation = temp;
 			}
-			continuation->sim_predict(root, orbits, level+1, it);
+			continuation->sim_predict(root, orbits, level+1, it, current_time);
 			return;
 		}
 
@@ -723,7 +735,7 @@ void Orbit::sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::
 					*continuation = Orbit(satellite, sim.pos, sim.vel, true);
 					continuation->continuation = temp;
 				}
-				continuation->sim_predict(root, orbits, level+1, it);
+				continuation->sim_predict(root, orbits, level+1, it, current_time);
 				return;
 			}
 		}
@@ -765,6 +777,51 @@ void Orbit::simulate(float time) {
 
 	sim.pos = origin->orbit != nullptr ? sim.rpos + origin->orbit->sim.pos : sim.rpos;
 	sim.vel = origin->orbit != nullptr ? sim.rvel + origin->orbit->sim.vel : sim.rvel;
+}
+
+void Orbit::find_closest_approach(
+		Orbit const &other, size_t points_idx, size_t other_points_idx, ClosestApproachInfo &closest) {
+	//NOTE: only call for rocket
+	size_t ni = points.size();
+	size_t nj = other.points.size();
+
+	size_t i = points_idx;
+	size_t j = other_points_idx;
+	while (i < ni && j < nj) {
+		glm::vec3 pos_i = points[i];
+		glm::vec3 pos_j = other.points[j];
+
+		if (pos_i == Orbit::Invalid || pos_j == Orbit::Invalid) {
+			break;
+		}
+
+		if (origin == other.origin) {
+			//find distance and update closest if needed
+			float dist = glm::distance(pos_i, pos_j);
+			if (dist < closest.dist) {
+				closest.origin = origin;
+				closest.rocket_rpos = pos_i;
+				closest.asteroid_rpos = pos_j;
+				closest.dist = dist;
+				closest.time_diff = point_times[i] - other.point_times[j];
+			}
+		}
+
+		//step whichever orbit is further behind
+		if (point_times[i] < other.point_times[j]) {
+			i++;
+		} else {
+			j++;
+		}
+	}
+
+	if (i < ni && j < nj && continuation != nullptr && other.continuation != nullptr) {
+		continuation->find_closest_approach(*other.continuation, 0, 0, closest);
+	} else if (i < ni && continuation != nullptr) {
+		continuation->find_closest_approach(other, 0, j, closest);
+	} else if (j < nj && other.continuation != nullptr) {
+		find_closest_approach(*other.continuation, i, 0, closest);
+	}
 }
 
 void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
