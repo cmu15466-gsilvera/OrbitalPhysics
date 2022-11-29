@@ -29,13 +29,11 @@ FrameQuadProgram::FrameQuadProgram() {
 		"out vec4 FragColor;\n"
 		"void main() {\n"
 		"	const float gamma = 1.2;\n"
-		"	vec3 hdrColor = texture(scene, TexCoords).rgb;\n"      
+		"	vec3 mainColor = texture(scene, TexCoords).rgb;\n"      
 		"	vec3 bloomColor = texture(bloomBlur, TexCoords).rgb;\n"
 		"	if(bloom)\n"
-		"		hdrColor += bloomColor; // additive blending\n"
-		"	vec3 result = vec3(1.0) - exp(-hdrColor * exposure);\n"
-		"	result = pow(result, vec3(1.0 / gamma));\n"
-		"	FragColor = vec4(result, 1.0);\n"
+		"		mainColor += bloomColor; // additive blending\n"
+		"	FragColor = vec4(mainColor, 1.0);\n"
 		"}\n"
 	);
 	//As you can see above, adjacent strings in C/C++ are concatenated.
