@@ -26,7 +26,7 @@ ColorProgram::ColorProgram() {
 		"out vec4 brightColor;\n"
 		"void main() {\n"
 		"	fragColor = color;\n"
-		"	brightColor = vec4(vec3(0.0), 1.0);\n"
+		"	brightColor = color;\n"
 		"}\n"
 	);
 	//As you can see above, adjacent strings in C/C++ are concatenated.

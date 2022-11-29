@@ -608,6 +608,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glUniform1f(frame_quad_program->EXPOSURE_float, 1.0f);
 	RenderFrameQuad();
 
+	//Everything from this point on is part of the HUD overlay
+	glDisable(GL_DEPTH_TEST);
 
 	{ //TODO: this is a demo of drawing the orbit
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
@@ -622,8 +624,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		asteroid.orbits.front().draw(orbit_lines, green);
 	}
 
-	//Everything from this point on is part of the HUD overlay
-	glDisable(GL_DEPTH_TEST);
 
 	if (true) { //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
@@ -692,7 +692,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	}
 
 	{ //use DrawLines to overlay some text:
-		glDisable(GL_DEPTH_TEST);
 		float x = drawable_size.x * 0.03f;
 		float y = drawable_size.y * (1.0f - 0.1f); // top is 1.f bottom is 0.f
 		float width = drawable_size.x * 0.2f;
