@@ -695,8 +695,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	}
 
 	{ // draw mouse cursor reticle
-		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
-		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
+		static constexpr glm::u8vec4 red = glm::u8vec4(0xcc, 0x00, 0x00, 0x45); // target locked
+		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xcc, 0xd3, 0x00, 0x45);
 		glm::u8vec4 color = reticle_homing ? red : yellow;
 		glm::vec2 reticle_size= glm::vec2(200, 200);
 		glm::vec2 reticle_pos{reticle_aim.x * drawable_size.x - 0.5f * reticle_size.x, reticle_aim.y * drawable_size.y + 0.5f * reticle_size.y};
@@ -727,7 +727,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::vec2 target_size = glm::vec2{150, 150};
 		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
-		const auto orange = glm::u8vec4{241, 90, 34, 255};
+		const auto orange = glm::u8vec4{241, 90, 34, 0x45};
 		HUD::drawElement(target_size, target_pos, reticle, drawable_size, orange);
 	}
 
