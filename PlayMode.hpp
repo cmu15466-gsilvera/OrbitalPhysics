@@ -69,7 +69,15 @@ struct PlayMode : Mode {
 	
 	// spaceship
 	Rocket spaceship;
+
+	bool bEnableEasyMode = true; // allow "negative thrust" to correct for over-orbit
+	bool bCanThrustChangeDir = true; // whether or not we can thrust
+	bool forward_thrust = true; // false => backwards thrust controls 
+
+	// asteroid
 	Asteroid asteroid = Asteroid(0.5f, 0.2f); //TODO: reduce asteroid radius and scale down model
+	
+	// other solar system bodies
 	Body *star; //All body updates cascade off of star update, should be done prior to spaceship update
 	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
