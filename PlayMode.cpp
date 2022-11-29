@@ -258,6 +258,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			LOG("Loaded Asteroid");
 		}
 	}
+    {
+    }
 
 	// track order of focus points for camera
 	for (const Entity *entity : entities) {
@@ -576,6 +578,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	GL_ERRORS();
 
 	scene.draw(*camera);
+    skybox.draw(camera);
+
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
