@@ -94,6 +94,25 @@ glm::mat4 Scene::Camera::make_projection() const {
 	return glm::infinitePerspective( fovy, aspect, near );
 }
 
+bool Scene::Camera::in_view(glm::vec3 const &x) const {
+	glm::vec3 pos = x - transform->position; // transform to camera origin
+	const float fovx = fovy * aspect;
+	const float d = 1;
+	const glm::mat4x3 frame = transform->make_local_to_parent();
+	const glm::vec3 right = frame[0];
+	const glm::vec3 up = frame[1];
+	const glm::vec3 forward = -frame[2];
+	bool in_front = glm::dot(pos, forward) > 0.f; // pos and normal
+	if (!in_front)
+		return false;
+	glm::vec3 x_prime = (d * pos) / (glm::dot(forward, pos)) - d * forward;
+	float horizontal = glm::dot(x_prime, right);
+	float vertical = glm::dot(x_prime, up);
+	bool within_x = (-fovx / 2.f <= horizontal && horizontal < fovx / 2.f);
+	bool within_y = (-fovy / 2.f <= vertical && vertical < fovy / 2.f);
+	return within_x && within_y;
+}
+
 //-------------------------
 
 

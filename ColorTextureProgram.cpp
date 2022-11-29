@@ -41,10 +41,13 @@ ColorTextureProgram::ColorTextureProgram() {
 		//fragment shader:
 		"#version 330\n"
 		"uniform sampler2D TEX;\n"
+		"uniform vec4 COLOR;\n"
 		"in vec2 texCoord;\n"
-		"out vec4 fragColor;\n"
+		"layout (location = 0) out vec4 fragColor;\n"
+		"layout (location = 1) out vec4 brightColor;\n"
 		"void main() {\n"
-		"	fragColor = texture(TEX, texCoord);\n"
+		"	fragColor = texture(TEX, texCoord) * COLOR;\n"
+		"	brightColor = vec4(0, 0, 0, 1.0);\n"
 		"}\n"
 	);
 	//As you can see above, adjacent strings in C/C++ are concatenated.
@@ -57,6 +60,7 @@ ColorTextureProgram::ColorTextureProgram() {
 	//look up the locations of uniforms:
 	OBJECT_TO_CLIP_mat4 = glGetUniformLocation(program, "OBJECT_TO_CLIP");
 	OFFSET_vec4 = glGetUniformLocation(program, "OFFSET");
+	COLOR_vec4 = glGetUniformLocation(program, "COLOR");
 	GLuint TEX_sampler2D = glGetUniformLocation(program, "TEX");
 
 	//set TEX to always refer to texture binding zero:

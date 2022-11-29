@@ -2,6 +2,8 @@
 #include "EmissiveShaderProgram.hpp"
 #include "GL.hpp"
 #include "LitColorTextureProgram.hpp"
+#include "FrameQuadProgram.hpp"
+#include "BloomBlurProgram.hpp"
 #include "Utils.hpp"
 
 #include "DrawLines.hpp"
@@ -60,10 +62,62 @@ Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample c
 	return new Sound::Sample(data_path("dusty-floor.opus"));
 });
 
+void PlayMode::SetupFramebuffers(){
+	printf("%d, %d\n", window_dims.x, window_dims.y);
+	 // configure (floating point) framebuffers
+    // ---------------------------------------
+    glGenFramebuffers(1, &hdrFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    // create 2 floating point color buffers (1 for normal rendering, other for brightness threshold values)
+    glGenTextures(2, colorBuffers);
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16, window_dims.x, window_dims.y, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);  // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // attach texture to framebuffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0);
+    }
+    // create and attach depth buffer (renderbuffer)
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, window_dims.x, window_dims.y);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    attachments[0] = GL_COLOR_ATTACHMENT0;
+    attachments[1] = GL_COLOR_ATTACHMENT1;
+    glDrawBuffers(2, attachments);
+    // finally check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // ping-pong-framebuffer for blurring
+    glGenFramebuffers(2, pingpongFBO);
+    glGenTextures(2, pingpongColorbuffers);
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, window_dims.x, window_dims.y, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongColorbuffers[i], 0);
+        // also check if framebuffers are complete (no need for depth buffer)
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "Framebuffer not complete!" << std::endl;
+    }
+}
+
 
 PlayMode::PlayMode() : scene(*orbit_scene) {
 	//get pointers to leg for convenience:
-	// for (auto &transform : scene.transforms) {
+	// for (auto &transform : scene.transforms) {glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// 	if (transform.name == "Hip.FL") hip = &transform;
 	// 	else if (transform.name == "UpperLeg.FL") upper_leg = &transform;
 	// 	else if (transform.name == "LowerLeg.FL") lower_leg = &transform;
@@ -222,11 +276,15 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 PlayMode::~PlayMode() {
 	free(throttle);
+	free(window);
 	free(handle);
 	free(bar);
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
+	if(hdrFBO == 0 || window_dims != window_size){
+		SetupFramebuffers();
+	}
 	window_dims = window_size;
 	if (evt.type == SDL_KEYDOWN) {
 		bool was_key_down = false;
@@ -394,10 +452,9 @@ void PlayMode::update(float elapsed) {
 		float min_dist = std::numeric_limits<float>::max(); // infinity
 		glm::vec2 homing_reticle_pos = reticle_aim;
 		glm::vec3 homing_target{0.f, 0.f, 0.f};
-		/// TODO: fix bug where bodies 'offscreen' can still affect this computation and you might "lock" onto nothing!
 		for (const Entity *entity : entities) {
-			if (entity == (&spaceship))
-				continue; // don't shoot laser at self
+			if (entity == (&spaceship) || !camera->in_view(entity->pos))
+				continue; // don't shoot laser at self or offscreen objects
 			glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(entity->pos, 1.0f));
 			glm::vec2 pos2d{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)};
 			float ss_dist = glm::length(reticle_aim - pos2d); // screen-space distance (for comparisons)
@@ -470,6 +527,34 @@ void PlayMode::update(float elapsed) {
 	mouse_motion_rel = glm::vec2(0, 0);
 }
 
+void PlayMode::RenderFrameQuad(){
+	if (renderQuadVAO == 0)
+    {
+        float quadVertices[] = {
+            // positions        // texture Coords
+            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+             1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // setup plane VAO
+        glGenVertexArrays(1, &renderQuadVAO);
+        glGenBuffers(1, &renderQuadVBO);
+        glBindVertexArray(renderQuadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, renderQuadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    }
+
+	GL_ERRORS();
+    glBindVertexArray(renderQuadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+}
+
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	//update camera aspect ratio for drawable:
 	camera->aspect = float(drawable_size.x) / float(drawable_size.y);
@@ -477,22 +562,58 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	//set up light type and position for lit_color_texture_program:
 	// TODO: consider using the Light(s) in the scene to do this
 	glUseProgram(lit_color_texture_program->program);
-	glUniform3fv(lit_color_texture_program->AMBIENT_COLOR_vec3, 1, glm::value_ptr(glm::vec3(0.2f, 0.2f,0.2f)));
+	glUniform3fv(lit_color_texture_program->AMBIENT_COLOR_vec3, 1, glm::value_ptr(glm::vec3(0.1f, 0.1f,0.1f)));
 	glUniform3fv(lit_color_texture_program->LIGHT_DIRECTION_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 0.0f,-1.0f)));
 	glUniform3fv(lit_color_texture_program->LIGHT_LOCATION_vec3, 1, glm::value_ptr(star->transform->position));
 	glUniform3fv(lit_color_texture_program->LIGHT_ENERGY_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 0.95f)));
 	glUseProgram(0);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClearDepth(1.0f); //1.0 is actually the default value to clear the depth buffer to, but FYI you can change it.
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
-    
+	GL_ERRORS();
+
 	scene.draw(*camera);
     skybox.draw(camera);
 
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// 2. blur bright fragments with two-pass Gaussian Blur 
+	// --------------------------------------------------
+	bool horizontal = true, first_iteration = true;
+	unsigned int amount = 100;
+	glUseProgram(bloom_blur_program->program);
+	for (unsigned int i = 0; i < amount; i++)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+		glUniform1i(bloom_blur_program->HORIZONTAL_bool, horizontal);
+		glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
+		RenderFrameQuad();
+		horizontal = !horizontal;
+		if (first_iteration)
+			first_iteration = false;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glUseProgram(frame_quad_program->program);
+	glUniform1i(frame_quad_program->HDR_tex, 0);
+	glUniform1i(frame_quad_program->BLOOM_tex, 1);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
+	glUniform1i(frame_quad_program->BLOOM_bool, true);
+	glUniform1f(frame_quad_program->EXPOSURE_float, 1.0f);
+	RenderFrameQuad();
+
+	//Everything from this point on is part of the HUD overlay
+	glDisable(GL_DEPTH_TEST);
 
 	{ //TODO: this is a demo of drawing the orbit
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
@@ -507,8 +628,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		asteroid.orbits.front().draw(orbit_lines, green);
 	}
 
-	//Everything from this point on is part of the HUD overlay
-	glDisable(GL_DEPTH_TEST);
 
 	if (true) { //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
@@ -573,28 +692,29 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::vec2 reticle_size = reticle_homing ? glm::vec2{200, 200} : glm::vec2{300, 300};
 		glm::vec2 reticle_pos{reticle_aim.x * drawable_size.x - 0.5f * reticle_size.x, reticle_aim.y * drawable_size.y + 0.5f * reticle_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
-		HUD::drawElement(reticle_size, reticle_pos, target, (float)drawable_size.x, (float)drawable_size.y);
+		HUD::drawElement(reticle_size, reticle_pos, target, drawable_size);
 	}
 
 	{ //use DrawLines to overlay some text:
-		glDisable(GL_DEPTH_TEST);
 		float x = drawable_size.x * 0.03f;
 		float y = drawable_size.y * (1.0f - 0.1f); // top is 1.f bottom is 0.f
 		float width = drawable_size.x * 0.2f;
 		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
 	}
 
-	HUD::drawElement(glm::vec2(100, 300), glm::vec2(130, 320), throttle, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
+	HUD::drawElement(glm::vec2(100, 300), glm::vec2(130, 320), throttle, drawable_size);
+	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, drawable_size);
+	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, drawable_size);
+	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, drawable_size);
 
-	{ // draw asteroid target
+
+	if (camera->in_view(asteroid.pos)) { // draw asteroid target
 		glm::vec2 target_size = glm::vec2{300, 300};
 		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
-		HUD::drawElement(target_size, target_pos, reticle, (float)drawable_size.x, (float)drawable_size.y);
+		HUD::drawElement(target_size, target_pos, reticle, drawable_size);
 	}
+
 	GL_ERRORS();
 }
 
