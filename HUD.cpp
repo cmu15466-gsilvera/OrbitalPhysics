@@ -90,6 +90,30 @@ void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glUniformMatrix4fv(color_texture_program->OBJECT_TO_CLIP_mat4, 1, GL_FALSE, glm::value_ptr(glm::ortho(0.0f, width, 0.f, height, 0.f, 1.0f)));
 	glUniform4fv(color_texture_program->OFFSET_vec4, 1, glm::value_ptr(glm::vec4(size.x, -size.y, pos.x, pos.y)));
+	glUniform4fv(color_texture_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0)));
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glBindVertexArray(0);
+	glUseProgram(0);
+
+	GL_ERRORS();
+}
+
+void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float width, float height, glm::vec4 color){
+	glUseProgram(color_texture_program->program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, sprite->textureID);
+	glBindVertexArray(vao);
+
+	glEnable(GL_BLEND);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glUniformMatrix4fv(color_texture_program->OBJECT_TO_CLIP_mat4, 1, GL_FALSE, glm::value_ptr(glm::ortho(0.0f, width, 0.f, height, 0.f, 1.0f)));
+	glUniform4fv(color_texture_program->OFFSET_vec4, 1, glm::value_ptr(glm::vec4(size.x, -size.y, pos.x, pos.y)));
+	glUniform4fv(color_texture_program->COLOR_vec4, 1, glm::value_ptr(color));
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 

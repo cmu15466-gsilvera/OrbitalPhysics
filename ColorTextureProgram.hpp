@@ -16,6 +16,7 @@ struct ColorTextureProgram {
 	//Uniform (per-invocation variable) locations:
 	GLuint OBJECT_TO_CLIP_mat4 = -1U;
 	GLuint OFFSET_vec4 = -1U;
+	GLuint COLOR_vec4 = -1U;
 	//Textures:
 	//TEXTURE0 - texture that is accessed by TexCoord
 };
