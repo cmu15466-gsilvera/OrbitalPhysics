@@ -22,8 +22,8 @@ ColorProgram::ColorProgram() {
 		//fragment shader:
 		"#version 330\n"
 		"in vec4 color;\n"
-		"out vec4 fragColor;\n"
-		"out vec4 brightColor;\n"
+		"layout (location = 0) out vec4 fragColor;\n"
+		"layout (location = 1) out vec4 brightColor;\n"
 		"void main() {\n"
 		"	fragColor = color;\n"
 		"	brightColor = vec4(vec3(0.0), 1.0);\n"
