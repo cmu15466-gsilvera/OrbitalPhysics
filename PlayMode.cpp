@@ -280,10 +280,10 @@ PlayMode::~PlayMode() {
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
-	window_dims = window_size;
-	if(hdrFBO == 0){
+	if(hdrFBO == 0 || window_dims != window_size){
 		SetupFramebuffers();
 	}
+	window_dims = window_size;
 	if (evt.type == SDL_KEYDOWN) {
 		bool was_key_down = false;
 		for (auto& key_action : keybindings) {
