@@ -143,6 +143,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	window = HUD::loadSprite(data_path("window.png"));
 	bar = HUD::loadSprite(data_path("bar.png"));
 	handle = HUD::loadSprite(data_path("handle.png"));
+	target = HUD::loadSprite(data_path("reticle.png"));
+	reticle = HUD::loadSprite(data_path("reticle.png"));
 	// first focus should be on the spaceship!
 	entities.push_back(&spaceship);
 
@@ -295,6 +297,10 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 				}
 			}
 		}
+		if (evt.key.keysym.sym == SDLK_ESCAPE) {
+			SDL_SetRelativeMouseMode(SDL_FALSE);
+			was_key_down = true;
+		}
 		return was_key_down;
 	} else if (evt.type == SDL_KEYUP) {
 		bool was_key_up = false;
@@ -310,18 +316,20 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 		return was_key_up;
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
-		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
-			SDL_SetRelativeMouseMode(SDL_TRUE);
-			can_pan_camera = true;
-			return true;
-		}
+		can_pan_camera = true;
+		SDL_SetRelativeMouseMode(SDL_TRUE);
+		return true;
+		// if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
+		// 	return true;
+		// }
 	} else if (evt.type == SDL_MOUSEBUTTONUP) {
 		// show the mouse cursor again once the mouse is released
-		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-			SDL_SetRelativeMouseMode(SDL_FALSE);
-			can_pan_camera = false;
-			return true;
-		}
+		can_pan_camera = false;
+		SDL_SetRelativeMouseMode(SDL_TRUE);
+		return true;
+		// if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+		// 	return true;
+		// }
 	} else if (evt.type == SDL_MOUSEMOTION) {
 		{
 			// mouse_motion is (1, 1) in top right, (-1, -1) in bottom left
@@ -384,9 +392,9 @@ void PlayMode::update(float elapsed) {
 
 		static float constexpr dtheta_update_amount = glm::radians(20.0f);
 		if (left.downs > 0 && right.downs == 0) {
-			spaceship.control_dtheta += dtheta_update_amount;
+			spaceship.control_dtheta = std::min(20.f * dtheta_update_amount, spaceship.control_dtheta + dtheta_update_amount);
 		} else if (right.downs > 0 && left.downs == 0) {
-			spaceship.control_dtheta -= dtheta_update_amount;
+			spaceship.control_dtheta = std::max(-20.f * dtheta_update_amount, spaceship.control_dtheta - dtheta_update_amount);;
 		} else {
 			spaceship.control_dtheta *= 0.9f; // slow decay
 			if (std::fabs(spaceship.control_dtheta) < 0.01) // threshold to 0
@@ -396,7 +404,7 @@ void PlayMode::update(float elapsed) {
 		if (shift.pressed || up.pressed) {
 			spaceship.thrust_percent = std::min(spaceship.thrust_percent + 1.0f , 100.0f);
 		} else if (control.pressed || down.pressed) {
-			spaceship.thrust_percent = std::max(spaceship.thrust_percent - 1.0f , 0.0f);
+			spaceship.thrust_percent = std::max(spaceship.thrust_percent - 10.0f , 0.0f);
 		}
 	}
 
@@ -427,6 +435,12 @@ void PlayMode::update(float elapsed) {
 		spaceship.update(elapsed);
 	}
 
+	{ // asteroid target
+		glm::mat4 world_to_screen = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
+		glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(asteroid.pos, 1.0f)); // [-1..1]^2
+		target_xy = glm::vec2{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)} * 0.5f + 0.5f; // -> [0,1]^2
+	}
+
 	{ // reticle tracker
 		// make the reticle follow the mouse
 		reticle_aim = mouse_motion;
@@ -436,10 +450,9 @@ void PlayMode::update(float elapsed) {
 		float min_dist = std::numeric_limits<float>::max(); // infinity
 		glm::vec2 homing_reticle_pos = reticle_aim;
 		glm::vec3 homing_target{0.f, 0.f, 0.f};
-		/// TODO: fix bug where bodies 'offscreen' can still affect this computation and you might "lock" onto nothing!
 		for (const Entity *entity : entities) {
-			if (entity == (&spaceship))
-				continue; // don't shoot laser at self
+			if (entity == (&spaceship) || !camera->in_view(entity->pos))
+				continue; // don't shoot laser at self or offscreen objects
 			glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(entity->pos, 1.0f));
 			glm::vec2 pos2d{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)};
 			float ss_dist = glm::length(reticle_aim - pos2d); // screen-space distance (for comparisons)
@@ -450,7 +463,7 @@ void PlayMode::update(float elapsed) {
 			}
 		}
 		reticle_homing = (homing_reticle_pos != reticle_aim); // whether or not we locked onto a target
-		reticle_aim = homing_reticle_pos;
+		reticle_aim = homing_reticle_pos * 0.5f + 0.5f; // [-1:1]^2 -> [0:1]^2
 
 		// now make sure the rocket laser launcher system follows this direction
 		glm::vec3 world_target{0.f, 0.f, 0.f};
@@ -580,26 +593,51 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	//Everything from this point on is part of the HUD overlay
 	glDisable(GL_DEPTH_TEST);
 
-	if (false) { //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
+	if (true) { //DEBUG: draw spaceship (relative) position, (relative) velocity, heading, and acceleration vectors
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines vector_lines(world_to_clip);
 
-		Orbit const &orbit = spaceship.orbits.front();
+		// Orbit const &orbit = spaceship.orbits.front();
 
-		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff); //rpos
-		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
-		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
-		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
+		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff);
+		// static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
+		// static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
+		// static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
 		// static float constexpr display_multiplier = 1000.0f;
 
-		glm::vec3 heading = spaceship.get_heading() * 4.0f;
+		const float radscale = 0.5f;
+		float radius = radscale * CurrentCameraArm().scroll_zoom / CameraArm::init_scroll_zoom;
+		if (radius > 1.f / radscale) {
+			glm::vec3 heading = spaceship.get_heading();
+			vector_lines.draw(spaceship.pos + heading * (0.5f * radius), spaceship.pos + heading * (1.5f * radius), white);
 
-		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rpos, white);
-		vector_lines.draw(spaceship.pos, spaceship.pos + heading, yellow);
-		vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rvel * 1000.0f, green);
-		vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
+			auto draw_circle = [&vector_lines](glm::vec3 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
+											const int num_verts = 50) {
+				// draw a circle by drawing a bunch of lines
 
-		vector_lines.draw(asteroid.pos, asteroid.pos + glm::vec3(-1.0f, 0.0f, 0.0f), red);
+				std::vector<glm::vec2> circ_verts;
+				circ_verts.reserve(num_verts);
+				for (int i = 0; i < num_verts; i++)
+				{
+					circ_verts.emplace_back(glm::vec2{(radius.x * glm::cos(i * 2 * M_PI / num_verts)), (radius.y * glm::sin(i * 2 * M_PI / num_verts))});
+				}
+
+				for (int i = 0; i < num_verts; i++)
+				{
+					auto seg_start = glm::vec3(center.x + circ_verts[(i) % num_verts].x, center.y + circ_verts[i % num_verts].y, center.z);
+					auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % num_verts].x, center.y + circ_verts[(i + 1) % num_verts].y, center.z);
+					vector_lines.draw(seg_start, seg_end, color);
+				}
+			};
+			draw_circle(spaceship.pos, radius * glm::vec2(1.f, 1.f), white);
+		}
+
+
+		// vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rpos, white);
+		// vector_lines.draw(spaceship.pos, spaceship.pos + orbit.rvel * 1000.0f, green);
+		// vector_lines.draw(spaceship.pos, spaceship.pos + spaceship.acc * 10000.0f, red);
+
+		// vector_lines.draw(asteroid.pos, asteroid.pos + glm::vec3(-1.0f, 0.0f, 0.0f), red);
 	}
 
 	{ // draw spaceship laser beams (screenspace)
@@ -612,33 +650,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	}
 
 	{ // draw mouse cursor reticle
-		glm::mat4 projection = glm::mat4(1.0f / camera->aspect, 0.0f, 0.0f, 0.0f,
-										 0.0f, 1.0f, 0.0f, 0.0f,
-										 0.0f, 0.0f, 1.0f, 0.0f,
-										 0.0f, 0.0f, 0.0f, 1.0f);
-		DrawLines line_drawer(projection);
-		auto draw_circle = [&line_drawer](glm::vec2 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
-										  const int num_verts = 20) {
-			// draw a circle by drawing a bunch of lines
-
-			std::vector<glm::vec2> circ_verts;
-			circ_verts.reserve(num_verts);
-			for (int i = 0; i < num_verts; i++)
-			{
-				circ_verts.emplace_back(glm::vec2{(radius.x * glm::cos(i * 2 * M_PI / num_verts)), (radius.y * glm::sin(i * 2 * M_PI / num_verts))});
-			}
-
-			for (int i = 0; i < num_verts; i++)
-			{
-				auto seg_start = glm::vec3(center.x + circ_verts[(i) % num_verts].x, center.y + circ_verts[i % num_verts].y, 0.0f);
-				auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % num_verts].x, center.y + circ_verts[(i + 1) % num_verts].y, 0.0f);
-				line_drawer.draw(seg_start, seg_end, color);
-			}
-		};
-		static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
-		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
-		glm::vec2 reticle_pos{camera->aspect * reticle_aim.x, reticle_aim.y};
-		draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
+		/// TODO: change color of drawn element rather than changing size!
+		// static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
+		// static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
+		glm::vec2 reticle_size = reticle_homing ? glm::vec2{200, 200} : glm::vec2{300, 300};
+		glm::vec2 reticle_pos{reticle_aim.x * drawable_size.x - 0.5f * reticle_size.x, reticle_aim.y * drawable_size.y + 0.5f * reticle_size.y};
+		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
+		HUD::drawElement(reticle_size, reticle_pos, target, drawable_size);
 	}
 
 	{ //use DrawLines to overlay some text:
@@ -649,10 +667,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
 	}
 
-	HUD::drawElement(glm::vec2(100, 300), glm::vec2(300, 700), throttle, (float)drawable_size.x, (float)drawable_size.y);
-	/* HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, (float)drawable_size.x, (float)drawable_size.y); */
-	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(310, 412 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
-	HUD::drawElement(glm::vec2(120, 30), glm::vec2(290, 440 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
+	HUD::drawElement(glm::vec2(100, 300), glm::vec2(130, 320), throttle, drawable_size);
+	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, drawable_size);
+	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, drawable_size);
+	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, drawable_size);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -684,6 +702,14 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glUniform1i(frame_quad_program->BLOOM_bool, true);
 	glUniform1f(frame_quad_program->EXPOSURE_float, 1.0f);
 	RenderFrameQuad();
+
+
+	if (camera->in_view(asteroid.pos)) { // draw asteroid target
+		glm::vec2 target_size = glm::vec2{300, 300};
+		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
+		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
+		HUD::drawElement(target_size, target_pos, reticle, drawable_size);
+	}
 
 	GL_ERRORS();
 }

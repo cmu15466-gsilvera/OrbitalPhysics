@@ -51,6 +51,10 @@ struct PlayMode : Mode {
 	HUD::Sprite *window;
 	HUD::Sprite *handle;
 	HUD::Sprite *bar;
+	HUD::Sprite *target;
+	HUD::Sprite *reticle;
+
+	glm::vec2 target_xy;
 
 	std::unordered_map<Button*, std::vector<int>> keybindings = {
 		// association between action/button and list of keybindings
@@ -99,7 +103,8 @@ struct PlayMode : Mode {
 
 		//Controls position
 		glm::vec3 camera_offset{0.0f, 1.0f, 1.0f};
-		float scroll_zoom = 10.0f;
+		static constexpr float init_scroll_zoom = 10.0f;
+		float scroll_zoom = init_scroll_zoom;
 		float camera_arm_length = 20.0f;
 	};
 
