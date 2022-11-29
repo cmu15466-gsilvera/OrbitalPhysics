@@ -5,8 +5,8 @@
 
 #include <glm/glm.hpp>
 
-#include <unordered_map>
 #include <list>
+#include <unordered_map>
 #include <vector>
 
 struct MenuMode : Mode
@@ -27,11 +27,43 @@ struct MenuMode : Mode
         uint8_t downs = 0;
         uint8_t pressed = 0;
     } enter, back;
+
     glm::vec2 mouse_motion{0.f, 0.f};
+    bool clicked = false;
+
+    struct ButtonSprite
+    {
+        ButtonSprite(){};
+        ~ButtonSprite()
+        {
+            if (sprite != nullptr)
+                delete sprite;
+        }
+        ButtonSprite(std::string const &sprite_path, glm::u8vec4 const &c0, glm::u8vec4 const &c1, glm::vec2 const &s0,
+                     glm::vec2 const &s1, glm::vec2 const &l, std::string const &str = "")
+            : color(c0), color_hover(c1), size(s0), size_hover(s1), loc(l)
+        {
+            sprite = HUD::loadSprite(sprite_path);
+            text = new Text();
+            text->init(Text::AnchorType::CENTER);
+            text->set_text(str);
+        }
+        glm::u8vec4 color;
+        glm::u8vec4 color_hover;
+        /// NOTE: location/size is relative to CENTER of sprite
+        glm::vec2 size;
+        glm::vec2 size_hover;
+        glm::vec2 loc;
+        Text *text;
+        HUD::Sprite *sprite;
+        bool bIsHovered = false;
+        bool is_hovered(glm::vec2 const &) const;
+        void draw(glm::vec2 const &) const;
+    };
 
     HUD::Sprite *window;
-    HUD::Sprite *play_button;
-    HUD::Sprite *exit_button;
+    ButtonSprite play_button, exit_button;
+    std::vector<ButtonSprite *> buttons;
 
     glm::vec2 target_xy;
 

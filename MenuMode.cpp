@@ -28,8 +28,29 @@
 MenuMode::MenuMode()
 {
     window = HUD::loadSprite(data_path("window.png"));
-    play_button = HUD::loadSprite(data_path("button.png"));
-    exit_button = HUD::loadSprite(data_path("button.png"));
+    { // play button
+        const glm::u8vec4 button_color{0x33, 0x66, 0x11, 0x55};
+        const glm::u8vec4 button_color_bright{0x33, 0x66, 0x11, 0x66};
+        glm::vec2 size0 = glm::vec2(0.15f, 0.09f);
+        glm::vec2 size1 = 1.05f * size0;
+        glm::vec2 location = glm::vec2(0.25f, 0.25f);
+
+        play_button =
+            ButtonSprite(data_path("sqr.png"), button_color, button_color_bright, size0, size1, location, "Play");
+        buttons.push_back(&play_button);
+    }
+
+    { // exit button
+        const glm::u8vec4 button_color{0x66, 0x33, 0x11, 0x55};
+        const glm::u8vec4 button_color_bright{0x66, 0x33, 0x11, 0x66};
+        glm::vec2 size0 = glm::vec2(0.15f, 0.09f);
+        glm::vec2 size1 = 1.05f * size0;
+        glm::vec2 location = glm::vec2(0.75f, 0.25f);
+
+        exit_button =
+            ButtonSprite(data_path("sqr.png"), button_color, button_color_bright, size0, size1, location, "Exit");
+        buttons.push_back(&exit_button);
+    }
 
     { // load text
         start_menu_text.init(Text::AnchorType::CENTER);
@@ -39,8 +60,6 @@ MenuMode::MenuMode()
 
 MenuMode::~MenuMode()
 {
-    free(play_button);
-    free(exit_button);
     free(window);
 }
 
@@ -91,12 +110,14 @@ bool MenuMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
     else if (evt.type == SDL_MOUSEBUTTONDOWN)
     {
         SDL_SetRelativeMouseMode(SDL_FALSE);
+        clicked = true;
         return true;
     }
     else if (evt.type == SDL_MOUSEBUTTONUP)
     {
         // show the mouse cursor again once the mouse is released
         SDL_SetRelativeMouseMode(SDL_FALSE);
+        clicked = false;
         return true;
     }
     else if (evt.type == SDL_MOUSEMOTION)
@@ -109,6 +130,27 @@ bool MenuMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
         }
     }
     return false;
+}
+
+bool MenuMode::ButtonSprite::is_hovered(glm::vec2 const &mouse) const
+{
+    glm::vec2 mouse_abs = ((mouse / 2.f) + 0.5f); // to screen percentage
+    bool within_x = loc.x - size.x * 0.5f <= mouse_abs.x && mouse_abs.x <= loc.x + size.x * 0.5f;
+    bool within_y = loc.y - size.y * 0.5f <= mouse_abs.y && mouse_abs.y <= loc.y + size.y * 0.5f;
+    return within_x && within_y;
+}
+
+void MenuMode::ButtonSprite::draw(glm::vec2 const &drawable_size) const
+{
+    auto _color = bIsHovered ? color_hover : color;
+    glm::vec2 _size = bIsHovered ? size_hover : size;
+    glm::vec2 top_left_loc = glm::vec2{loc.x - _size.x * 0.5f, loc.y + _size.y * 0.5f} * drawable_size;
+    if (text != nullptr && text->text_content.size() > 0)
+    {
+        glm::vec2 center_loc = top_left_loc + 0.5f * glm::vec2{_size.x, -1.2f * _size.y} * drawable_size;
+        text->draw(1.f, drawable_size, _size.x, center_loc, 1.f, glm::u8vec4{0xff});
+    }
+    HUD::drawElement(_size * drawable_size, top_left_loc, sprite, drawable_size, _color);
 }
 
 void MenuMode::update(float elapsed)
@@ -128,10 +170,23 @@ void MenuMode::update(float elapsed)
         menu_text_1.set_text(stream.str());
     }
 
-    {
-        if (enter.pressed && next_mode != nullptr)
+    { // all hover checks for buttons
+        for (auto *button : buttons)
+        {
+            button->bIsHovered = button->is_hovered(mouse_motion);
+        }
+    }
+
+    { // check to advance
+        if (enter.pressed || (play_button.bIsHovered && clicked))
         {
             transition_to = next_mode;
+        }
+        if (back.pressed || (exit_button.bIsHovered && clicked))
+        {
+            // not sure if this is the best way to exit the game?
+            exit(0);
+            return;
         }
     }
 
@@ -169,6 +224,11 @@ void MenuMode::draw(glm::uvec2 const &drawable_size)
         float y = drawable_size.y * 0.4f; // top is 1.f bottom is 0.f
         float width = drawable_size.x * 0.5f;
         menu_text_1.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, glm::u8vec4{0xff});
+    }
+
+    { // menu buttons
+        play_button.draw(drawable_size);
+        exit_button.draw(drawable_size);
     }
 
     GL_ERRORS();
