@@ -107,6 +107,7 @@ struct Scene {
 		float near = 0.01f; //near plane
 		//computed from the above:
 		glm::mat4 make_projection() const;
+		bool in_view(glm::vec3 const &) const;
 	};
 
 	struct Light {

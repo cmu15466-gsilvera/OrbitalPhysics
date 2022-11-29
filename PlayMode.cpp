@@ -392,10 +392,9 @@ void PlayMode::update(float elapsed) {
 		float min_dist = std::numeric_limits<float>::max(); // infinity
 		glm::vec2 homing_reticle_pos = reticle_aim;
 		glm::vec3 homing_target{0.f, 0.f, 0.f};
-		/// TODO: fix bug where bodies 'offscreen' can still affect this computation and you might "lock" onto nothing!
 		for (const Entity *entity : entities) {
-			if (entity == (&spaceship))
-				continue; // don't shoot laser at self
+			if (entity == (&spaceship) || !camera->in_view(entity->pos))
+				continue; // don't shoot laser at self or offscreen objects
 			glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(entity->pos, 1.0f));
 			glm::vec2 pos2d{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)};
 			float ss_dist = glm::length(reticle_aim - pos2d); // screen-space distance (for comparisons)
@@ -585,7 +584,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, (float)drawable_size.x, (float)drawable_size.y);
 	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, (float)drawable_size.x, (float)drawable_size.y);
 
-	{ // draw asteroid target
+	if (camera->in_view(asteroid.pos)) { // draw asteroid target
 		glm::vec2 target_size = glm::vec2{300, 300};
 		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
