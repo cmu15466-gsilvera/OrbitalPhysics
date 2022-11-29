@@ -127,13 +127,15 @@ struct Text {
             // https://learnopengl.com/code_viewer_gh.php?code=src/7.in_practice/2.text_rendering/text.fs
             const auto fragment_shader = "#version 330 core\n"
                                          "in vec2 TexCoords;\n"
-                                         "out vec4 color;\n"
+                                         "layout (location = 0) out vec4 color;\n"
+                                         "layout (location = 1) out vec4 bright;\n"
                                          "uniform sampler2D text;\n"
                                          "uniform vec3 textColor;\n"
                                          "void main()\n"
                                          "{\n"
                                          "	vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);\n"
                                          "   color = vec4(textColor, 1.0) * sampled;\n"
+                                         "   bright = vec4(vec3(0.0), 1.0);\n"
                                          "}\n";
             draw_text_program = gl_compile_program(vertex_shader, fragment_shader);
         }

@@ -22,9 +22,11 @@ ColorProgram::ColorProgram() {
 		//fragment shader:
 		"#version 330\n"
 		"in vec4 color;\n"
-		"out vec4 fragColor;\n"
+		"layout (location = 0) out vec4 fragColor;\n"
+		"layout (location = 1) out vec4 brightColor;\n"
 		"void main() {\n"
 		"	fragColor = color;\n"
+		"	brightColor = color;\n"
 		"}\n"
 	);
 	//As you can see above, adjacent strings in C/C++ are concatenated.
