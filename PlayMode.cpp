@@ -308,6 +308,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
 			was_key_down = true;
+			transition_to = next_mode; // switch to menu Mode
 		}
 		return was_key_down;
 	} else if (evt.type == SDL_KEYUP) {

@@ -27,5 +27,7 @@ struct Mode : std::enable_shared_from_this< Mode > {
 
 	std::shared_ptr< Mode > next_mode = nullptr;
 	std::shared_ptr< Mode > transition_to = nullptr;
+
+	bool finish = false; // set to true to end the game
 };
 

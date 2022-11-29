@@ -185,7 +185,7 @@ void MenuMode::update(float elapsed)
         if (back.pressed || (exit_button.bIsHovered && clicked))
         {
             // not sure if this is the best way to exit the game?
-            exit(0);
+            this->finish = true;
             return;
         }
     }
