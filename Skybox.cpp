@@ -108,6 +108,8 @@ void Skybox::draw(Scene::Camera *cam){
     glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glDepthFunc(GL_LESS);
+	glUseProgram(0);
+	glBindVertexArray(0);
 }
 
 

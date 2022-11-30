@@ -149,6 +149,8 @@ const game_names = [
   maek.CPP('Sound.cpp'),
   maek.CPP('load_wav.cpp'),
   maek.CPP('load_opus.cpp'),
+  maek.CPP('FancyPlanet.cpp'),
+  maek.CPP('TexturedPlanetProgram.cpp'),
 ];
 
 const common_names = [

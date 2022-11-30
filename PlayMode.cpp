@@ -189,10 +189,13 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		orbits.emplace_back(Orbit(star, 0.0f, 100000.0f, 0.0f, 0.0f, false));
 		Orbit *planet_orbit = &orbits.back();
 
+        fancyPlanets.emplace_back(FancyPlanet(planet_trans));
+
 		planet->set_orbit(planet_orbit);
 		planet->set_transform(planet_trans);
 
 		star->add_satellite(planet);
+
 
 		Scene::make_drawable(scene, planet_trans, main_meshes.value);
 		LOG("Loaded Planet");
@@ -378,6 +381,9 @@ void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_
 }
 
 void PlayMode::update(float elapsed) {
+    if(quit.pressed){
+        Mode::set_current(nullptr);
+    }
 	{ //update dilation
 		if (plus.downs > 0 && minus.downs == 0) {
 			dilation++;
@@ -579,8 +585,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	GL_ERRORS();
 
 	scene.draw(*camera);
-    skybox.draw(camera);
 
+    for(auto it = fancyPlanets.begin(); it != fancyPlanets.end(); it++){
+        /* it->draw(camera); */    
+    }
+
+    // skybox comes last always
+    skybox.draw(camera);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 

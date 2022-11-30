@@ -3,6 +3,7 @@
 
 #include "OrbitalMechanics.hpp"
 #include "Skybox.hpp"
+#include "FancyPlanet.hpp"
 
 #include "Mesh.hpp"
 #include "Scene.hpp"
@@ -30,7 +31,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, tab, shift, control, plus, minus, space;
+	} left, right, down, up, tab, shift, control, plus, minus, space, quit;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
@@ -69,6 +70,7 @@ struct PlayMode : Mode {
 		{ &plus, {SDLK_e, SDLK_PLUS} },
 		{ &minus, {SDLK_q, SDLK_MINUS} },
 		{ &space, {SDLK_SPACE} },
+		{ &quit, {SDLK_q} },
 		/// TODO: add SDL_ESCAPE for quit?
 	};
 
@@ -88,6 +90,7 @@ struct PlayMode : Mode {
 	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
 	std::list< Orbit > orbits;
+	std::list< FancyPlanet > fancyPlanets;
     Skybox skybox = Skybox();
 
 	//camera:
