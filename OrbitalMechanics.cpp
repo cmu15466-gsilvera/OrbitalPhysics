@@ -319,7 +319,7 @@ void Rocket::update(float elapsed, Asteroid const &asteroid) {
 			theta += 2 * M_PI;
 		transform->rotation = glm::quat(glm::vec3(0.f, 0.f, theta));
 
-		if (thrust_percent > 0.0f && fuel > 0.0f) {
+		if (thrust_percent != 0.0f && fuel > 0.0f) {
 			moved = true; //set flag to trigger orbit recalc later on
 
 			//calculate acceleration: F = ma ==> acc = thrust * MaxThrust / (DryMass + fuel);
@@ -332,7 +332,7 @@ void Rocket::update(float elapsed, Asteroid const &asteroid) {
 			);
 
 			//update fuel consumption
-			fuel = std::max(fuel - thrust_percent * MaxFuelConsumption, 0.0f);
+			fuel = std::max(fuel - std::fabs(thrust_percent) * MaxFuelConsumption, 0.0f);
 
 			//update velocity
 			vel += acc * elapsed;

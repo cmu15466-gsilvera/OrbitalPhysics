@@ -389,10 +389,41 @@ void PlayMode::update(float elapsed) {
 				spaceship.control_dtheta = 0.f;
 		}
 
-		if (shift.pressed || up.pressed) {
-			spaceship.thrust_percent = std::min(spaceship.thrust_percent + 1.0f , 100.0f);
-		} else if (control.pressed || down.pressed) {
-			spaceship.thrust_percent = std::max(spaceship.thrust_percent - 10.0f , 0.0f);
+		{ // thrust
+			bool increase_thrust = shift.pressed || up.pressed;
+			bool decrease_thrust = control.pressed || down.pressed;
+
+			if (spaceship.thrust_percent == 0.f) {
+				if (increase_thrust) {
+					if (bCanThrustChangeDir && forward_thrust == false){
+						forward_thrust = true;
+					}
+				}
+				else if (decrease_thrust && bEnableEasyMode) {
+					if (bCanThrustChangeDir && forward_thrust == true){
+						forward_thrust = false;
+					}
+				}
+			}
+			bCanThrustChangeDir = (!increase_thrust && !decrease_thrust);
+
+			const float MaxThrust = 100.f;
+			const float SlowDelta = 1.f;
+			const float FastDelta = 10.f;
+			if (forward_thrust) {
+				if (increase_thrust) {
+					spaceship.thrust_percent = std::min(spaceship.thrust_percent + SlowDelta , MaxThrust);
+				} else if (decrease_thrust) {
+					spaceship.thrust_percent = std::max(spaceship.thrust_percent - FastDelta, 0.0f);
+				}
+			}
+			else {
+				if (increase_thrust) {
+					spaceship.thrust_percent = std::min(spaceship.thrust_percent + FastDelta , 0.0f);
+				} else if (decrease_thrust) {
+					spaceship.thrust_percent = std::max(spaceship.thrust_percent - SlowDelta , -MaxThrust);
+				}
+			}
 		}
 	}
 
