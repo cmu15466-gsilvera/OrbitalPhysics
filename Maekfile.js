@@ -139,6 +139,7 @@ const game_names = [
   maek.CPP('HUD.cpp'),
   maek.CPP('OrbitalMechanics.cpp'),
   maek.CPP('PlayMode.cpp'),
+  maek.CPP('MenuMode.cpp'),
   maek.CPP('main.cpp'),
   maek.CPP('LitColorTextureProgram.cpp'),
   maek.CPP('FrameQuadProgram.cpp'),
