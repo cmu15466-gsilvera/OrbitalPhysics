@@ -4,6 +4,7 @@
 #include "LitColorTextureProgram.hpp"
 #include "FrameQuadProgram.hpp"
 #include "BloomBlurProgram.hpp"
+#include "OrbitalMechanics.hpp"
 #include "Utils.hpp"
 
 #include "DrawLines.hpp"
@@ -20,6 +21,7 @@
 #include <iterator>
 #include <sstream>
 #include <filesystem>
+#include <string>
 
 #define DEBUG
 
@@ -127,6 +129,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	camera = &scene.cameras.front();
 
 	throttle = HUD::loadSprite(data_path("assets/ui/ThrottleFuel.png"));
+	throttleOverlay = HUD::loadSprite(data_path("assets/ui/ThrottleOverlay.png"));
 	clock = HUD::loadSprite(data_path("assets/ui/Clock.png"));
 	timecontroller = HUD::loadSprite(data_path("assets/ui/TimeController.png"));
 	bar = HUD::loadSprite(data_path("assets/ui/sqr.png"));
@@ -142,6 +145,9 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 	{ //load text
 		UI_text.init(Text::AnchorType::LEFT);
+        ThrottleHeader.init(Text::AnchorType::LEFT);
+        ThrottleReading.init(Text::AnchorType::LEFT);
+        SpeedupReading.init(Text::AnchorType::RIGHT);
 	}
 
 }
@@ -658,8 +664,10 @@ void PlayMode::update(float elapsed) {
 	{ //update dilation
 		if (plus.downs > 0 && minus.downs == 0) {
 			dilation++;
+            dilationInt++;
 		} else if (minus.downs > 0 && plus.downs == 0) {
 			dilation--;
+            dilationInt--;
 		}
 	}
 
@@ -732,6 +740,16 @@ void PlayMode::update(float elapsed) {
 		// stream << "a" << std::endl << "b";
 		UI_text.set_text(stream.str());
 	}
+
+    {
+		ThrottleHeader.set_text("Throttle");
+        if(spaceship.thrust_percent < 100.0f){
+		    ThrottleReading.set_text(std::to_string(static_cast<int>(spaceship.thrust_percent)) + "%");
+        }else{
+		    ThrottleReading.set_text("MAX");
+        }
+		SpeedupReading.set_text(std::to_string(dilation) + "X");
+    }
 
 	{ //update listener to camera position:
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
@@ -1025,17 +1043,28 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		HUD::drawElement(target_size, target_pos, reticle, orange);
 	}
 
-	{ //use DrawLines to overlay some text:
-		float x = drawable_size.x * 0.03f;
-		float y = drawable_size.y * (1.0f - 0.1f); // top is 1.f bottom is 0.f
-		float width = drawable_size.x * 0.2f;
-		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
-	}
+	/* { //use DrawLines to overlay some text: */
+	/* 	float x = drawable_size.x * 0.03f; */
+	/* 	float y = drawable_size.y * (1.0f - 0.1f); // top is 1.f bottom is 0.f */
+	/* 	float width = drawable_size.x * 0.2f; */
+	/* 	UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation)); */
+	/* } */
 
+	float thrust_amnt = std::fabs(spaceship.thrust_percent) / 100.0f;
+	float fuel_amt = (spaceship.fuel / spaceship.maxFuel);
 	HUD::drawElement(glm::vec2(0, throttle->height), throttle);
 	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(0, 0)), clock);
-	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-timecontroller->width, timecontroller->height / 2)), timecontroller);
-	/* float thrust_amnt = std::fabs(spaceship.thrust_percent) / 100.0f; */
+	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-timecontroller->width + 10, timecontroller->height / 2)), timecontroller);
+	HUD::drawElement(glm::vec2(390.0f * thrust_amnt, 107.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 192)), bar, glm::vec4(83, 178, 0.0, 255));
+	HUD::drawElement(glm::vec2(390.0f * 0.60f, 111.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(81, 192)), throttleOverlay);
+	HUD::drawElement(glm::vec2(390.0f * fuel_amt, 61.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 79)), bar, glm::vec4(221, 131, 0.0, 255));
+	ThrottleHeader.draw(1.f, drawable_size, 200, glm::vec2(22, 290), 0.5f, glm::vec4(1.0));
+	ThrottleReading.draw(1.f, drawable_size, 200, glm::vec2(22, 220), 1.3f, glm::vec4(1.0));
+	SpeedupReading.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-5, 142)), 1.3f, DilationColor(dilation));
+    for(int i = 0; i < dilationInt + 1; i++){
+	    HUD::drawElement(glm::vec2(70, 23), HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-75, -145 + (46 * i))), bar, glm::vec4(DilationColor(dilation) * 255.0f, 255.0));
+    }
+
 	/* glm::u8vec4 color{0xff}; */
 	/* if (spaceship.thrust_percent > 0) { */
 	/* 	color = glm::u8vec4{0, 0xff, 0, 0xff}; // green */

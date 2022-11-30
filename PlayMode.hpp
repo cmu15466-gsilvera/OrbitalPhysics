@@ -64,6 +64,7 @@ struct PlayMode : Mode {
 	bool framebuffer_ready = false; // needs to initialize
 
 	HUD::Sprite *throttle;
+	HUD::Sprite *throttleOverlay;
 	HUD::Sprite *clock;
 	HUD::Sprite *timecontroller;
 	HUD::Sprite *handle;
@@ -153,6 +154,9 @@ struct PlayMode : Mode {
 
 	// text UI
 	Text UI_text;
+	Text ThrottleHeader;
+	Text ThrottleReading;
+	Text SpeedupReading;
 
 	// bgm
 	std::shared_ptr< Sound::PlayingSample > bgm_loop;
