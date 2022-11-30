@@ -57,9 +57,8 @@ Load< Scene > orbit_scene(LoadTagDefault, []() -> Scene const * {
 	});
 });
 
-//TODO: probably need to load rocket sound assets and BGM here
-Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample const * {
-	return new Sound::Sample(data_path("dusty-floor.opus"));
+Load< Sound::Sample > bgm(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("sound/bgm.wav"));
 });
 
 void PlayMode::SetupFramebuffers(){
@@ -116,20 +115,6 @@ void PlayMode::SetupFramebuffers(){
 
 
 PlayMode::PlayMode() : scene(*orbit_scene) {
-	//get pointers to leg for convenience:
-	// for (auto &transform : scene.transforms) {glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	// 	if (transform.name == "Hip.FL") hip = &transform;
-	// 	else if (transform.name == "UpperLeg.FL") upper_leg = &transform;
-	// 	else if (transform.name == "LowerLeg.FL") lower_leg = &transform;
-	// }
-	// if (hip == nullptr) throw std::runtime_error("Hip not found.");
-	// if (upper_leg == nullptr) throw std::runtime_error("Upper leg not found.");
-	// if (lower_leg == nullptr) throw std::runtime_error("Lower leg not found.");
-
-	// hip_base_rotation = hip->rotation;
-	// upper_leg_base_rotation = upper_leg->rotation;
-	// lower_leg_base_rotation = lower_leg->rotation;
-	//
 	Utils::InitRand();
 
 	//get pointer to camera for convenience:
@@ -152,8 +137,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	entities.push_back(&asteroid);
 
 	//start music loop playing:
-	// (note: position will be over-ridden in update())
-	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
+	bgm_loop = Sound::loop(*bgm, 0.5f, 0.0f);
 
 	{ //Load star
 		scene.transforms.emplace_back();
@@ -169,8 +153,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		star_trans->scale = glm::vec3(10.0f);
 
 		auto drawable = Scene::make_drawable(scene, star_trans, main_meshes_emissives.value);
-		drawable->set_uniforms = []() { 
-			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0f, 0.83f, 0.0f, 1.0f))); 
+		drawable->set_uniforms = []() {
+			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0f, 0.83f, 0.0f, 1.0f)));
 		};
 
 		LOG("Loaded Star");
@@ -219,6 +203,20 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 			Scene::make_drawable(scene, moon_trans, main_meshes.value);
 			LOG("Loaded Moon");
 		}
+		{ //Load asteroid
+			scene.transforms.emplace_back();
+			Scene::Transform *asteroid_trans = &scene.transforms.back();
+			asteroid_trans->name = "Asteroid";
+
+			asteroid.orbits.emplace_front(
+				Orbit(planet, 0.507543f, 201.459f, 0.53f, glm::radians(60.0f), false)
+			);
+
+			asteroid.init(asteroid_trans, star);
+
+			Scene::make_drawable(scene, asteroid_trans, main_meshes.value);
+			LOG("Loaded Asteroid");
+		}
 		{ //Load player
 			scene.transforms.emplace_back();
 			Scene::Transform *spaceship_trans = &scene.transforms.back();
@@ -233,29 +231,10 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 				Orbit(planet, 0.0f, 30.0f, glm::radians(120.0f), glm::radians(220.0f), false)
 			);
 
-			//use this is you're bad at the game
-			// spaceship.orbits.emplace_front(
-			// 	Orbit(planet, 0.507543f, 201.459f, 0.53f, glm::radians(56.0f), false)
-			// );
-
-			spaceship.init(spaceship_trans, star, &scene);
+			spaceship.init(spaceship_trans, star, &scene, asteroid);
 
 			Scene::make_drawable(scene, spaceship_trans, main_meshes.value);
 			LOG("Loaded Spaceship");
-		}
-		{ //Load asteroid
-			scene.transforms.emplace_back();
-			Scene::Transform *asteroid_trans = &scene.transforms.back();
-			asteroid_trans->name = "Asteroid";
-
-			asteroid.orbits.emplace_front(
-				Orbit(planet, 0.507543f, 201.459f, 0.53f, glm::radians(60.0f), false)
-			);
-
-			asteroid.init(asteroid_trans, star);
-
-			Scene::make_drawable(scene, asteroid_trans, main_meshes.value);
-			LOG("Loaded Asteroid");
 		}
 	}
     {
@@ -435,7 +414,7 @@ void PlayMode::update(float elapsed) {
 	{ //orbital simulation
 		star->update(elapsed);
 		asteroid.update(elapsed, spaceship.lasers);
-		spaceship.update(elapsed);
+		spaceship.update(elapsed, asteroid);
 	}
 
 	{ // asteroid target
@@ -499,7 +478,7 @@ void PlayMode::update(float elapsed) {
 
 	{ //laser
 		if (space.pressed){
-			spaceship.lasers.emplace_back(Beam(spaceship.pos, spaceship.aim_dir));
+			spaceship.fire_laser();
 		}
 
 		spaceship.update_lasers(elapsed);
@@ -644,9 +623,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 		const float radscale = 0.5f;
 		float radius = radscale * CurrentCameraArm().scroll_zoom / CameraArm::init_scroll_zoom;
+		float circle_radius = 0.4f * radius;
 		if (radius > 1.f / radscale) {
 			glm::vec3 heading = spaceship.get_heading();
-			vector_lines.draw(spaceship.pos + heading * (0.5f * radius), spaceship.pos + heading * (1.5f * radius), white);
+			vector_lines.draw(
+				spaceship.pos + heading * (0.5f * circle_radius),
+				spaceship.pos + heading * (1.5f * circle_radius),
+				white);
 
 			auto draw_circle = [&vector_lines](glm::vec3 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
 											const int num_verts = 50) {
@@ -661,12 +644,20 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 				for (int i = 0; i < num_verts; i++)
 				{
+					if (i % 2 == 0) continue;
 					auto seg_start = glm::vec3(center.x + circ_verts[(i) % num_verts].x, center.y + circ_verts[i % num_verts].y, center.z);
 					auto seg_end = glm::vec3(center.x + circ_verts[(i + 1) % num_verts].x, center.y + circ_verts[(i + 1) % num_verts].y, center.z);
 					vector_lines.draw(seg_start, seg_end, color);
 				}
 			};
-			draw_circle(spaceship.pos, radius * glm::vec2(1.f, 1.f), white);
+			draw_circle(spaceship.pos, circle_radius * glm::vec2(1.f, 1.f), white);
+		}
+
+		if (spaceship.closest.dist < 1.0e10f) { //draw closest approach
+			glm::vec3 spaceship_point = spaceship.closest.rocket_rpos + spaceship.closest.origin->pos;
+			glm::vec3 asteroid_point = spaceship.closest.asteroid_rpos + spaceship.closest.origin->pos;
+			vector_lines.draw(spaceship_point, spaceship_point + glm::vec3(0.0f, 0.0f, 5.0f), white);
+			vector_lines.draw(asteroid_point, asteroid_point - glm::vec3(0.0f, 0.0f, 5.0f), white);
 		}
 
 
@@ -690,10 +681,17 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		/// TODO: change color of drawn element rather than changing size!
 		// static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); // target locked
 		// static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
-		glm::vec2 reticle_size = reticle_homing ? glm::vec2{200, 200} : glm::vec2{300, 300};
+		glm::vec2 reticle_size = reticle_homing ? glm::vec2{40, 40} : glm::vec2{60, 60};
 		glm::vec2 reticle_pos{reticle_aim.x * drawable_size.x - 0.5f * reticle_size.x, reticle_aim.y * drawable_size.y + 0.5f * reticle_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
 		HUD::drawElement(reticle_size, reticle_pos, target, drawable_size);
+	}
+
+	if (camera->in_view(asteroid.pos)) { //draw asteroid target
+		glm::vec2 target_size = glm::vec2{60, 60};
+		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
+		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
+		HUD::drawElement(target_size, target_pos, reticle, drawable_size);
 	}
 
 	{ //use DrawLines to overlay some text:
@@ -707,14 +705,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, drawable_size);
 	HUD::drawElement(glm::vec2(80, (250 * spaceship.thrust_percent / 100.0f)), glm::vec2(140, 32 + (250 * spaceship.thrust_percent / 100.0f)), bar, drawable_size);
 	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * spaceship.thrust_percent / 100.0f)), handle, drawable_size);
-
-
-	if (camera->in_view(asteroid.pos)) { // draw asteroid target
-		glm::vec2 target_size = glm::vec2{300, 300};
-		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
-		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
-		HUD::drawElement(target_size, target_pos, reticle, drawable_size);
-	}
 
 	GL_ERRORS();
 }
