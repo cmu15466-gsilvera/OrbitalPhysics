@@ -33,18 +33,19 @@ struct MenuMode : Mode
 
 	struct ButtonSprite
 	{
-		ButtonSprite(){};
+		ButtonSprite(ButtonSprite const &) = delete;
 		~ButtonSprite()
 		{
 			if (sprite != nullptr)
 				delete sprite;
+			if (text != nullptr)
+				delete text;
 		}
 		ButtonSprite(std::string const &sprite_path, glm::u8vec4 const &c0, glm::u8vec4 const &c1, glm::vec2 const &s0,
 					 glm::vec2 const &s1, glm::vec2 const &l, std::string const &str = "")
 			: color(c0), color_hover(c1), size(s0), size_hover(s1), loc(l)
 		{
-			sprite = HUD::loadSprite(sprite_path);	//TODO: something's up with this sprite.
-													//TODO: It's the cause of the 'GL_INVALID_OPERATION' spam
+			sprite = HUD::loadSprite(sprite_path);
 			text = new Text();
 			text->init(Text::AnchorType::CENTER);
 			text->set_text(str);
@@ -55,16 +56,16 @@ struct MenuMode : Mode
 		glm::vec2 size;
 		glm::vec2 size_hover;
 		glm::vec2 loc;
-		Text *text;
-		HUD::Sprite *sprite;
+		Text *text = nullptr;
+		HUD::Sprite *sprite = nullptr;
 		bool bIsHovered = false;
 		bool is_hovered(glm::vec2 const &) const;
 		void draw(glm::vec2 const &) const;
 	};
 
 	HUD::Sprite *window;
-	ButtonSprite play_button, exit_button;
-	std::vector<ButtonSprite *> buttons;
+	ButtonSprite *play_button, *exit_button;
+	std::list< ButtonSprite > buttons;
 
 	glm::vec2 target_xy;
 

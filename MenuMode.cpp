@@ -35,9 +35,8 @@ MenuMode::MenuMode()
 		glm::vec2 size1 = 1.05f * size0;
 		glm::vec2 location = glm::vec2(0.25f, 0.25f);
 
-		play_button =
-			ButtonSprite(data_path("assets/ui/sqr.png"), button_color, button_color_bright, size0, size1, location, "Play");
-		buttons.push_back(&play_button);
+		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_color, button_color_bright, size0, size1, location, "Play");
+		play_button = &buttons.back();
 	}
 
 	{ // exit button
@@ -47,9 +46,8 @@ MenuMode::MenuMode()
 		glm::vec2 size1 = 1.05f * size0;
 		glm::vec2 location = glm::vec2(0.75f, 0.25f);
 
-		exit_button =
-			ButtonSprite(data_path("assets/ui/sqr.png"), button_color, button_color_bright, size0, size1, location, "Exit");
-		buttons.push_back(&exit_button);
+		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_color, button_color_bright, size0, size1, location, "Exit");
+		exit_button = &buttons.back();
 	}
 
 	{ // load text
@@ -171,18 +169,18 @@ void MenuMode::update(float elapsed)
 	}
 
 	{ // all hover checks for buttons
-		for (auto *button : buttons)
+		for (auto &button : buttons)
 		{
-			button->bIsHovered = button->is_hovered(mouse_motion);
+			button.bIsHovered = button.is_hovered(mouse_motion);
 		}
 	}
 
 	{ // check to advance
-		if (enter.pressed || (play_button.bIsHovered && clicked))
+		if (enter.pressed || (play_button->bIsHovered && clicked))
 		{
 			transition_to = next_mode;
 		}
-		if (back.pressed || (exit_button.bIsHovered && clicked))
+		if (back.pressed || (exit_button->bIsHovered && clicked))
 		{
 			// not sure if this is the best way to exit the game?
 			this->finish = true;
@@ -227,8 +225,8 @@ void MenuMode::draw(glm::uvec2 const &drawable_size)
 	}
 
 	{ // menu buttons
-		play_button.draw(drawable_size);
-		exit_button.draw(drawable_size);
+		play_button->draw(drawable_size);
+		exit_button->draw(drawable_size);
 	}
 
 	GL_ERRORS();

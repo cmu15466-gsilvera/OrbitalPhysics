@@ -333,7 +333,7 @@ void PlayMode::deserialize_orbit(std::string const &line, std::list< Orbit > &ol
 			throw std::runtime_error("No such body with id: " + std::to_string(origin_id));
 		}
 
-		olist.emplace_back(Orbit(entry->second, c, p, phi, theta, retrograde));
+		olist.emplace_back(entry->second, c, p, phi, theta, retrograde);
 	}  catch (std::runtime_error &rethrow) {
 		throw rethrow;
 	} catch (std::exception &e) {
@@ -391,7 +391,7 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 		throw e;
 	}
 
-	bodies.emplace_back(Body(id, radius, mass, soi_radius));
+	bodies.emplace_back(id, radius, mass, soi_radius);
 	Body &body = bodies.back();
 	id_to_body.insert({id, &body});
 	entities.push_back(&body);
@@ -898,7 +898,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	if (hdrFBO == 0)
 		return;
 
-	// 2. blur bright fragments with two-pass Gaussian Blur 
+	// 2. blur bright fragments with two-pass Gaussian Blur
 	// --------------------------------------------------
 	bool horizontal = true, first_iteration = true;
 	unsigned int amount = 100;
@@ -935,11 +935,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		DrawLines orbit_lines(world_to_clip);
 
 		static constexpr glm::u8vec4 grey = glm::u8vec4(0x80, 0x80, 0x80, 0xff);
-		static constexpr glm::u8vec4 blue = glm::u8vec4(0x00, 0x00, 0xff, 0xff);
+		static constexpr glm::u8vec4 cyan = glm::u8vec4(0x00, 0xff, 0xff, 0xff);
 		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x00, 0xff);
 
 		star->draw_orbits(orbit_lines, grey, CurrentCameraArm().camera_arm_length);
-		spaceship.orbits.front().draw(orbit_lines, blue);
+		spaceship.orbits.front().draw(orbit_lines, cyan);
 		asteroid.orbits.front().draw(orbit_lines, green);
 	}
 
@@ -1051,8 +1051,3 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	GL_ERRORS();
 }
-
-// glm::vec3 PlayMode::get_leg_tip_position() {
-	//the vertex position here was read from the model in blender:
-// 	return lower_leg->make_local_to_world() * glm::vec4(-1.26137f, -11.861f, 0.0f, 1.0f);
-// }

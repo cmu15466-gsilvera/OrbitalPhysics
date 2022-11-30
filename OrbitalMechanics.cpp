@@ -838,7 +838,7 @@ void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 
 		if (next == Orbit::Invalid || glm::l2Norm(next) > 1e8f) break;
 
-		float alpha = color.w * std::max(0.f, static_cast<float>(n - i)) / n;
+		float alpha = color.w * std::max(0.2f, static_cast<float>(n - i)) / n;
 		lines.draw(points[i] + origin_pos, next + origin_pos, glm::u8vec4(color.x, color.y, color.z, alpha));
 	}
 

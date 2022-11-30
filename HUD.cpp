@@ -85,8 +85,6 @@ void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float 
 	glUseProgram(color_texture_program->program);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, sprite->textureID);
-	std::cout << sprite->textureID << std::endl;
-	GL_ERRORS();
 	glBindVertexArray(vao);
 
 	glEnable(GL_BLEND);
