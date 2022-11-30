@@ -1,0 +1,29 @@
+Body:
+Star,0
+275,8e+23,inf
+Orbit: None
+
+Body:
+GasGiant,1
+80,1.5e+21,12100
+Orbit: 0;0,150000,0.523599,-2.0944,0
+
+Body:
+GasGiantMoon,2
+7,1e+18,43
+Orbit: 1;0.05,800,0.945,1.674,0
+
+Body:
+GasGiantAtmoMoon,3
+6,6e+17,61
+Orbit: 1;0.02,1400,0,0.000159584,0
+
+Asteroid:
+Asteroid
+0.8,0.5
+Orbit: 1;1.1,2000,0.8,-2.215,1
+
+Rocket:
+Spaceship
+0,8,0
+Orbit: 2;0.1,40,2,0.7,0

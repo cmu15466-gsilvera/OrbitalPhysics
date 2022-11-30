@@ -135,12 +135,11 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	bgm_loop = Sound::loop(*bgm, 0.5f, 0.0f);
 
 	deserialize(data_path("levels/level_1.txt"));
+	//NOTE: For testing purposes, feel free to change the above to level_2 or level_3
 
-	{ // load text
+	{ //load text
 		UI_text.init(Text::AnchorType::LEFT);
 	}
-
-	// serialize(data_path("levels/level_1.txt"));
 
 }
 
