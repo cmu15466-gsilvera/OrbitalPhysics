@@ -62,7 +62,6 @@ Load< Sound::Sample > bgm(LoadTagDefault, []() -> Sound::Sample const * {
 });
 
 void PlayMode::SetupFramebuffers(){
-	printf("%d, %d\n", window_dims.x, window_dims.y);
 	 // configure (floating point) framebuffers
     // ---------------------------------------
     glGenFramebuffers(1, &hdrFBO);
@@ -127,8 +126,9 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	}
 	camera = &scene.cameras.front();
 
-	throttle = HUD::loadSprite(data_path("assets/ui/throttle.png"));
-	window = HUD::loadSprite(data_path("assets/ui/window.png"));
+	throttle = HUD::loadSprite(data_path("assets/ui/ThrottleFuel.png"));
+	clock = HUD::loadSprite(data_path("assets/ui/Clock.png"));
+	timecontroller = HUD::loadSprite(data_path("assets/ui/TimeController.png"));
 	bar = HUD::loadSprite(data_path("assets/ui/sqr.png"));
 	handle = HUD::loadSprite(data_path("assets/ui/handle.png"));
 	target = HUD::loadSprite(data_path("assets/ui/reticle.png"));
@@ -147,12 +147,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 }
 
 PlayMode::~PlayMode() {
-	free(throttle);
-	free(window);
-	free(handle);
-	free(bar);
-	free(target);
-	free(reticle);
+    HUD::freeSprites();
 }
 
 void PlayMode::serialize(std::string const &filename) {
@@ -557,6 +552,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	auto prev_window_dims = window_dims;
 	window_dims = window_size;
 	if(hdrFBO == 0 || prev_window_dims != window_size){
+        HUD::SCREEN_DIM = window_size;
 		SetupFramebuffers();
 	}
 	if (evt.type == SDL_KEYDOWN) {
@@ -1018,7 +1014,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::u8vec4 color = reticle_homing ? red : yellow;
 		glm::vec2 reticle_size= glm::vec2(50, 50);
 		glm::vec2 reticle_pos{reticle_aim.x * drawable_size.x - 0.5f * reticle_size.x, reticle_aim.y * drawable_size.y + 0.5f * reticle_size.y};
-		HUD::drawElement(reticle_size, reticle_pos, target, drawable_size, color);
+		HUD::drawElement(reticle_size, reticle_pos, target, color);
 	}
 
 	if (camera->in_view(asteroid.pos)) { //draw asteroid target
@@ -1026,7 +1022,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
 		const auto orange = glm::u8vec4{241, 90, 34, 0x45};
-		HUD::drawElement(target_size, target_pos, reticle, drawable_size, orange);
+		HUD::drawElement(target_size, target_pos, reticle, orange);
 	}
 
 	{ //use DrawLines to overlay some text:
@@ -1036,17 +1032,18 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation));
 	}
 
-	HUD::drawElement(glm::vec2(100, 300), glm::vec2(130, 320), throttle, drawable_size);
-	HUD::drawElement(drawable_size, glm::vec2(0, drawable_size.y), window, drawable_size);
-	float thrust_amnt = std::fabs(spaceship.thrust_percent) / 100.0f;
-	glm::u8vec4 color{0xff};
-	if (spaceship.thrust_percent > 0) {
-		color = glm::u8vec4{0, 0xff, 0, 0xff}; // green
-	} else {
-		color = glm::u8vec4{0xff, 0, 0, 0xff}; // red
-	}
-	HUD::drawElement(glm::vec2(80, (250 * thrust_amnt)), glm::vec2(140, 32 + (250 * thrust_amnt)), bar, drawable_size, color);
-	HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * thrust_amnt)), handle, drawable_size);
+	HUD::drawElement(glm::vec2(0, throttle->height), throttle);
+	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(0, 0)), clock);
+	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-timecontroller->width, timecontroller->height / 2)), timecontroller);
+	/* float thrust_amnt = std::fabs(spaceship.thrust_percent) / 100.0f; */
+	/* glm::u8vec4 color{0xff}; */
+	/* if (spaceship.thrust_percent > 0) { */
+	/* 	color = glm::u8vec4{0, 0xff, 0, 0xff}; // green */
+	/* } else { */
+	/* 	color = glm::u8vec4{0xff, 0, 0, 0xff}; // red */
+	/* } */
+	/* HUD::drawElement(glm::vec2(80, (250 * thrust_amnt)), glm::vec2(140, 32 + (250 * thrust_amnt)), bar, color); */
+	/* HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * thrust_amnt)), handle); */
 
 
 	GL_ERRORS();

@@ -3,6 +3,7 @@
 #include "GL.hpp"
 #include "glm/glm.hpp"
 #include <string>
+#include <vector>
 
 struct HUD {
 	struct Sprite {
@@ -10,13 +11,30 @@ struct HUD {
 		unsigned int textureID;
 	};
 
+    enum Anchor {
+        TOPLEFT,
+        TOPCENTER,
+        TOPRIGHT,
+        CENTERRIGHT,
+        BOTTOMRIGHT,
+        BOTTOMCENTER,
+        BOTTOMLEFT,
+        CENTERLEFT
+    };
+
+
+
 	public:
+        static glm::uvec2 SCREEN_DIM;
 		static Sprite *loadSprite(std::string path);
-		static void drawElement(glm::vec2 size, glm::vec2 pos, Sprite *sprite, float width, float height, glm::u8vec4 const &color = glm::u8vec4{0xff});
-		static void drawElement(glm::vec2 size, glm::vec2 pos, Sprite *sprite, glm::uvec2 const &dims, glm::u8vec4 const &color = glm::u8vec4{0xff});
+		static void drawElement(glm::vec2 size, glm::vec2 pos, Sprite *sprite, glm::u8vec4 const &color = glm::u8vec4{0xff});
+		static void drawElement(glm::vec2 pos, Sprite *sprite, glm::u8vec4 const &color = glm::u8vec4{0xff});
 		static void init();
+        static glm::vec2 fromAnchor(Anchor anchor, glm::vec2 offset);
+        static void freeSprites();
 
 	private:
+        static std::vector<Sprite*> sprites;
 		static GLuint buffer;
 		static GLuint vao;
 		static bool initialized;

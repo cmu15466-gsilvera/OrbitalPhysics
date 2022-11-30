@@ -64,7 +64,8 @@ struct PlayMode : Mode {
 	bool framebuffer_ready = false; // needs to initialize
 
 	HUD::Sprite *throttle;
-	HUD::Sprite *window;
+	HUD::Sprite *clock;
+	HUD::Sprite *timecontroller;
 	HUD::Sprite *handle;
 	HUD::Sprite *bar;
 	HUD::Sprite *target;
@@ -115,6 +116,7 @@ struct PlayMode : Mode {
 	std::list< Orbit > orbits;
 	std::unordered_map< int, Body * > id_to_body;
     Skybox skybox = Skybox();
+	std::vector< HUD::Sprite* > sprites;
 
 	//camera:
 	Scene::Camera *camera = nullptr;
