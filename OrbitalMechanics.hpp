@@ -50,7 +50,7 @@ struct Entity {
 
 //Stars, Planets, Moons, etc.
 struct Body : public Entity {
-	Body(int _id, float r, float m, float sr) : Entity(r, m), soi_radius(sr), id(_id) {}
+	Body(int _id, float r, float m, float sr) : Entity(r, m), id(_id), soi_radius(sr) {}
 
 	void set_orbit(Orbit *orbit_);
 	void set_transform(Scene::Transform *transform_)  {
@@ -71,12 +71,12 @@ struct Body : public Entity {
 	void simulate(float time);
 	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color, float scale);
 
-	int id = -1;
 	std::vector< Body * > satellites;
 	Orbit *orbit = nullptr;
 	Scene::Transform *transform = nullptr;
 
 	//Fixed values
+	int id;
 	float soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
 };
 
@@ -114,7 +114,7 @@ struct Asteroid : public Entity {
 	void init(Scene::Transform *transform_, Body *root);
 	void update(float elapsed, std::deque< Beam > const &lasers);
 
-	Body *root;
+	Body *root = nullptr;
 	std::list< Orbit > orbits;
 	Scene::Transform *transform;
 };
