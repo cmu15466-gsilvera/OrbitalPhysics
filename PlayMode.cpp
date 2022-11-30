@@ -19,7 +19,7 @@
 #include <iomanip>
 #include <iterator>
 #include <sstream>
-
+#include <filesystem>
 
 #define DEBUG
 
@@ -32,7 +32,7 @@
 
 Load< Scene::RenderSet > main_meshes_emissives(LoadTagDefault, []() -> Scene::RenderSet const * {
 	Scene::RenderSet *renderSet = new Scene::RenderSet();
-	MeshBuffer const *ret = new MeshBuffer(data_path("orbit.pnct"));
+	MeshBuffer const *ret = new MeshBuffer(data_path("assets/model/orbit.pnct"));
 	renderSet->vao = ret->make_vao_for_program(emissive_program_pipeline.program);
 	renderSet->meshes = ret;
 	renderSet->pipeline = emissive_program_pipeline;
@@ -43,7 +43,7 @@ Load< Scene::RenderSet > main_meshes_emissives(LoadTagDefault, []() -> Scene::Re
 
 Load< Scene::RenderSet > main_meshes(LoadTagDefault, []() -> Scene::RenderSet const * {
 	Scene::RenderSet *renderSet = new Scene::RenderSet();
-	MeshBuffer const *ret = new MeshBuffer(data_path("orbit.pnct"));
+	MeshBuffer const *ret = new MeshBuffer(data_path("assets/model/orbit.pnct"));
 	renderSet->vao = ret->make_vao_for_program(lit_color_texture_program->program);
 	renderSet->meshes = ret;
 	renderSet->pipeline = lit_color_texture_program_pipeline;
@@ -52,13 +52,13 @@ Load< Scene::RenderSet > main_meshes(LoadTagDefault, []() -> Scene::RenderSet co
 });
 
 Load< Scene > orbit_scene(LoadTagDefault, []() -> Scene const * {
-	return new Scene(data_path("orbit.scene"), [&](Scene &s, Scene::Transform *t, std::string const &m){
+	return new Scene(data_path("assets/model/orbit.scene"), [&](Scene &s, Scene::Transform *t, std::string const &m){
 		//Drawables will be set up later, dummy function
 	});
 });
 
 Load< Sound::Sample > bgm(LoadTagDefault, []() -> Sound::Sample const * {
-	return new Sound::Sample(data_path("sound/bgm.wav"));
+	return new Sound::Sample(data_path("assets/sound/bgm.wav"));
 });
 
 void PlayMode::SetupFramebuffers(){
@@ -124,133 +124,24 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	}
 	camera = &scene.cameras.front();
 
-	throttle = HUD::loadSprite(data_path("throttle.png"));
-	window = HUD::loadSprite(data_path("window.png"));
-	bar = HUD::loadSprite(data_path("bar.png"));
-	handle = HUD::loadSprite(data_path("handle.png"));
-	target = HUD::loadSprite(data_path("reticle.png"));
-	reticle = HUD::loadSprite(data_path("reticle.png"));
-	// first focus should be on the spaceship!
-	entities.push_back(&spaceship);
-
-	// next on asteroid
-	entities.push_back(&asteroid);
+	throttle = HUD::loadSprite(data_path("assets/ui/throttle.png"));
+	window = HUD::loadSprite(data_path("assets/ui/window.png"));
+	bar = HUD::loadSprite(data_path("assets/ui/bar.png"));
+	handle = HUD::loadSprite(data_path("assets/ui/handle.png"));
+	target = HUD::loadSprite(data_path("assets/ui/reticle.png"));
+	reticle = HUD::loadSprite(data_path("assets/ui/reticle.png"));
 
 	//start music loop playing:
 	bgm_loop = Sound::loop(*bgm, 0.5f, 0.0f);
 
-	{ //Load star
-		scene.transforms.emplace_back();
-		Scene::Transform *star_trans = &scene.transforms.back();
-		star_trans->name = "Star";
-
-		//a slightly large red dwarf that's 0.4x the mass of the sun
-		bodies.emplace_back(Body(275.0, 8.0e23f, std::numeric_limits< float >::infinity()));
-		star = &bodies.back();
-		entities.push_back(star);
-
-		star->set_transform(star_trans);
-		star_trans->scale = glm::vec3(10.0f);
-
-		auto drawable = Scene::make_drawable(scene, star_trans, main_meshes_emissives.value);
-		drawable->set_uniforms = []() {
-			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0f, 0.83f, 0.0f, 1.0f)));
-		};
-
-		LOG("Loaded Star");
-	}
-
-	{ //Load planet
-		scene.transforms.emplace_back();
-		Scene::Transform *planet_trans = &scene.transforms.back();
-		planet_trans->name = "Planet";
-
-		//a very large but not very dense rocky planet (same mass as Earth, about 1.66x the radius)
-		bodies.emplace_back(Body(10.0f, 6.0e18f, 1000.0f));
-		Body *planet = &bodies.back();
-		entities.push_back(planet);
-
-		orbits.emplace_back(Orbit(star, 0.0f, 100000.0f, 0.0f, 0.0f, false));
-		Orbit *planet_orbit = &orbits.back();
-
-		planet->set_orbit(planet_orbit);
-		planet->set_transform(planet_trans);
-
-		star->add_satellite(planet);
-
-		Scene::make_drawable(scene, planet_trans, main_meshes.value);
-		LOG("Loaded Planet");
-
-		//Load all things orbiting planet
-		{ //Load moon of planet
-			scene.transforms.emplace_back();
-			Scene::Transform *moon_trans = &scene.transforms.back();
-			moon_trans->name = "Moon";
-
-			//a Moon-sized moon with similar mass and rius
-			bodies.emplace_back(Body(1.7f, 7.0e16f, 50.0f));
-			Body *moon = &bodies.back();
-			entities.push_back(moon);
-
-			orbits.emplace_back(Orbit(planet, 0.1f, 200.0f, glm::radians(30.0f), glm::radians(-120.0f), false));
-			Orbit *moon_orbit = &orbits.back();
-
-			moon->set_orbit(moon_orbit);
-			moon->set_transform(moon_trans);
-
-			planet->add_satellite(moon);
-
-			Scene::make_drawable(scene, moon_trans, main_meshes.value);
-			LOG("Loaded Moon");
-		}
-		{ //Load asteroid
-			scene.transforms.emplace_back();
-			Scene::Transform *asteroid_trans = &scene.transforms.back();
-			asteroid_trans->name = "Asteroid";
-
-			asteroid.orbits.emplace_front(
-				Orbit(planet, 0.507543f, 201.459f, 0.53f, glm::radians(60.0f), false)
-			);
-
-			asteroid.init(asteroid_trans, star);
-
-			Scene::make_drawable(scene, asteroid_trans, main_meshes.value);
-			LOG("Loaded Asteroid");
-		}
-		{ //Load player
-			scene.transforms.emplace_back();
-			Scene::Transform *spaceship_trans = &scene.transforms.back();
-			spaceship_trans->name = "Spaceship";
-
-			// glm::vec3 rpos = glm::vec3(30.0f, 0.0f, 0.0f);
-			// glm::vec3 rvel = glm::vec3(0.0f, 0.003654f, 0.0f);
-
-			// orbits.emplace_back(Orbit(planet, planet->pos + rpos, planet->vel + rvel));
-
-			spaceship.orbits.emplace_front(
-				Orbit(planet, 0.0f, 30.0f, glm::radians(120.0f), glm::radians(220.0f), false)
-			);
-
-			spaceship.init(spaceship_trans, star, &scene, asteroid);
-
-			Scene::make_drawable(scene, spaceship_trans, main_meshes.value);
-			LOG("Loaded Spaceship");
-		}
-	}
-    {
-    }
-
-	// track order of focus points for camera
-	for (const Entity *entity : entities) {
-		camera_arms.insert({entity, CameraArm(entity)});
-		camera_views.push_back(entity);
-	}
-	// tune custom params as follows
-	camera_arms.at(&spaceship).scroll_zoom = 5.f;
+	deserialize(data_path("levels/level_1.txt"));
 
 	{ // load text
 		UI_text.init(Text::AnchorType::LEFT);
 	}
+
+	// serialize(data_path("levels/level_1.txt"));
+
 }
 
 PlayMode::~PlayMode() {
@@ -258,6 +149,404 @@ PlayMode::~PlayMode() {
 	free(window);
 	free(handle);
 	free(bar);
+}
+
+void PlayMode::serialize(std::string const &filename) {
+	std::ofstream file(filename);
+	if (!file.is_open()) {
+		throw std::runtime_error("Failed to open save file '" + filename + "'.");
+	}
+
+	for (auto &body : bodies) {
+		serialize_body(file, body);
+		file << '\n';
+	}
+
+	serialize_asteroid(file);
+	file << '\n';
+
+	serialize_rocket(file);
+	file << '\n';
+
+	file.close();
+}
+
+void PlayMode::serialize_orbit(std::ofstream &file, Orbit const &orbit) {
+	/**
+	 * Format is:
+	 * ---
+	 * Orbit: origin_id;c,p,phi,theta,retrograde
+	 * ---
+	 */
+	assert(orbit.origin != nullptr && orbit.origin->transform != nullptr);
+	file << "Orbit: " << orbit.origin->id << ';';
+	file << orbit.c << ',' << orbit.p << ',' << orbit.phi << ',' << orbit.theta << ',' << (orbit.incl != 0.0f) << '\n';
+}
+
+void PlayMode::serialize_body(std::ofstream &file, Body const &body) {
+	/**
+	 * Format is:
+	 * ---
+	 * Body:
+	 * name_of_transform,id
+	 * radius,mass,soi_radius
+	 * Orbit: origin_id;c,p,phi,theta,retrograde
+	 * ---
+	 * For the star, which has no orbit, will have "Orbit: None" instead.
+	 */
+	assert(body.transform != nullptr);
+	file << "Body:\n" << body.transform->name << ',' << body.id << '\n';
+	file << body.radius << ',' << body.mass << ',' << body.soi_radius << '\n';
+	if (body.orbit == nullptr) {
+		file << "Orbit: None\n";
+		return;
+	}
+	serialize_orbit(file, *body.orbit);
+}
+
+void PlayMode::serialize_asteroid(std::ofstream &file) {
+	/**
+	 * Format is:
+	 * ---
+	 * Asteroid:
+	 * name_of_transform
+	 * radius,mass
+	 * Orbit: origin_id;c,p,phi,theta,retrograde
+	 * ---
+	 * Note that only the primary orbit is serialized. Continuations are not stored at the moment and recalculated on
+	 * init.
+	 */
+	assert(asteroid.transform != nullptr);
+	file << "Asteroid:\n" << asteroid.transform->name << '\n';
+	file << asteroid.radius << ',' << asteroid.mass << '\n';
+
+	assert(asteroid.orbits.size() > 0);
+	serialize_orbit(file, asteroid.orbits.front());
+}
+
+void PlayMode::serialize_rocket(std::ofstream &file) {
+	/**
+	 * Format is:
+	 * ---
+	 * Rocket:
+	 * theta,fuel,laser_timer
+	 * Orbit: origin_id;c,p,phi,theta,retrograde
+	 * ---
+	 * Note that only the primary orbit is serialized. Continuations are not stored at the moment and recalculated on
+	 * init.
+	 */
+	assert(spaceship.transform != nullptr);
+	file << "Rocket:\n" << spaceship.transform->name << '\n';
+	file << spaceship.theta << ',' << spaceship.fuel << ',' << spaceship.laser_timer << '\n';
+	assert(spaceship.orbits.size() > 0);
+	serialize_orbit(file, spaceship.orbits.front());
+}
+
+void PlayMode::deserialize(std::string const &filename) {
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		throw std::runtime_error("Failed to open save file '" + filename + "'.");
+	}
+
+	//reset
+	star = nullptr;
+	bodies.clear();
+	orbits.clear();
+	entities.clear();
+	id_to_body.clear();
+	camera_arms.clear();
+	camera_views.clear();
+	scene.drawables.clear();
+	dilation = LEVEL_0;
+
+	// first focus should be on the spaceship!
+	entities.push_back(&spaceship);
+
+	// next on asteroid
+	entities.push_back(&asteroid);
+
+	//deserialize
+	std::string line;
+	while (std::getline(file, line)) {
+		if (line == "Body:") {
+			deserialize_body(file);
+		} else if (line == "Asteroid:") {
+			deserialize_asteroid(file);
+		} else if (line == "Rocket:") {
+			deserialize_rocket(file);
+		} else if (line == "") {
+			continue;
+		} else {
+			throw std::runtime_error("Malformed save file: unknown entity type '" + line + "'.");
+		}
+	}
+
+	// track order of focus points for camera
+	for (const Entity *entity : entities) {
+		camera_arms.insert({entity, CameraArm(entity)});
+		camera_views.push_back(entity);
+	}
+
+	// tune custom params as follows
+	camera_arms.at(&spaceship).scroll_zoom = 5.f;
+}
+
+inline static void throw_on_err(std::istream &s, std::string const &errmsg) {
+	if (!s) {
+		throw std::runtime_error(errmsg);
+	}
+}
+
+void PlayMode::deserialize_orbit(std::string const &line, std::list< Orbit > &olist) {
+	//load origin_id;c,p,phi,theta,retrograde
+	std::string token;
+	std::string errmsg =
+		"Malformed save file: orbit - '" + line + "' should be 'Orbit: {int};{float},{float},{float},{float},{0|1}'.";
+	std::stringstream linestream(line.substr(7));
+
+	try {
+
+		throw_on_err(std::getline(linestream, token, ';'), errmsg);
+		int origin_id = std::stoi(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		float c = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		float p = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		float phi = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		float theta = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		bool retrograde = std::stoi(token) != 0;
+
+		auto entry = id_to_body.find(origin_id);
+		if (entry == id_to_body.end()) {
+			throw std::runtime_error("No such body with id: " + std::to_string(origin_id));
+		}
+
+		olist.emplace_back(Orbit(entry->second, c, p, phi, theta, retrograde));
+	}  catch (std::runtime_error &rethrow) {
+		throw rethrow;
+	} catch (std::exception &e) {
+		std::cout << errmsg << std::endl;
+		throw e;
+	}
+}
+
+void PlayMode::deserialize_body(std::ifstream &file) {
+	std::string line, token, errmsg;
+
+	std::string name;
+	int id;
+	errmsg = "Malformed save file: body - '" + line + "' should be '{string},{int}'.";
+	try { //load transform_name, id
+		throw_on_err(std::getline(file, line),
+			"Malformed save file: body - not enough lines.");
+		std::stringstream linestream(line);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		name = token;
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		id = std::stoi(token);
+	} catch (std::runtime_error &rethrow) {
+		throw rethrow;
+	} catch (std::exception &e) {
+		std::cout << errmsg << std::endl;
+		throw e;
+	}
+
+	scene.transforms.emplace_back();
+	Scene::Transform *trans = &scene.transforms.back();
+	trans->name = name;
+
+	float radius, mass, soi_radius;
+	errmsg = "Malformed save file: body - '" + line + "' should be '{float},{float},{float}'.";
+	try { //load radius, mass, soi_radius
+		throw_on_err(std::getline(file, line),
+			"Malformed save file: body - not enough lines.");
+		std::stringstream linestream(line);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		radius = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		mass = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		soi_radius = std::stof(token);
+	} catch (std::runtime_error &rethrow) {
+		throw rethrow;
+	} catch (std::exception &e) {
+		std::cout << errmsg << std::endl;
+		throw e;
+	}
+
+	bodies.emplace_back(Body(id, radius, mass, soi_radius));
+	Body &body = bodies.back();
+	id_to_body.insert({id, &body});
+	entities.push_back(&body);
+
+	//check star
+	throw_on_err(std::getline(file, line),
+		"Malformed save file: body - not enough lines.");
+	if (line == "Orbit: None") { //star
+		//set transform
+		body.set_transform(trans);
+
+		//set star pointer
+		star = &body;
+
+		//make drawable
+		trans->scale = glm::vec3(10.0f);
+		auto drawable = Scene::make_drawable(scene, trans, main_meshes_emissives.value);
+		drawable->set_uniforms = []() {
+			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0f, 0.83f, 0.0f, 1.0f)));
+		};
+	} else {//not star
+		//load orbit
+		deserialize_orbit(line, orbits);
+		Orbit *orbit = &orbits.back();
+		body.set_orbit(orbit);
+
+		//set transform
+		body.set_transform(trans);
+
+		//add to origin satellites
+		orbit->origin->add_satellite(&body);
+
+		//make drawable
+		Scene::make_drawable(scene, trans, main_meshes.value);
+	}
+
+	LOG("Loaded Body '" << name << "' (id: " << std::to_string(id) << ")");
+}
+
+void PlayMode::deserialize_asteroid(std::ifstream &file) {
+	std::string line, token, errmsg;
+
+	std::string name;
+	errmsg = "Malformed save file: asteroid - '" + line + "' should be '{string}'.";
+	try { //load transform_name
+		throw_on_err(std::getline(file, line),
+			"Malformed save file: asteroid - not enough lines.");
+		std::stringstream linestream(line);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		name = token;
+	} catch (std::runtime_error &rethrow) {
+		throw rethrow;
+	} catch (std::exception &e) {
+		std::cout << errmsg << std::endl;
+		throw e;
+	}
+
+	scene.transforms.emplace_back();
+	Scene::Transform *trans = &scene.transforms.back();
+	trans->name = name;
+
+	float radius, mass;
+	errmsg = "Malformed save file: asteroid - '" + line + "' should be '{float},{float}'.";
+	try { //load radius, mass
+		throw_on_err(std::getline(file, line),
+			"Malformed save file: asteroid - not enough lines.");
+		std::stringstream linestream(line);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		radius = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		mass = std::stof(token);
+	} catch (std::runtime_error &rethrow) {
+		throw rethrow;
+	} catch (std::exception &e) {
+		std::cout << errmsg << std::endl;
+		throw e;
+	}
+
+	asteroid = Asteroid(radius, mass);
+	entities.push_back(&asteroid);
+
+	{ //load orbit
+		throw_on_err(std::getline(file, line),
+			"Malformed save file: asteroid - not enough lines.");
+		deserialize_orbit(line, asteroid.orbits);
+	}
+
+	//set transform
+	asteroid.init(trans, star);
+
+	//make drawable
+	Scene::make_drawable(scene, trans, main_meshes.value);
+
+	LOG("Loaded Asteroid '" << name);
+}
+
+void PlayMode::deserialize_rocket(std::ifstream &file) {
+	std::string line, token, errmsg;
+
+	spaceship = Rocket();
+	entities.push_back(&spaceship);
+
+	std::string name;
+	errmsg = "Malformed save file: rocket - '" + line + "' should be '{string}'.";
+	try { //load transform_name
+		throw_on_err(std::getline(file, line),
+			"Malformed save file: rocket - not enough lines.");
+		std::stringstream linestream(line);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		name = token;
+	} catch (std::runtime_error &rethrow) {
+		throw rethrow;
+	} catch (std::exception &e) {
+		std::cout << errmsg << std::endl;
+		throw e;
+	}
+
+	scene.transforms.emplace_back();
+	Scene::Transform *trans = &scene.transforms.back();
+	trans->name = name;
+
+	errmsg = "Malformed save file: body - '" + line + "' should be '{float},{float},{float}'.";
+	try { //load theta, fuel, laser_timer
+		throw_on_err(std::getline(file, line),
+			"Malformed save file: asteroid - not enough lines.");
+		std::stringstream linestream(line);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		spaceship.theta = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		spaceship.fuel = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		spaceship.laser_timer = std::stof(token);
+	} catch (std::runtime_error &rethrow) {
+		throw rethrow;
+	} catch (std::exception &e) {
+		std::cout << errmsg << std::endl;
+		throw e;
+	}
+
+	{ //load orbit
+		throw_on_err(std::getline(file, line),
+			"Malformed save file: body - not enough lines.");
+		deserialize_orbit(line, spaceship.orbits);
+	}
+
+	//set transform
+	spaceship.init(trans, star, &scene, asteroid);
+
+	//make drawable
+	Scene::make_drawable(scene, trans, main_meshes.value);
+
+	LOG("Loaded Rocket '" << name);
 }
 
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
@@ -357,6 +646,14 @@ void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_
 }
 
 void PlayMode::update(float elapsed) {
+	{ //handle quicksave/quickload
+		if (f5.downs > 0) {
+			serialize(data_path("quicksave.txt"));
+		} else if (f9.downs > 0 && std::filesystem::exists(data_path("quicksave.txt"))) {
+			deserialize(data_path("quicksave.txt"));
+		}
+	}
+
 	{ //update dilation
 		if (plus.downs > 0 && minus.downs == 0) {
 			dilation++;
@@ -417,13 +714,36 @@ void PlayMode::update(float elapsed) {
 		spaceship.update(elapsed, asteroid);
 	}
 
-	{ // asteroid target
+	{ //laser
+		if (space.pressed){
+			spaceship.fire_laser();
+		}
+
+		spaceship.update_lasers(elapsed);
+	}
+
+	{ //update camera controls (after spaceship update for smooth motion)
+		if (tab.downs > 0) {
+			uint8_t dir = shift.pressed ? -1 : 1;
+			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
+		}
+		CameraArm &camarm = CurrentCameraArm();
+
+		if (can_pan_camera) {
+			camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
+		}
+		else {
+			camarm.update(camera,  0.f,  0.f);
+		}
+	}
+
+	{ //asteroid target (NOTE: this relies on camera pos being updated)
 		glm::mat4 world_to_screen = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(asteroid.pos, 1.0f)); // [-1..1]^2
 		target_xy = glm::vec2{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)} * 0.5f + 0.5f; // -> [0,1]^2
 	}
 
-	{ // reticle tracker
+	{ //reticle tracker
 		// make the reticle follow the mouse
 		reticle_aim = mouse_motion;
 
@@ -474,29 +794,6 @@ void PlayMode::update(float elapsed) {
 		// update rocket blaster aim
 		spaceship.aim_dir = glm::normalize(world_target - spaceship.pos);
 		spaceship.aim_dir.z = 0.f;
-	}
-
-	{ //laser
-		if (space.pressed){
-			spaceship.fire_laser();
-		}
-
-		spaceship.update_lasers(elapsed);
-	}
-
-	{ //update camera controls (after spaceship update for smooth motion)
-		if (tab.downs > 0) {
-			uint8_t dir = shift.pressed ? -1 : 1;
-			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
-		}
-		CameraArm &camarm = CurrentCameraArm();
-
-		if (can_pan_camera) {
-			camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
-		}
-		else {
-			camarm.update(camera,  0.f,  0.f);
-		}
 	}
 
 	//reset button press counters:
@@ -595,7 +892,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	//Everything from this point on is part of the HUD overlay
 	glDisable(GL_DEPTH_TEST);
 
-	{ //TODO: this is a demo of drawing the orbit
+	{
 		glm::mat4 world_to_clip = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		DrawLines orbit_lines(world_to_clip);
 

@@ -64,7 +64,7 @@ struct Character {
 };
 
 struct Text {
-    const std::string text_file = "BungeeSpice-Regular.ttf";
+    const std::string text_file = "assets/fonts/BungeeSpice-Regular.ttf";
     float font_size = 64.f;
     float font_scale = 64.f; // number of units per pixel
 
@@ -315,7 +315,7 @@ struct Text {
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
         glUseProgram(0);
-        
+
         GL_ERRORS();
     }
 };

@@ -50,7 +50,7 @@ struct Entity {
 
 //Stars, Planets, Moons, etc.
 struct Body : public Entity {
-	Body(float r, float m, float sr) : Entity(r, m), soi_radius(sr) {}
+	Body(int _id, float r, float m, float sr) : Entity(r, m), soi_radius(sr), id(_id) {}
 
 	void set_orbit(Orbit *orbit_);
 	void set_transform(Scene::Transform *transform_)  {
@@ -71,6 +71,7 @@ struct Body : public Entity {
 	void simulate(float time);
 	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color, float scale);
 
+	int id = -1;
 	std::vector< Body * > satellites;
 	Orbit *orbit = nullptr;
 	Scene::Transform *transform = nullptr;
@@ -84,7 +85,8 @@ struct Beam {
 	Beam(glm::vec3 &p, glm::vec3 h) : pos(p), heading(h), start_pos(p) {};
 	static constexpr glm::u8vec4 col = glm::u8vec4(0x00, 0xff, 0x00, 0xff); // green lasers
 	static constexpr float vel = 299.792f; // speed of light in megameters/sec
-	static constexpr float MaxStrength = 1.0e-5f; // MegaNewtons
+	static constexpr float MaxStrength = 0.1f; // MegaNewtons.
+	//NOTE: 100 kN is roughly weight of 2.5 elephants
 	glm::vec3 pos;
 	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
 	float dt = 0.f;
@@ -111,9 +113,6 @@ struct Asteroid : public Entity {
 
 	void init(Scene::Transform *transform_, Body *root);
 	void update(float elapsed, std::deque< Beam > const &lasers);
-
-	float dvel_mag_accum = 0.0f; // Using an accumulator to avoid updating orbit frequently (and precision issues)
-	size_t accum_cnt = 0;
 
 	Body *root;
 	std::list< Orbit > orbits;
@@ -150,7 +149,6 @@ struct Rocket : public Entity {
 	float dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
 	float theta = 0.0f; //rotation along XY plane, radians
 	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
-	float h = 0.0f; //angular momentum
 	float fuel = 8.0f; //measured by mass, Megagram
 
 	float laser_timer = 0.0f; //when 0, laser is fireable
