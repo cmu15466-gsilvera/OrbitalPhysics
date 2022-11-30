@@ -25,7 +25,7 @@ void HUD::init(){
 		1.0f, 1.0f, 0.0f, 1.0f,
 		0.0f, 1.0f, 0.0f, 1.0f,
 		1.0f, 0.0f, 0.0f, 1.0f,
-		1.0f, 0.0f, 
+		1.0f, 0.0f,
 		0.0f, 1.0f,
 		0.0f, 0.0f,
 		1.0f, 1.0f,
@@ -41,7 +41,7 @@ void HUD::init(){
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 	initialized = true;
-	
+
 	GL_ERRORS();
 }
 
@@ -61,7 +61,7 @@ HUD::Sprite *HUD::loadSprite(std::string path){
 
 	glGenTextures(1, &ret->textureID);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -77,37 +77,16 @@ HUD::Sprite *HUD::loadSprite(std::string path){
 	return ret;
 }
 
-void HUD::drawElement(glm::vec2 size, glm::vec2 pos, Sprite *sprite, glm::uvec2 const &dims) {
-	drawElement(size, pos, sprite, static_cast<float>(dims.x), static_cast<float>(dims.y));
+void HUD::drawElement(glm::vec2 size, glm::vec2 pos, Sprite *sprite, glm::uvec2 const &dims, glm::u8vec4 const &color) {
+	drawElement(size, pos, sprite, static_cast<float>(dims.x), static_cast<float>(dims.y), color);
 }
 
-void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float width, float height){
+void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float width, float height, glm::u8vec4 const &color){
 	glUseProgram(color_texture_program->program);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, sprite->textureID);
-	glBindVertexArray(vao);
-
-	glEnable(GL_BLEND);
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glUniformMatrix4fv(color_texture_program->OBJECT_TO_CLIP_mat4, 1, GL_FALSE, glm::value_ptr(glm::ortho(0.0f, width, 0.f, height, 0.f, 1.0f)));
-	glUniform4fv(color_texture_program->OFFSET_vec4, 1, glm::value_ptr(glm::vec4(size.x, -size.y, pos.x, pos.y)));
-	glUniform4fv(color_texture_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(1.0)));
-
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	glBindVertexArray(0);
-	glUseProgram(0);
-
+	std::cout << sprite->textureID << std::endl;
 	GL_ERRORS();
-}
-
-void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float width, float height, glm::vec4 color){
-	glUseProgram(color_texture_program->program);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, sprite->textureID);
 	glBindVertexArray(vao);
 
 	glEnable(GL_BLEND);
@@ -117,7 +96,7 @@ void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glUniformMatrix4fv(color_texture_program->OBJECT_TO_CLIP_mat4, 1, GL_FALSE, glm::value_ptr(glm::ortho(0.0f, width, 0.f, height, 0.f, 1.0f)));
 	glUniform4fv(color_texture_program->OFFSET_vec4, 1, glm::value_ptr(glm::vec4(size.x, -size.y, pos.x, pos.y)));
-	glUniform4fv(color_texture_program->COLOR_vec4, 1, glm::value_ptr(color));
+	glUniform4fv(color_texture_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(color) / 255.f));
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 

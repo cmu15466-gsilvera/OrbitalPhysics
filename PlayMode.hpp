@@ -44,7 +44,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, tab, shift, control, plus, minus, space, f5, f9;
+	} left, right, down, up, tab, shift, control, plus, minus, space, menu, f5, f9;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
@@ -61,6 +61,7 @@ struct PlayMode : Mode {
 	void RenderFrameQuad();
 
 	void SetupFramebuffers();
+	bool framebuffer_ready = false; // needs to initialize
 
 	HUD::Sprite *throttle;
 	HUD::Sprite *window;
@@ -83,6 +84,7 @@ struct PlayMode : Mode {
 		{ &plus, {SDLK_e, SDLK_PLUS} },
 		{ &minus, {SDLK_q, SDLK_MINUS} },
 		{ &space, {SDLK_SPACE} },
+		{ &menu, {SDLK_ESCAPE} },
 		{ &f5, {SDLK_F5} },
 		{ &f9, {SDLK_F9} }
 	};
@@ -98,9 +100,17 @@ struct PlayMode : Mode {
 
 	// spaceship
 	Rocket spaceship;
+
+	bool bEnableEasyMode = true; // allow "negative thrust" to correct for over-orbit
+	bool bCanThrustChangeDir = true; // whether or not we can thrust
+	bool forward_thrust = true; // false => backwards thrust controls
+
+	// asteroid
 	Asteroid asteroid = Asteroid(0.5f, 0.2f);
+
+	// other solar system bodies
 	Body *star = nullptr; //All body updates cascade off of star update, should be done prior to spaceship update
-	std::list< Entity * > entities; // bodies + rocket(s)
+	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
 	std::list< Orbit > orbits;
 	std::unordered_map< int, Body * > id_to_body;
