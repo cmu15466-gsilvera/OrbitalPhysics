@@ -32,7 +32,7 @@ TexturedPlanetProgram::TexturedPlanetProgram() {
 	,
 		//fragment shader:
 		"#version 330\n"
-		"uniform sampler2D TEX;\n"
+		"uniform samplerCube TEX;\n"
 		"uniform vec3 LIGHT_LOCATION;\n"
 		"uniform vec3 LIGHT_DIRECTION;\n"
 		"uniform vec3 LIGHT_ENERGY;\n"
@@ -53,7 +53,8 @@ TexturedPlanetProgram::TexturedPlanetProgram() {
 		"   float nl = max(0.0, dot(n, l)) / 1.0;\n"
 		"   e = nl * LIGHT_ENERGY;\n"
 		"	vec4 albedo = texture(TEX, texCoord) * color;\n"
-		"	fragColor = vec4((AMBIENT_COLOR * albedo.rgb) + e*albedo.rgb, albedo.a);\n"
+		/* "	fragColor = vec4((AMBIENT_COLOR * albedo.rgb) + e*albedo.rgb, albedo.a);\n" */
+		"	fragColor = vec4(texture(TEX, texCoord).rgb, 1.0);\n"
 		"	brightColor = vec4(vec3(0.0), 1.0);\n"
 		"}\n"
 	);

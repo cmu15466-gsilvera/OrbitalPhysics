@@ -196,8 +196,10 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 		star->add_satellite(planet);
 
+        planet_trans->scale = glm::vec3(10.0f);
 
-		Scene::make_drawable(scene, planet_trans, main_meshes.value);
+        // we DONT make drawables for fancy planets
+
 		LOG("Loaded Planet");
 
 		//Load all things orbiting planet
@@ -584,10 +586,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 	GL_ERRORS();
 
-	scene.draw(*camera);
+	/* scene.draw(*camera); */
 
     for(auto it = fancyPlanets.begin(); it != fancyPlanets.end(); it++){
-        /* it->draw(camera); */    
+        it->draw(camera);    
     }
 
     // skybox comes last always
