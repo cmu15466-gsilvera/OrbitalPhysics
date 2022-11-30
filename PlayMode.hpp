@@ -13,7 +13,9 @@
 #include <glm/glm.hpp>
 
 #include <list>
+#include <fstream>
 #include <vector>
+#include <unordered_map>
 
 struct PlayMode : Mode {
 	PlayMode();
@@ -24,13 +26,25 @@ struct PlayMode : Mode {
 	virtual void update(float elapsed) override;
 	virtual void draw(glm::uvec2 const &drawable_size) override;
 
+	void serialize(std::string const &filename);
+	void serialize_orbit(std::ofstream &file, Orbit const &orbit);
+	void serialize_body(std::ofstream &file, Body const &body);
+	void serialize_rocket(std::ofstream &file);
+	void serialize_asteroid(std::ofstream &file);
+
+	void deserialize(std::string const &filename);
+	void deserialize_orbit(std::string const &line, std::list< Orbit > &olist);
+	void deserialize_body(std::ifstream &file);
+	void deserialize_rocket(std::ifstream &file);
+	void deserialize_asteroid(std::ifstream &file);
+
 	//----- game state -----
 
 	//input tracking:
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, tab, shift, control, plus, minus, space, menu;
+	} left, right, down, up, tab, shift, control, plus, minus, space, menu, f5, f9;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
@@ -58,7 +72,7 @@ struct PlayMode : Mode {
 
 	glm::vec2 target_xy;
 
-	std::unordered_map<Button*, std::vector<int>> keybindings = {
+	std::unordered_map< Button *, std::vector< int > > keybindings = {
 		// association between action/button and list of keybindings
 		{ &left, {SDLK_LEFT, SDLK_a} },
 		{ &right, {SDLK_RIGHT, SDLK_d} },
@@ -71,6 +85,8 @@ struct PlayMode : Mode {
 		{ &minus, {SDLK_q, SDLK_MINUS} },
 		{ &space, {SDLK_SPACE} },
 		{ &menu, {SDLK_ESCAPE} },
+		{ &f5, {SDLK_F5} },
+		{ &f9, {SDLK_F9} }
 	};
 
 	//local copy of the game scene (so code can change it during gameplay):
@@ -87,16 +103,17 @@ struct PlayMode : Mode {
 
 	bool bEnableEasyMode = true; // allow "negative thrust" to correct for over-orbit
 	bool bCanThrustChangeDir = true; // whether or not we can thrust
-	bool forward_thrust = true; // false => backwards thrust controls 
+	bool forward_thrust = true; // false => backwards thrust controls
 
 	// asteroid
-	Asteroid asteroid = Asteroid(0.5f, 0.2f); //TODO: reduce asteroid radius and scale down model
-	
+	Asteroid asteroid = Asteroid(0.5f, 0.2f);
+
 	// other solar system bodies
-	Body *star; //All body updates cascade off of star update, should be done prior to spaceship update
+	Body *star = nullptr; //All body updates cascade off of star update, should be done prior to spaceship update
 	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
 	std::list< Orbit > orbits;
+	std::unordered_map< int, Body * > id_to_body;
     Skybox skybox = Skybox();
 
 	//camera:
@@ -137,5 +154,4 @@ struct PlayMode : Mode {
 
 	// bgm
 	std::shared_ptr< Sound::PlayingSample > bgm_loop;
-
 };

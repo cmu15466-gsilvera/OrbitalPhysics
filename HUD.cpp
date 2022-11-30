@@ -25,7 +25,7 @@ void HUD::init(){
 		1.0f, 1.0f, 0.0f, 1.0f,
 		0.0f, 1.0f, 0.0f, 1.0f,
 		1.0f, 0.0f, 0.0f, 1.0f,
-		1.0f, 0.0f, 
+		1.0f, 0.0f,
 		0.0f, 1.0f,
 		0.0f, 0.0f,
 		1.0f, 1.0f,
@@ -41,7 +41,7 @@ void HUD::init(){
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 	initialized = true;
-	
+
 	GL_ERRORS();
 }
 
@@ -61,7 +61,7 @@ HUD::Sprite *HUD::loadSprite(std::string path){
 
 	glGenTextures(1, &ret->textureID);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

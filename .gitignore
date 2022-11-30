@@ -3,14 +3,7 @@ objs/*
 *.pdb
 *.blend[1-9]
 maek-cache.json
-dist/README-freetype.txt
-dist/README-glm.txt
-dist/README-harfbuzz.txt
-dist/README-libogg.txt
-dist/README-libopus.txt
-dist/README-libpng.txt
-dist/README-opusfile.txt
-dist/README-SDL.txt
+dist/*.txt
 dist/SDL2.dll
 dist/game
 freetype-test
