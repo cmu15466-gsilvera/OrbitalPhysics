@@ -664,10 +664,14 @@ void PlayMode::update(float elapsed) {
 	{ //update dilation
 		if (plus.downs > 0 && minus.downs == 0) {
 			dilation++;
-            dilationInt++;
+            if(dilationInt < 5){
+                dilationInt++;
+            }
 		} else if (minus.downs > 0 && plus.downs == 0) {
 			dilation--;
-            dilationInt--;
+            if(dilationInt > 0){
+                dilationInt--;
+            }
 		}
 	}
 
@@ -748,7 +752,7 @@ void PlayMode::update(float elapsed) {
         }else{
 		    ThrottleReading.set_text("MAX");
         }
-		SpeedupReading.set_text(std::to_string(dilation) + "X");
+		SpeedupReading.set_text(std::to_string(dilation));
     }
 
 	{ //update listener to camera position:
