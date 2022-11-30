@@ -79,7 +79,8 @@ LitColorTextureProgram::LitColorTextureProgram() {
 		"in vec3 normal;\n"
 		"in vec4 color;\n"
 		"in vec2 texCoord;\n"
-		"out vec4 fragColor;\n"
+		"layout (location = 0) out vec4 fragColor;\n"
+		"layout (location = 1) out vec4 brightColor;\n"
 		"void main() {\n"
 		"	vec3 n = normalize(normal);\n"
 		"	vec3 e;\n"
@@ -90,6 +91,7 @@ LitColorTextureProgram::LitColorTextureProgram() {
 		"   e = nl * LIGHT_ENERGY;\n"
 		"	vec4 albedo = texture(TEX, texCoord) * color;\n"
 		"	fragColor = vec4((AMBIENT_COLOR * albedo.rgb) + e*albedo.rgb, albedo.a);\n"
+		"	brightColor = vec4(vec3(0.0), 1.0);\n"
 		"}\n"
 	);
 	//As you can see above, adjacent strings in C/C++ are concatenated.

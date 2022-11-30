@@ -1,6 +1,8 @@
+#include "GL.hpp"
 #include "Mode.hpp"
 
 #include "OrbitalMechanics.hpp"
+#include "Skybox.hpp"
 
 #include "Mesh.hpp"
 #include "Scene.hpp"
@@ -34,6 +36,18 @@ struct PlayMode : Mode {
 	bool can_pan_camera = false; // true when mouse down
 	glm::uvec2 window_dims;
 
+	GLuint hdrFBO = 0;
+	GLuint rboDepth = 0;
+	GLuint attachments[2];
+	GLuint colorBuffers[2];
+    unsigned int pingpongFBO[2];
+    unsigned int pingpongColorbuffers[2];
+	GLuint renderQuadVAO = 0;
+	GLuint renderQuadVBO;
+	void RenderFrameQuad();
+
+	void SetupFramebuffers();
+
 	HUD::Sprite *throttle;
 	HUD::Sprite *window;
 	HUD::Sprite *handle;
@@ -66,7 +80,7 @@ struct PlayMode : Mode {
 	const float homing_threshold = 0.1f; // 1% of the window-size for homing threshold
 	glm::vec2 reticle_aim{0.f, 0.f}; // (0, 0) in center, (1, 1) top right, (-1, -1) bottom left
 	bool reticle_homing = false;
-	
+
 	// spaceship
 	Rocket spaceship;
 
@@ -82,6 +96,7 @@ struct PlayMode : Mode {
 	std::list< Entity* > entities; // bodies + rocket(s)
 	std::list< Body > bodies;
 	std::list< Orbit > orbits;
+    Skybox skybox = Skybox();
 
 	//camera:
 	Scene::Camera *camera = nullptr;
@@ -118,5 +133,8 @@ struct PlayMode : Mode {
 
 	// text UI
 	Text UI_text;
+
+	// bgm
+	std::shared_ptr< Sound::PlayingSample > bgm_loop;
 
 };

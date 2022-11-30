@@ -1,7 +1,8 @@
 #pragma once
 
-#include "Scene.hpp"
 #include "DrawLines.hpp"
+#include "Scene.hpp"
+#include "Sound.hpp"
 
 #define GLM_PRECISION_HIGHP_FLOAT
 #define GLM_PRECISION_HIGHP_DOUBLE
@@ -95,51 +96,13 @@ struct Beam {
 	void draw(DrawLines &DL) const;
 };
 
-//Player
-struct Rocket : public Entity {
-	Rocket() : Entity(0.2f, 0.01f) {}
-
-	void init(Scene::Transform *transform_, Body *root, Scene *scene);
-
-	void update(float elapsed);
-	void update_lasers(float elapsed);
-
-	glm::vec3 get_heading() const;
-
-	Body *root;
-	std::list< Orbit > orbits;
-	Scene::Transform *transform;
-
-	static float constexpr DryMass = 4.0f; // Megagram
-	static float constexpr MaxThrust = 0.05f; // MegaNewtons
-	static float constexpr MaxFuelConsumption = 0.0001f; // Measured by mass, Megagram
-
-	static int constexpr MAX_BEAMS = 1000; // don't have more than this
-	glm::vec3 aim_dir;
-	std::deque<Beam> lasers; // fast insertion/deletion at both ends
-
-	float control_dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
-	float dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
-	float theta = 0.0f; //rotation along XY plane, radians
-	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
-	float h = 0.0f; //angular momentum
-	float fuel = 8.0f; //measured by mass, Megagram
-
-	float timeSinceLastParticle = 0.0f;
-	int lastParticle = 0;
-
-	struct ThrustParticle {
-		float lifeTime;
-		glm::vec3 velocity;
-		float scale;
-		float _t;
-		glm::vec4 color;
-		std::list<Scene::Transform>::iterator transform;
-		ThrustParticle(std::list<Scene::Transform>::iterator trans_, float lifeTime_, glm::vec3 v_, float scale) : lifeTime(lifeTime_), velocity(v_), scale(scale), transform(trans_) {
-			_t = 0;
-		}
-	};
-	std::vector<ThrustParticle> thrustParticles;
+//Closest approach information
+struct ClosestApproachInfo {
+	Body *origin = nullptr;
+	glm::vec3 rocket_rpos; //rocket position (relative to body it orbits) at closest approach
+	glm::vec3 asteroid_rpos; //asteroid position (relative to body it orbits) at closest approach
+	float time_diff = std::numeric_limits< float >::infinity(); //used for debug
+	float dist = std::numeric_limits< float >::infinity();
 };
 
 //Asteroid
@@ -157,6 +120,59 @@ struct Asteroid : public Entity {
 	Scene::Transform *transform;
 };
 
+//Player
+struct Rocket : public Entity {
+	Rocket() : Entity(0.2f, 0.01f) {}
+
+	void init(Scene::Transform *transform_, Body *root, Scene *scene, Asteroid const &asteroid);
+
+	void update(float elapsed, Asteroid const &asteroid);
+	void update_lasers(float elapsed);
+	void fire_laser();
+
+	glm::vec3 get_heading() const;
+
+	Body *root;
+	std::list< Orbit > orbits;
+	Scene::Transform *transform;
+	std::shared_ptr< Sound::PlayingSample > engine_loop;
+
+	static float constexpr DryMass = 4.0f; // Megagram
+	static float constexpr MaxThrust = 0.05f; // MegaNewtons
+	static float constexpr MaxFuelConsumption = 0.0001f; // Measured by mass, Megagram
+	static float constexpr LaserCooldown = 1.0e4f;
+
+	static int constexpr MAX_BEAMS = 1000; // don't have more than this
+	glm::vec3 aim_dir;
+	std::deque<Beam> lasers; // fast insertion/deletion at both ends
+
+	float control_dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
+	float dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
+	float theta = 0.0f; //rotation along XY plane, radians
+	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
+	float h = 0.0f; //angular momentum
+	float fuel = 8.0f; //measured by mass, Megagram
+
+	float laser_timer = 0.0f; //when 0, laser is fireable
+
+	ClosestApproachInfo closest;
+
+	float timeSinceLastParticle = 0.0f;
+	int lastParticle = 0;
+
+	struct ThrustParticle {
+		float lifeTime;
+		glm::vec3 velocity;
+		float scale;
+		float _t;
+		glm::vec4 color;
+		std::list<Scene::Transform>::iterator transform;
+		ThrustParticle(std::list<Scene::Transform>::iterator trans_, float lifeTime_, glm::vec3 v_, float scale) : lifeTime(lifeTime_), velocity(v_), scale(scale), transform(trans_) {
+			_t = 0;
+		}
+	};
+	std::vector<ThrustParticle> thrustParticles;
+};
 
 //Keplerian orbital mechanics
 //See example: https://www.desmos.com/calculator/j0z5ksh8ed
@@ -207,10 +223,13 @@ struct Orbit {
 	void predict();
 	void init_sim();
 	void simulate(float time);
-	void sim_predict(Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it);
+	void sim_predict(
+		Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it, float start_time);
 	bool will_soi_transit(float elapsed)  {
 		return theta + 4.0f * dtheta * elapsed * static_cast< float >(dilation) >= soi_transit;
 	}
+	void find_closest_approach(Orbit const &other, size_t points_idx, size_t other_points_idx,
+		ClosestApproachInfo &closest);
 	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants
@@ -227,6 +246,7 @@ struct Orbit {
 
 	//Future trajectory, populated by predict()
 	std::array< glm::vec3, PredictDetail > points; //Cache of orbit points for drawing
+	std::array< float, PredictDetail > point_times; //Used only for Rocket/Asteroid closest approach calc
 	float soi_transit = std::numeric_limits< float >::infinity(); //theta value for SOI transit
 	Orbit *continuation = nullptr; //Continuation in next SOI
 
