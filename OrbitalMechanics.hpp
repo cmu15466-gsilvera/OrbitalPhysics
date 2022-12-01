@@ -121,6 +121,9 @@ struct Asteroid : public Entity {
 	void init(Scene::Transform *transform_, Body *root);
 	void update(float elapsed, std::deque< Beam > const &lasers);
 	std::string get_time_remaining() {
+		if (time_of_collision == std::numeric_limits< float >::infinity()) {
+			return "∞";
+		}
 		std::stringstream stream;
 		stream << std::setfill('0') << std::setw(9) << static_cast< int >(time_of_collision - universal_time);
 		return "T-" + stream.str();

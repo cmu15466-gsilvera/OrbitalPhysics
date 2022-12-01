@@ -677,7 +677,7 @@ void PlayMode::update(float elapsed) {
 						break;
 					}
 				}
-			} 
+			}
 		}
 		if (!remaining) {
 			bIsTutorial = false;
@@ -810,18 +810,16 @@ void PlayMode::update(float elapsed) {
 			tab.downs = 1; // to trigger the camera transition
 			game_status = GameStatus::LOSE;
 			dilation = LEVEL_0;
-		}
-
-		if (spaceship.crashed) {
+		} else if (asteroid.time_of_collision == std::numeric_limits< float >::infinity()) {
 			target_lock = &spaceship;
 			tab.downs = 1; // to trigger the camera transition
-			game_status = GameStatus::LOSE;
+			game_status = GameStatus::WIN;
 			dilation = LEVEL_0;
 		}
 	}
 
 	if (!playing) {
-		anim = 0.1f * elapsed;
+		anim = 0.3f * elapsed;
 	}
 
 	if (playing && !bIsTutorial) { //laser
