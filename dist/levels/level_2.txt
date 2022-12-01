@@ -1,21 +1,21 @@
 Body:
 Star,0
-275,8e+23,inf
+275,8e+23,inf,inf
 Orbit: None
 
 Body:
 GasGiant,1
-80,1.5e+21,12100
+80,1.5e+21,12100,5000
 Orbit: 0;0,150000,0.523599,-2.0944,0
 
 Body:
 GasGiantMoon,2
-7,1e+18,43
+7,1e+18,43,1000
 Orbit: 1;0.05,800,0.945,1.674,0
 
 Body:
 GasGiantAtmoMoon,3
-6,6e+17,61
+6,6e+17,61,1000
 Orbit: 1;0.02,1400,0,0.000159584,0
 
 Asteroid:

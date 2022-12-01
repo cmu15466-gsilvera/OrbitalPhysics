@@ -52,6 +52,8 @@ struct Entity {
 struct Body : public Entity {
 	Body(int _id, float r, float m, float sr) : Entity(r, m), id(_id), soi_radius(sr) {}
 
+    float dayLengthInSeconds = 1.0f;
+
 	void set_orbit(Orbit *orbit_);
 	void set_transform(Scene::Transform *transform_)  {
 		transform = transform_;

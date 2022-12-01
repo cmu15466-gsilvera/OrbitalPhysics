@@ -369,8 +369,8 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 	Scene::Transform *trans = &scene.transforms.back();
 	trans->name = name;
 
-	float radius, mass, soi_radius;
-	errmsg = "Malformed save file: body - '" + line + "' should be '{float},{float},{float}'.";
+	float radius, mass, soi_radius, dayLengthInSeconds;
+	errmsg = "Malformed save file: body - '" + line + "' should be '{float},{float},{float},{float}'.";
 	try { //load radius, mass, soi_radius
 		throw_on_err(std::getline(file, line),
 			"Malformed save file: body - not enough lines.");
@@ -384,6 +384,9 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
 		soi_radius = std::stof(token);
+
+		throw_on_err(std::getline(linestream, token, ','), errmsg);
+		dayLengthInSeconds = std::stof(token);
 	} catch (std::runtime_error &rethrow) {
 		throw rethrow;
 	} catch (std::exception &e) {
@@ -393,6 +396,7 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 
 	bodies.emplace_back(id, radius, mass, soi_radius);
 	Body &body = bodies.back();
+    body.dayLengthInSeconds = dayLengthInSeconds;
 	id_to_body.insert({id, &body});
 	entities.push_back(&body);
 
@@ -891,8 +895,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	GL_ERRORS();
 
 	scene.draw(*camera);
-    skybox.draw(camera);
 
+    for(auto it = fancyPlanets.begin(); it != fancyPlanets.end(); it++){
+        it->draw(camera);    
+    }
+
+    // skybox comes last always
+    skybox.draw(camera);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	if (hdrFBO == 0)

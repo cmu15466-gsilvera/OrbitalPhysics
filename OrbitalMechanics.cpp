@@ -131,7 +131,7 @@ void Body::set_orbit(Orbit *orbit_) {
 }
 
 void Body::update(float elapsed) {
-	//TODO: if we want things to rotate, here would be where that gets done
+	transform->rotation = transform->rotation * glm::quat(glm::vec3(0.f, 0.f, (2 * M_PI) * dilation * (elapsed / dayLengthInSeconds)));
 
 	if (orbit != nullptr) {
 		orbit->update(elapsed);
