@@ -27,6 +27,15 @@
 
 MenuMode::MenuMode()
 {
+	{ // initialize scene camera for skybox
+		srand(time(nullptr));
+		Scene::Transform *camera_trans = new Scene::Transform();
+		camera = new Scene::Camera(camera_trans);
+		auto random = [](){return std::rand() * 2.f - 1.0f;};
+		random_direction = glm::vec3(random(), random(), random());
+		random_direction = glm::normalize(random_direction);
+	}
+
 	window = HUD::loadSprite(data_path("assets/ui/window.png"));
 	{ // play button
 		const glm::u8vec4 button_color{0x33, 0x66, 0x11, 0x55};
@@ -189,6 +198,10 @@ void MenuMode::update(float elapsed)
 		}
 	}
 
+	{ // update camera for skybox
+		camera->transform->rotation *= glm::quat(0.001f * random_direction);
+	}
+
 	// reset button press counters:
 	for (auto &keybinding : keybindings)
 	{
@@ -228,6 +241,10 @@ void MenuMode::draw(glm::uvec2 const &drawable_size)
 	{ // menu buttons
 		play_button->draw(drawable_size);
 		exit_button->draw(drawable_size);
+	}
+
+	{
+		skybox.draw(camera);
 	}
 
 	GL_ERRORS();

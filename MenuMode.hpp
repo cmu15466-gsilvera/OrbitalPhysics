@@ -2,6 +2,7 @@
 
 #include "HUD.hpp"
 #include "Text.hpp"
+#include "Skybox.hpp"
 
 #include <glm/glm.hpp>
 
@@ -30,6 +31,9 @@ struct MenuMode : Mode
 
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool clicked = false;
+	Skybox skybox = Skybox();
+	Scene::Camera *camera = nullptr;
+	glm::vec3 random_direction;
 
 	struct ButtonSprite
 	{
