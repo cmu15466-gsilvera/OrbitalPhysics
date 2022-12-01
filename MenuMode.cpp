@@ -58,7 +58,6 @@ MenuMode::MenuMode()
 		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_2_col, button_2_col_hover, size0, size1, location - glm::vec2(0, size0.y * 3.0f), "Level 3");
 		play_button2 = &buttons.back();
 	}
-	
 
 	{ // exit button
 		const glm::u8vec4 button_color{0x66, 0x33, 0x11, 0x55};
@@ -175,8 +174,6 @@ void MenuMode::ButtonSprite::draw(glm::vec2 const &drawable_size) const
 
 void MenuMode::update(float elapsed)
 {
-	transition_to = nullptr;
-
 	{ // update text UI
 		std::stringstream stream;
 		stream << "Project Athena";
@@ -201,17 +198,17 @@ void MenuMode::update(float elapsed)
 	{ // check to advance
 		if (one.pressed || (play_button0->bIsHovered && clicked))
 		{
-			transition_to = next_mode;
+			Mode::set_current(next_mode);
 			next_mode->mode_level = 0;
 		}
 		else if (two.pressed || (play_button1->bIsHovered && clicked))
 		{
-			transition_to = next_mode;
+			Mode::set_current(next_mode);
 			next_mode->mode_level = 1;
 		}
-		if (three.pressed || (play_button2->bIsHovered && clicked))
+		else if (three.pressed || (play_button2->bIsHovered && clicked))
 		{
-			transition_to = next_mode;
+			Mode::set_current(next_mode);
 			next_mode->mode_level = 2;
 		}
 
@@ -219,6 +216,7 @@ void MenuMode::update(float elapsed)
 		{
 			// not sure if this is the best way to exit the game?
 			this->finish = true;
+			LOG("Goodbye!");
 			return;
 		}
 	}
@@ -232,7 +230,9 @@ void MenuMode::update(float elapsed)
 	{
 		Button &button = *keybinding.first;
 		button.downs = 0;
+		button.pressed = false;
 	}
+	clicked = false;
 }
 
 void MenuMode::draw(glm::uvec2 const &drawable_size)

@@ -174,11 +174,6 @@ int main(int argc, char **argv) {
 					save_png(filename, glm::uvec2(w,h), data.data(), LowerLeftOrigin);
 				}
 
-				std::shared_ptr<Mode> current_mode = Mode::current;
-				if (current_mode->transition_to != nullptr) {
-					Mode::set_current(current_mode->transition_to);
-					current_mode->transition_to = nullptr; // need to explicitly tell it to transition!
-				}
 			}
 			if (!Mode::current) break;
 		}
