@@ -142,7 +142,7 @@ struct PlayMode : Mode {
 
 		const Entity *entity = nullptr;
 
-		static float constexpr ScrollSensitivity = 0.25f;
+		static float constexpr ScrollSensitivity = 3.5f;
 
 		//Controls position
 		static constexpr float init_radius_multiples = 20.0f;

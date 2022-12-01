@@ -630,7 +630,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		auto &camarm = CurrentCameraArm();
 		float scroll_zoom = -evt.wheel.y * camarm.ScrollSensitivity;
 		camarm.camera_arm_length += scroll_zoom * (camarm.camera_arm_length / camarm.init_radius_multiples);
-		camarm.camera_arm_length = std::max(camarm.camera_arm_length, 0.f);
+		camarm.camera_arm_length = std::max(camarm.camera_arm_length, 1.f);
 		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
