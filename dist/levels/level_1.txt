@@ -1,16 +1,16 @@
 Body:
 Star,0
-275,8e+23,inf
+275,8e+23,inf,inf
 Orbit: None
 
 Body:
 Planet,1
-10,6e+18,1000
+10,6e+18,1000,1000
 Orbit: 0;0,100000,0,0,0
 
 Body:
 Moon,2
-1.7,7e+16,50
+1.7,7e+16,50,500
 Orbit: 1;0.1,200,0.523599,-2.0944,0
 
 Asteroid:

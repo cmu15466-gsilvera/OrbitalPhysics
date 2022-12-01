@@ -104,10 +104,12 @@ void Skybox::draw(Scene::Camera *cam){
 	glUniformMatrix4fv(skybox_program->VIEW_mat4, 1, GL_FALSE, glm::value_ptr(glm::mat4(glm::mat3(cam->transform->make_world_to_local())))); 
 	glUniformMatrix4fv(skybox_program->PROJECTION_mat4, 1, GL_FALSE, glm::value_ptr(cam->make_projection())); 
 
-	glBindVertexArray(skyboxVAO);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	glDepthFunc(GL_LESS);
+    glBindVertexArray(skyboxVAO);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDepthFunc(GL_LESS);
+	glUseProgram(0);
+	glBindVertexArray(0);
 }
 
 

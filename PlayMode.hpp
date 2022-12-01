@@ -3,6 +3,7 @@
 
 #include "OrbitalMechanics.hpp"
 #include "Skybox.hpp"
+#include "FancyPlanet.hpp"
 
 #include "Mesh.hpp"
 #include "Scene.hpp"
@@ -115,6 +116,7 @@ struct PlayMode : Mode {
 	std::list< Body > bodies;
 	std::list< Orbit > orbits;
 	std::unordered_map< int, Body * > id_to_body;
+	std::list< FancyPlanet > fancyPlanets;
     Skybox skybox = Skybox();
 
 	//camera:
