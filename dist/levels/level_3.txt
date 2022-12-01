@@ -18,11 +18,6 @@ GasGiantAtmoMoon,3
 6,9e+17,505,1000
 Orbit: 1;0.6,8000,2.444,0.000159584,1
 
-Body:
-GasGiant,4
-80,1.3e+21,11000,1000
-Orbit: 0;0.2,310000,0.4,-2.2,0
-
 Asteroid:
 Asteroid
 0.8,0.5

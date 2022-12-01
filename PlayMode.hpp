@@ -178,6 +178,8 @@ struct PlayMode : Mode {
 	Text ThrottleHeader;
 	Text ThrottleReading;
 	Text SpeedupReading;
+	Text CollisionHeader;
+	Text CollisionTimer;
 
 	// bgm
 	std::shared_ptr< Sound::PlayingSample > bgm_loop;

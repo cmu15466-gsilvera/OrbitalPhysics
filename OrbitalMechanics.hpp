@@ -9,13 +9,17 @@
 #include <glm/glm.hpp>
 
 #include <array>
+#include <iomanip>
 #include <limits>
 #include <list>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <deque>
 
 #include "EmissiveShaderProgram.hpp"
+
+extern float universal_time;
 
 //Forward declarations
 struct Body;
@@ -116,12 +120,18 @@ struct Asteroid : public Entity {
 
 	void init(Scene::Transform *transform_, Body *root);
 	void update(float elapsed, std::deque< Beam > const &lasers);
+	std::string get_time_remaining() {
+		std::stringstream stream;
+		stream << std::setfill('0') << std::setw(9) << static_cast< int >(time_of_collision - universal_time);
+		return "T-" + stream.str();
+	}
 
 	Body *root = nullptr;
 	std::list< Orbit > orbits;
 	Scene::Transform *transform;
 
 	bool crashed = false;
+	float time_of_collision = 42.0f; // dummy init value so we don't start on 0 and trigger win
 };
 
 //Player
@@ -143,7 +153,7 @@ struct Rocket : public Entity {
 
 	static float constexpr DryMass = 4.0f; // Megagram
 	static float constexpr MaxThrust = 0.05f; // MegaNewtons
-	static float constexpr MaxFuelConsumption = 0.0001f; // Measured by mass, Megagram
+	static float constexpr MaxFuelConsumption = 0.00001f; // Measured by mass, Megagram
 	static float constexpr LaserCooldown = 1.0e4f;
 
 	static int constexpr MAX_BEAMS = 1000; // don't have more than this
@@ -236,6 +246,7 @@ struct Orbit {
 	}
 	void find_closest_approach(Orbit const &other, size_t points_idx, size_t other_points_idx,
 		ClosestApproachInfo &closest);
+	float find_time_of_collision();
 	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants

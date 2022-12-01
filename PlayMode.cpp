@@ -140,7 +140,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	//start music loop playing:
 	bgm_loop = Sound::loop(*bgm, 0.5f, 0.0f);
 
-	deserialize(data_path("levels/level_1.txt"));
+	deserialize(data_path("levels/level_3.txt"));
 	//NOTE: For testing purposes, feel free to change the above to level_2 or level_3
 
 	{ //load text
@@ -149,6 +149,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
         ThrottleHeader.init(Text::AnchorType::LEFT);
         ThrottleReading.init(Text::AnchorType::LEFT);
         SpeedupReading.init(Text::AnchorType::RIGHT);
+		CollisionHeader.init(Text::AnchorType::RIGHT);
+		CollisionTimer.init(Text::AnchorType::RIGHT, true /* monospaced */);
 	}
 
 }
@@ -632,7 +634,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		auto &camarm = CurrentCameraArm();
 		float scroll_zoom = -evt.wheel.y * camarm.ScrollSensitivity;
 		camarm.camera_arm_length += scroll_zoom * (camarm.camera_arm_length / camarm.init_radius_multiples);
-		camarm.camera_arm_length = std::max(camarm.camera_arm_length, 1.f);
+		camarm.camera_arm_length = std::max(camarm.camera_arm_length, 5.f);
 		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
@@ -751,6 +753,8 @@ void PlayMode::update(float elapsed) {
 		    ThrottleReading.set_text("MAX");
         }
 		SpeedupReading.set_text(std::to_string(dilation));
+		CollisionHeader.set_text("Time to Impact");
+		CollisionTimer.set_text(asteroid.get_time_remaining());
     }
 
 	{ //update listener to camera position:
@@ -975,7 +979,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	scene.draw(*camera);
 
     for(auto it = fancyPlanets.begin(); it != fancyPlanets.end(); it++){
-        it->draw(camera);    
+        it->draw(camera);
     }
 
     // skybox comes last always
@@ -1135,7 +1139,9 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	ThrottleHeader.draw(1.f, drawable_size, 200, glm::vec2(22, 290), 0.5f, glm::vec4(1.0));
 	ThrottleReading.draw(1.f, drawable_size, 200, glm::vec2(22, 220), 1.3f, glm::vec4(1.0));
 	SpeedupReading.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-5, 142)), 1.3f, DilationColor(dilation));
-    for(int i = 0; i < dilationInt + 1; i++){
+	CollisionHeader.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -60)), 0.3f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+	CollisionTimer.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -100)), 0.75f, glm::vec4(0.1f, 1.0f, 0.1f, 1.0f));
+    for (int i = 0; i < dilationInt + 1; i++){
 	    HUD::drawElement(glm::vec2(70, 23), HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-75, -145 + (46 * i))), bar, glm::vec4(DilationColor(dilation) * 255.0f, 255.0));
     }
 
