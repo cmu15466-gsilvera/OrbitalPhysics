@@ -131,6 +131,7 @@ struct PlayMode : Mode {
 	GameStatus game_status = GameStatus::PLAYING;
 	Text GameOverText;
 	float anim = 0.f;
+	bool bLevelLoaded = false;
 
 
 	//camera:

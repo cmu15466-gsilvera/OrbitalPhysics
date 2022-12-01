@@ -585,6 +585,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
 			was_key_down = true;
+			bLevelLoaded = false; // reload level on menu
 			transition_to = next_mode; // switch to menu Mode
 		}
 		return was_key_down;
@@ -640,6 +641,11 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
+
+	if (!bLevelLoaded) {
+		deserialize(data_path("levels/level_" + std::to_string(mode_level + 1) + ".txt"));
+		bLevelLoaded = true;
+	}
 
 	bool playing = (game_status == GameStatus::PLAYING);
 

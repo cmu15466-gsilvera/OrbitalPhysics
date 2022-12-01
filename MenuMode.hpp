@@ -27,7 +27,7 @@ struct MenuMode : Mode
 	{
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} enter, back;
+	} one, two, three, back;
 
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool clicked = false;
@@ -68,14 +68,16 @@ struct MenuMode : Mode
 	};
 
 	HUD::Sprite *window;
-	ButtonSprite *play_button, *exit_button;
-	std::list< ButtonSprite > buttons;
+	ButtonSprite *play_button0, *play_button1, *play_button2, *exit_button;
+	std::list< ButtonSprite  > buttons;
 
 	glm::vec2 target_xy;
 
 	std::unordered_map<Button *, std::vector<int>> keybindings = {
 		// association between action/button and list of keybindings
-		{&enter, {SDLK_RETURN}},
+		{&one, {SDLK_1}},
+		{&two, {SDLK_2}},
+		{&three, {SDLK_3}},
 		{&back, {SDLK_ESCAPE}},
 	};
 

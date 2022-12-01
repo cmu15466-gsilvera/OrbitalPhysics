@@ -38,25 +38,36 @@ MenuMode::MenuMode()
 	}
 
 	window = HUD::loadSprite(data_path("assets/ui/window.png"));
-	{ // play button
-		const glm::u8vec4 button_color{0x33, 0x66, 0x11, 0x55};
-		const glm::u8vec4 button_color_bright{0x33, 0x66, 0x11, 0x66};
+	{ // play buttons
 		glm::vec2 size0 = glm::vec2(0.15f, 0.09f);
 		glm::vec2 size1 = 1.1f * size0;
-		glm::vec2 location = glm::vec2(0.25f, 0.25f);
+		glm::vec2 location = glm::vec2(0.25f, 0.45f);
 
-		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_color, button_color_bright, size0, size1, location, "Play");
-		play_button = &buttons.back();
+		const glm::u8vec4 button_0_col{0x33, 0x66, 0x11, 0x55};
+		const glm::u8vec4 button_0_col_hover{0x33, 0x66, 0x11, 0x66};
+		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_0_col, button_0_col_hover, size0, size1, location, "Level 1");
+		play_button0 = &buttons.back();
+
+		const glm::u8vec4 button_1_col{0x55, 0x44, 0x11, 0x55};
+		const glm::u8vec4 button_1_col_hover{0x55, 0x44, 0x11, 0x66};
+		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_1_col, button_1_col_hover, size0, size1, location - glm::vec2(0, size0.y * 1.5f), "Level 2");
+		play_button1 = &buttons.back();
+
+		const glm::u8vec4 button_2_col{0x77, 0x22, 0x11, 0x55};
+		const glm::u8vec4 button_2_col_hover{0x77, 0x22, 0x11, 0x66};
+		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_2_col, button_2_col_hover, size0, size1, location - glm::vec2(0, size0.y * 3.0f), "Level 3");
+		play_button2 = &buttons.back();
 	}
+	
 
 	{ // exit button
 		const glm::u8vec4 button_color{0x66, 0x33, 0x11, 0x55};
-		const glm::u8vec4 button_color_bright{0x66, 0x33, 0x11, 0x66};
+		const glm::u8vec4 button_color_hover{0x66, 0x33, 0x11, 0x66};
 		glm::vec2 size0 = glm::vec2(0.15f, 0.09f);
 		glm::vec2 size1 = 1.1f * size0;
 		glm::vec2 location = glm::vec2(0.75f, 0.25f);
 
-		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_color, button_color_bright, size0, size1, location, "Exit");
+		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_color, button_color_hover, size0, size1, location, "Exit");
 		exit_button = &buttons.back();
 	}
 
@@ -164,6 +175,7 @@ void MenuMode::ButtonSprite::draw(glm::vec2 const &drawable_size) const
 
 void MenuMode::update(float elapsed)
 {
+	transition_to = nullptr;
 
 	{ // update text UI
 		std::stringstream stream;
@@ -174,7 +186,7 @@ void MenuMode::update(float elapsed)
 
 	{ // update text UI
 		std::stringstream stream;
-		stream << "Press ENTER to begin";
+		stream << "Press or click (1) (2) or (3) to start a level";
 		// stream << "a" << std::endl << "b";
 		menu_text_1.set_text(stream.str());
 	}
@@ -187,10 +199,22 @@ void MenuMode::update(float elapsed)
 	}
 
 	{ // check to advance
-		if (enter.pressed || (play_button->bIsHovered && clicked))
+		if (one.pressed || (play_button0->bIsHovered && clicked))
 		{
 			transition_to = next_mode;
+			next_mode->mode_level = 0;
 		}
+		else if (two.pressed || (play_button1->bIsHovered && clicked))
+		{
+			transition_to = next_mode;
+			next_mode->mode_level = 1;
+		}
+		if (three.pressed || (play_button2->bIsHovered && clicked))
+		{
+			transition_to = next_mode;
+			next_mode->mode_level = 2;
+		}
+
 		if (back.pressed || (exit_button->bIsHovered && clicked))
 		{
 			// not sure if this is the best way to exit the game?
@@ -234,14 +258,14 @@ void MenuMode::draw(glm::uvec2 const &drawable_size)
 
 	{ // other text
 		float x = drawable_size.x * 0.5f;
-		float y = drawable_size.y * 0.4f; // top is 1.f bottom is 0.f
+		float y = drawable_size.y * 0.6f; // top is 1.f bottom is 0.f
 		float width = drawable_size.x * 0.5f;
 		menu_text_1.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, glm::u8vec4{0xff});
 	}
 
 	{ // menu buttons
-		play_button->draw(drawable_size);
-		exit_button->draw(drawable_size);
+		for (auto &button : buttons)
+			button.draw(drawable_size);
 	}
 
 	{
