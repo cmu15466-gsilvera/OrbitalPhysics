@@ -776,7 +776,7 @@ void PlayMode::update(float elapsed) {
 		if (camera_transition != glm::vec3{0.f}) {
 			float t = 1.0f - glm::length(camera->transform->position - target_pt) / glm::length(camera_transition);
 			{ // smoothly interpolate position (with bell-like curve)
-				auto bell_curve = [](float x){return 1.f * std::exp(-std::powf(x - 0.5f, 6.0f) / 0.01f); };
+				auto bell_curve = [](float x){return 1.f * std::exp(-std::pow(x - 0.5f, 6.0f) / 0.01f); };
 				camera->transform->position += camera_transition * elapsed * bell_curve(t);
 			}
 			{ // smoothly interpolate rotation (linearly)
