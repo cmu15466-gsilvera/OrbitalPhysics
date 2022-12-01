@@ -72,6 +72,7 @@ struct PlayMode : Mode {
 	HUD::Sprite *bar;
 	HUD::Sprite *target;
 	HUD::Sprite *reticle;
+	HUD::Sprite *lasercooldown;
 	const Entity *target_lock = nullptr;
 
 	glm::vec2 target_xy;
@@ -200,6 +201,9 @@ struct PlayMode : Mode {
 	Text ThrottleHeader;
 	Text ThrottleReading;
 	Text SpeedupReading;
+	Text CollisionHeader;
+	Text CollisionTimer;
+	Text LaserText;
 
 	// bgm
 	std::shared_ptr< Sound::PlayingSample > bgm_loop;

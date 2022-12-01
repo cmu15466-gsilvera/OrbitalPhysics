@@ -26,7 +26,8 @@
 
 # Sources:
     (TODO: list a source URL for any assets you did not create yourself. Make sure you have a license for the asset.)
-- Font file: `BungeeSpice-Regular.ttf` (https://fonts.google.com/specimen/Bungee+Spice)
+- UI Font file: `BungeeSpice-Regular.ttf` (https://fonts.google.com/specimen/Bungee+Spice)
+- Timer Font file: `RobotoMono-Bold.ttf` (https://fonts.google.com/specimen/Roboto+Mono)
 - Laser SFX: `laser.wav` (https://freesound.org/people/Daleonfire/sounds/376694/)
 - Rocket engine SFX: `engine.wav` (https://freesound.org/people/Zovex/sounds/237974/, converted to WAV format)
 - Background music: `bgm.wav` (https://freepd.com/music/The%20Story.mp3, converted to WAV format)

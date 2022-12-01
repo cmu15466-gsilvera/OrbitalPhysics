@@ -65,6 +65,7 @@ struct Character {
 
 struct Text {
     const std::string text_file = "assets/fonts/BungeeSpice-Regular.ttf";
+    const std::string monotext_file = "assets/fonts/RobotoMono-Bold.ttf";
     float font_size = 64.f;
     float font_scale = 64.f; // number of units per pixel
 
@@ -99,16 +100,21 @@ struct Text {
     // using hb_codepoint_t as the codepoint type from hb_buffer_get_glyph_positions
     std::map<hb_codepoint_t, Character> chars;
 
-    void init(AnchorType _anchor)
+    void init(AnchorType _anchor) {
+        init(_anchor, false);
+    }
+
+    void init(AnchorType _anchor, bool mono)
     {
         anchor = _anchor;
         // (try to) load freetype library and typeface
         {
+            std::string const &file = mono ? monotext_file : text_file;
             FT_Library ftlibrary;
             if (FT_Init_FreeType(&ftlibrary))
                 throw std::runtime_error("Failed to initialize FreeType library");
-            if (FT_New_Face(ftlibrary, const_cast<char*>(data_path(text_file).c_str()), 0, &typeface))
-                throw std::runtime_error("Failed to load font from typeface \"" + text_file + "\"");
+            if (FT_New_Face(ftlibrary, const_cast<char*>(data_path(file).c_str()), 0, &typeface))
+                throw std::runtime_error("Failed to load font from typeface \"" + file + "\"");
         }
 
         // create shaders for rendering

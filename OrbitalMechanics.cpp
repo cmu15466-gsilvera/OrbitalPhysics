@@ -42,7 +42,7 @@ Load< Sound::Sample > engine_sfx(LoadTagDefault, []() -> Sound::Sample const * {
 
 
 //universal time
-static float universal_time = 0.0f;
+float universal_time = 0.0f;
 
 
 //Time acceleration
@@ -409,6 +409,7 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 	vel = orbit.get_vel();
 	acc = glm::vec3(0.0f);
 	orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
+	time_of_collision = orbit.find_time_of_collision();
 
 	transform = transform_;
 	transform->position = pos;
@@ -454,6 +455,7 @@ void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 			orbit = Orbit(orbit.origin, pos, vel, false);
 			orbit.continuation = temp;
 			orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
+			time_of_collision = orbit.find_time_of_collision();
 		}
 
 		while (orbit.will_soi_transit(elapsed) && dilation > MAX_SOI_TRANS_DILATION) {
@@ -475,12 +477,14 @@ void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 
 			orbit = Orbit(new_origin, pos, vel, false);
 			orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
+			time_of_collision = orbit.find_time_of_collision();
 		}
 
 		for (Body *satellite : origin->satellites) {
 			if (satellite->in_soi(pos)) {
 				orbit = Orbit(satellite, pos, vel, false);
 				orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
+				time_of_collision = orbit.find_time_of_collision();
 				break;
 			}
 		}
@@ -831,6 +835,28 @@ void Orbit::find_closest_approach(
 	}
 }
 
+float Orbit::find_time_of_collision() {
+	// Call only for asteroid / rocket orbit
+	size_t n = points.size();
+
+	for (size_t i = 0; i < n; i++) {
+		if (points[i] == Orbit::Invalid) break;
+
+		float dist = glm::l2Norm(points[i]);
+		if (dist < origin->radius) { //collision
+			LOG(dist << " " << origin->radius << " " << point_times[i]);
+			return point_times[i];
+		}
+	}
+
+	if (continuation != nullptr) {
+		return continuation->find_time_of_collision();
+	} else {
+		LOG("no collision " << origin->transform->name);
+		return std::numeric_limits< float >::infinity();
+	}
+}
+
 void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 	size_t n = points.size();
 
@@ -843,7 +869,7 @@ void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 
 		if (next == Orbit::Invalid || glm::l2Norm(next) > 1e8f) break;
 
-		float alpha = color.w * std::max(0.2f, static_cast<float>(n - i)) / n;
+		float alpha = color.w * std::max(0.2f, static_cast< float >(n - i)) / n;
 		lines.draw(points[i] + origin_pos, next + origin_pos, glm::u8vec4(color.x, color.y, color.z, alpha));
 	}
 

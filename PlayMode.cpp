@@ -136,11 +136,12 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	handle = HUD::loadSprite(data_path("assets/ui/handle.png"));
 	target = HUD::loadSprite(data_path("assets/ui/reticle.png"));
 	reticle = HUD::loadSprite(data_path("assets/ui/reticle.png"));
+	lasercooldown = HUD::loadSprite(data_path("assets/ui/LaserCooldown.png"));
 
 	//start music loop playing:
 	bgm_loop = Sound::loop(*bgm, 0.5f, 0.0f);
 
-	deserialize(data_path("levels/level_1.txt"));
+	deserialize(data_path("levels/level_3.txt"));
 	//NOTE: For testing purposes, feel free to change the above to level_2 or level_3
 
 	{ //load text
@@ -150,6 +151,9 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
         ThrottleReading.init(Text::AnchorType::LEFT);
         SpeedupReading.init(Text::AnchorType::RIGHT);
 		tutorial_text.init(Text::AnchorType::CENTER);
+		CollisionHeader.init(Text::AnchorType::RIGHT);
+		CollisionTimer.init(Text::AnchorType::RIGHT, true /* monospaced */);
+		LaserText.init(Text::AnchorType::CENTER);
 	}
 
 }
@@ -295,6 +299,7 @@ void PlayMode::deserialize(std::string const &filename) {
 	// tune custom params as follows
 	CameraArm::camera_pan_offset = glm::normalize(CameraArm::camera_pan_offset);
 	auto &camarm0 = camera_arms.at(&spaceship);
+	camarm0.camera_arm_length = 160.0f;
 	{ // set the spaceship as the first camera focus
 		camera->transform->position = camarm0.get_target_point();
 		camera->transform->rotation = glm::quatLookAt(glm::normalize(camarm0.get_focus_point() - camera->transform->position), glm::vec3(0, 0, 1));
@@ -634,7 +639,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		auto &camarm = CurrentCameraArm();
 		float scroll_zoom = -evt.wheel.y * camarm.ScrollSensitivity;
 		camarm.camera_arm_length += scroll_zoom * (camarm.camera_arm_length / camarm.init_radius_multiples);
-		camarm.camera_arm_length = std::max(camarm.camera_arm_length, 1.f);
+		camarm.camera_arm_length = std::max(camarm.camera_arm_length, 5.f);
 		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
@@ -781,6 +786,9 @@ void PlayMode::update(float elapsed) {
 		    ThrottleReading.set_text("MAX");
         }
 		SpeedupReading.set_text(std::to_string(dilation));
+		CollisionHeader.set_text("Time to Impact");
+		CollisionTimer.set_text(asteroid.get_time_remaining());
+		LaserText.set_text(spaceship.laser_timer == 0.0f ? "Ready to Fire" : "Recharging");
     }
 
 	{ //update listener to camera position:
@@ -803,7 +811,7 @@ void PlayMode::update(float elapsed) {
 			game_status = GameStatus::LOSE;
 			dilation = LEVEL_0;
 		}
-		
+
 		if (spaceship.crashed) {
 			target_lock = &spaceship;
 			tab.downs = 1; // to trigger the camera transition
@@ -1006,7 +1014,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	scene.draw(*camera);
 
     for(auto it = fancyPlanets.begin(); it != fancyPlanets.end(); it++){
-        it->draw(camera);    
+        it->draw(camera);
     }
 
     // skybox comes last always
@@ -1166,9 +1174,16 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	ThrottleHeader.draw(1.f, drawable_size, 200, glm::vec2(22, 290), 0.5f, glm::vec4(1.0));
 	ThrottleReading.draw(1.f, drawable_size, 200, glm::vec2(22, 220), 1.3f, glm::vec4(1.0));
 	SpeedupReading.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-5, 142)), 1.3f, DilationColor(dilation));
-    for(int i = 0; i < dilationInt + 1; i++){
+    for (int i = 0; i < dilationInt + 1; i++){
 	    HUD::drawElement(glm::vec2(70, 23), HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-75, -145 + (46 * i))), bar, glm::vec4(DilationColor(dilation) * 255.0f, 255.0));
     }
+	CollisionHeader.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -60)), 0.3f, glm::vec4(1.0f));
+	CollisionTimer.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -100)), 0.75f, glm::vec4(0.1f, 1.0f, 0.1f, 1.0f));
+
+	float cooldown = (spaceship.LaserCooldown - spaceship.laser_timer) / spaceship.LaserCooldown;
+	HUD::drawElement(glm::vec2((drawable_size.x - lasercooldown->width) / 2, lasercooldown->height), lasercooldown);
+	HUD::drawElement(glm::vec2(371.0f * cooldown, 22.0f), glm::vec2((drawable_size.x - 370) / 2, 26), bar, glm::vec4(0x00, 0xff, 0x00, 0xe0));
+	LaserText.draw(1.f, drawable_size, 400, HUD::fromAnchor(HUD::Anchor::BOTTOMCENTER, glm::vec2(0, 10)), 0.3f, glm::vec4(1.0f));
 
 	if (game_status != GameStatus::PLAYING) {
 		std::string message = game_status == GameStatus::WIN ? "Mission Accomplished!" : "Mission Failed!";
