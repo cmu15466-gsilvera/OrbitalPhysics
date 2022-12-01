@@ -678,8 +678,10 @@ void PlayMode::update(float elapsed) {
 
 	{ // update rocket controls
 		{ // reset dilation on controls
-			if (up.downs || down.downs ||  shift.downs || control.downs)
+			if (up.downs || down.downs ||  shift.downs || control.downs) {
+				dilationInt = 0;
 				dilation = LEVEL_0; // reset time so user inputs are used
+			}
 		}
 
 		static float constexpr dtheta_update_amount = glm::radians(20.0f);
@@ -1059,7 +1061,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	HUD::drawElement(glm::vec2(0, throttle->height), throttle);
 	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(0, 0)), clock);
 	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-timecontroller->width + 10, timecontroller->height / 2)), timecontroller);
-	HUD::drawElement(glm::vec2(390.0f * thrust_amnt, 107.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 192)), bar, glm::vec4(83, 178, 0.0, 255));
+	auto throttle_color = spaceship.thrust_percent >= 0 ? glm::vec4(83, 178, 0, 255) : glm::vec4(178, 83, 0, 255);
+	HUD::drawElement(glm::vec2(390.0f * thrust_amnt, 107.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 192)), bar, throttle_color);
 	HUD::drawElement(glm::vec2(390.0f * 0.60f, 111.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(81, 192)), throttleOverlay);
 	HUD::drawElement(glm::vec2(390.0f * fuel_amt, 61.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 79)), bar, glm::vec4(221, 131, 0.0, 255));
 	ThrottleHeader.draw(1.f, drawable_size, 200, glm::vec2(22, 290), 0.5f, glm::vec4(1.0));
