@@ -149,6 +149,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
         ThrottleHeader.init(Text::AnchorType::LEFT);
         ThrottleReading.init(Text::AnchorType::LEFT);
         SpeedupReading.init(Text::AnchorType::RIGHT);
+		tutorial_text.init(Text::AnchorType::CENTER);
 	}
 
 }
@@ -586,6 +587,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			SDL_SetRelativeMouseMode(SDL_FALSE);
 			was_key_down = true;
 			bLevelLoaded = false; // reload level on menu
+			bIsTutorial = false;
 			game_status = GameStatus::PLAYING; // reset game status on menu
 			Mode::set_current(next_mode); // switch to menu mode
 		}
@@ -643,11 +645,39 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::update(float elapsed) {
 	if (!bLevelLoaded) {
-		deserialize(data_path("levels/level_" + std::to_string(mode_level + 1) + ".txt"));
+		if (mode_level < 3)
+			deserialize(data_path("levels/level_" + std::to_string(mode_level + 1) + ".txt"));
+		else {
+			bIsTutorial = true;
+			deserialize(data_path("levels/level_1.txt"));
+			LOG("Starting tutorial...");
+		}
+
 		bLevelLoaded = true;
 	}
 
 	bool playing = (game_status == GameStatus::PLAYING);
+
+	if (playing && bIsTutorial) {
+		tut_anim = elapsed;
+		bool remaining = false;
+		for (auto &state : tutorial_content) {
+			if (!state.done) {
+				remaining = true;
+				tutorial_text.set_text(state.text);
+				for (auto *button : state.activations) {
+					if (button->downs > 0) {
+						state.done = true;
+						tutorial_text.reset_time();
+						break;
+					}
+				}
+			} 
+		}
+		if (!remaining) {
+			bIsTutorial = false;
+		}
+	}
 
 	if (playing) { //handle quicksave/quickload
 		if (f5.downs > 0) {
@@ -772,7 +802,6 @@ void PlayMode::update(float elapsed) {
 			tab.downs = 1; // to trigger the camera transition
 			game_status = GameStatus::LOSE;
 			dilation = LEVEL_0;
-			anim = 0.f;
 		}
 		
 		if (spaceship.crashed) {
@@ -780,16 +809,14 @@ void PlayMode::update(float elapsed) {
 			tab.downs = 1; // to trigger the camera transition
 			game_status = GameStatus::LOSE;
 			dilation = LEVEL_0;
-			anim = 0.f;
 		}
 	}
 
 	if (!playing) {
-		anim += 0.01f * elapsed;
-		anim = std::min(anim, 1.0f);
+		anim = 0.1f * elapsed;
 	}
 
-	if (playing) { //laser
+	if (playing && !bIsTutorial) { //laser
 		if (space.pressed) {
 			spaceship.fire_laser();
 		}
@@ -814,6 +841,10 @@ void PlayMode::update(float elapsed) {
 		auto &camarm = CurrentCameraArm();
 		glm::vec3 focus_pt = camarm.get_focus_point(); // center of the body of mass
 		glm::vec3 target_pt = camarm.get_target_point(); // where the camera actually goes (not in the center)
+		if (tilde.downs > 0) { // automatically go back to spaceship
+			tab.downs = 1;
+			target_lock = &spaceship;
+		}
 		if (tab.downs > 0 && target_lock != nullptr) { // to switch camera views
 			current_focus_entity = target_lock;
 			// start the camera transition (new current camera arm)
@@ -1144,6 +1175,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		auto color = game_status == GameStatus::WIN ? glm::u8vec4{0x0, 0xff, 0x0, 0xff} : glm::u8vec4{0xff, 0x0, 0x0, 0xff};
 		GameOverText.set_text(message);
 		GameOverText.draw(anim, drawable_size, 200, 0.5f * glm::vec2(drawable_size), 2.0f, color);
+	}
+
+	if (bIsTutorial) { // draw tutorial text
+		auto color = glm::u8vec4{0xff};
+		tutorial_text.draw(tut_anim, drawable_size, 0.3f * drawable_size.x, glm::vec2{0.45f * drawable_size.x, 0.75f * drawable_size.y}, 1.0f, color);
 	}
 
 	/* glm::u8vec4 color{0xff}; */

@@ -57,6 +57,11 @@ MenuMode::MenuMode()
 		const glm::u8vec4 button_2_col_hover{0x77, 0x22, 0x11, 0x66};
 		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_2_col, button_2_col_hover, size0, size1, location - glm::vec2(0, size0.y * 3.0f), "Level 3");
 		play_button2 = &buttons.back();
+
+		const glm::u8vec4 tutorial_col{0x11, 0x22, 0x77, 0x55};
+		const glm::u8vec4 tutorial_col_hover{0x11, 0x22, 0x77, 0x66};
+		buttons.emplace_back(data_path("assets/ui/sqr.png"), tutorial_col, tutorial_col_hover, size0 + glm::vec2(0.05f, 0.f), size1 + glm::vec2(0.05f, 0.f), glm::vec2(0.5f, 0.45f), "Tutorial");
+		tutorial_button = &buttons.back();
 	}
 
 	{ // exit button
@@ -64,7 +69,7 @@ MenuMode::MenuMode()
 		const glm::u8vec4 button_color_hover{0x66, 0x33, 0x11, 0x66};
 		glm::vec2 size0 = glm::vec2(0.15f, 0.09f);
 		glm::vec2 size1 = 1.1f * size0;
-		glm::vec2 location = glm::vec2(0.75f, 0.25f);
+		glm::vec2 location = glm::vec2(0.75f, 0.45f);
 
 		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_color, button_color_hover, size0, size1, location, "Exit");
 		exit_button = &buttons.back();
@@ -210,6 +215,11 @@ void MenuMode::update(float elapsed)
 		{
 			Mode::set_current(next_mode);
 			next_mode->mode_level = 2;
+		}
+		else if (tutorial_button->bIsHovered && clicked) 
+		{
+			Mode::set_current(next_mode);
+			next_mode->mode_level = 3;
 		}
 
 		if (back.pressed || (exit_button->bIsHovered && clicked))

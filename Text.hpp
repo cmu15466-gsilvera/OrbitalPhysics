@@ -240,7 +240,8 @@ struct Text {
         }
 
         // calculate the final width of the text glyphs
-        float final_width = 0.f;
+        std::vector<float> line_widths;
+        line_widths.push_back(0.f);
         for (unsigned int i = 0; i < num_chars; i++) {
             hb_codepoint_t char_req = glyph_info[i].codepoint;
             if (chars.find(char_req) == chars.end()) { // not already loaded
@@ -251,7 +252,16 @@ struct Text {
             const Character& ch = chars[char_req];
 
             // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-            final_width += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
+            if (char_req == hb_codepoint_t{'\0'}) {
+                line_widths.push_back(0.f);
+            }
+            else {
+                line_widths[line_widths.size() - 1] += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
+            }
+        }
+        float final_width = 0.f;
+        for (float line_width : line_widths) {
+            final_width = std::max(line_width, final_width);
         }
 
         float anchor_x_start = pos.x; // default (left)
@@ -267,7 +277,8 @@ struct Text {
 
         // handle animation (only draw fraction of total depending on time)
         time += dt;
-        float amnt = std::min(time / anim_time, 1.f);
+        float amnt = std::min(time / (anim_time * line_widths.size()), 1.f);
+        // std::cout << amnt << " | " << time << std::endl;
 
         // this loop was taken almost verbatim from https://learnopengl.com/In-Practice/Text-Rendering
         for (unsigned int i = 0; i < static_cast< unsigned int >(amnt * num_chars); i++) {

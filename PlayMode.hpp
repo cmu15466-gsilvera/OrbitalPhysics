@@ -45,7 +45,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, tab, shift, control, plus, minus, space, menu, f5, f9;
+	} left, right, down, up, tab, shift, control, tilde, plus, minus, space, menu, f5, f9;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
@@ -83,6 +83,7 @@ struct PlayMode : Mode {
 		{ &up, {SDLK_UP, SDLK_w} },
 		{ &down, {SDLK_DOWN, SDLK_s} },
 		{ &tab, {SDLK_TAB} },
+		{ &tilde, {SDLK_BACKQUOTE} },
 		{ &shift, {SDLK_LSHIFT} }, // and rshift?
 		{ &control, {SDLK_LCTRL} },
 		{ &plus, {SDLK_e, SDLK_PLUS} },
@@ -131,8 +132,29 @@ struct PlayMode : Mode {
 	GameStatus game_status = GameStatus::PLAYING;
 	Text GameOverText;
 	float anim = 0.f;
-	bool bLevelLoaded = false;
 
+	bool bLevelLoaded = false;
+	bool bIsTutorial = false;
+	struct TutorialState {
+		TutorialState(const std::vector<PlayMode::Button *> &bs, const std::string &t) : activations(bs), text(t) {}
+		std::vector<PlayMode::Button*> activations;
+		std::string text;
+		bool done = false;
+	};
+	float tut_anim = 0.f;
+	std::vector<TutorialState> tutorial_content = {
+		// issued as LIFO queue
+		{{&minus}, "Your goal is to redirect the rogue asteroid labeled \n\nwith the red reticle. When you get close enough\n\naim your laser and shoot it with the space key\n\nFinish this tutorial by pressing the (-) minus key"},
+		{{&down, &control}, "There you go, now decrease/negating thrust with S/CTRL"},
+		{{&up, &shift}, "Epic. Now apply forward thrust by pressing W/shift"},
+		{{&right}, "Now rotate clockwise by pressing D"},
+		{{&space}, "Nice job! Press space to move on."},
+		{{&left}, "Good. Now rotate the ship counter-clockwise by holding A"},
+		{{&tilde}, "Nice! Now refocus on the spaceship by pressing tilde"},
+		{{&tab}, "Change the camera focus by hovering over the \n\ncenter of another planet/entity and pressing TAB"},
+		{{&space}, "Welcome to the tutorial!\n\nLook around with click+drag and scroll to zoom\n\nPress space to begin the rest of the tutorial"},
+	};
+	Text tutorial_text;
 
 	//camera:
 	Scene::Camera *camera = nullptr;

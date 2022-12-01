@@ -68,7 +68,7 @@ struct MenuMode : Mode
 	};
 
 	HUD::Sprite *window;
-	ButtonSprite *play_button0, *play_button1, *play_button2, *exit_button;
+	ButtonSprite *play_button0, *play_button1, *play_button2, *tutorial_button, *exit_button;
 	std::list< ButtonSprite  > buttons;
 
 	glm::vec2 target_xy;
