@@ -11,7 +11,7 @@
 
 ---
 # Design:
-    Project Athena is a space game operating with realistic orbital mechanics. It offers the realism displayed by games like Kerbal Space Program and Universe Sandbox while not overloading the player with the complexities and high learning curve of such games. You as the player will gain an intuitive understanding of orbital mechanics as you try to traverse the solar system in order to reach your target, an asteroid on an impact collision, in order to redirect it with an ultra-high-power laser.
+Project Athena is a space game operating with realistic orbital mechanics. It offers the realism displayed by games like Kerbal Space Program and Universe Sandbox while not overloading the player with the complexities and high learning curve of such games. You as the player will gain an intuitive understanding of orbital mechanics as you try to traverse the solar system in order to reach your target, an asteroid on an impact collision, in order to redirect it with an ultra-high-power laser.
 
 # Screen Shot:
 
