@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <iterator>
 #include <sstream>
+#include <ctime>
 
 #define DEBUG
 
@@ -28,7 +29,7 @@
 MenuMode::MenuMode()
 {
 	{ // initialize scene camera for skybox
-		srand(time(nullptr));
+		std::srand((unsigned int)std::time(nullptr));
 		Scene::Transform *camera_trans = new Scene::Transform();
 		camera = new Scene::Camera(camera_trans);
 		auto random = [](){return std::rand() * 2.f - 1.0f;};
@@ -41,7 +42,7 @@ MenuMode::MenuMode()
 		const glm::u8vec4 button_color{0x33, 0x66, 0x11, 0x55};
 		const glm::u8vec4 button_color_bright{0x33, 0x66, 0x11, 0x66};
 		glm::vec2 size0 = glm::vec2(0.15f, 0.09f);
-		glm::vec2 size1 = 1.05f * size0;
+		glm::vec2 size1 = 1.1f * size0;
 		glm::vec2 location = glm::vec2(0.25f, 0.25f);
 
 		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_color, button_color_bright, size0, size1, location, "Play");
@@ -52,7 +53,7 @@ MenuMode::MenuMode()
 		const glm::u8vec4 button_color{0x66, 0x33, 0x11, 0x55};
 		const glm::u8vec4 button_color_bright{0x66, 0x33, 0x11, 0x66};
 		glm::vec2 size0 = glm::vec2(0.15f, 0.09f);
-		glm::vec2 size1 = 1.05f * size0;
+		glm::vec2 size1 = 1.1f * size0;
 		glm::vec2 location = glm::vec2(0.75f, 0.25f);
 
 		buttons.emplace_back(data_path("assets/ui/sqr.png"), button_color, button_color_bright, size0, size1, location, "Exit");
