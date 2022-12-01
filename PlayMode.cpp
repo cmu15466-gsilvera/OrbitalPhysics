@@ -259,14 +259,12 @@ void PlayMode::deserialize(std::string const &filename) {
 	entities.clear();
 	id_to_body.clear();
 	camera_arms.clear();
-	camera_views.clear();
 	scene.drawables.clear();
 	dilation = LEVEL_0;
 
-	// first focus should be on the spaceship!
 	entities.push_back(&spaceship);
+	current_focus_entity = &spaceship; // first focus should be on spaceship
 
-	// next on asteroid
 	entities.push_back(&asteroid);
 
 	//deserialize
@@ -288,8 +286,8 @@ void PlayMode::deserialize(std::string const &filename) {
 	// track order of focus points for camera
 	for (const Entity *entity : entities) {
 		camera_arms.insert({entity, CameraArm(entity)});
-		camera_views.push_back(entity);
 	}
+
 
 	// tune custom params as follows
 	CameraArm::camera_pan_offset = glm::normalize(CameraArm::camera_pan_offset);
@@ -759,27 +757,19 @@ void PlayMode::update(float elapsed) {
 		auto &camarm = CurrentCameraArm();
 		glm::vec3 focus_pt = camarm.get_focus_point(); // center of the body of mass
 		glm::vec3 target_pt = camarm.get_target_point(); // where the camera actually goes (not in the center)
-		if (tab.downs > 0) { // to switch camera views
-			uint8_t dir = shift.pressed ? -1 : 1;
-			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
-
+		if (tab.downs > 0 && target_lock != nullptr) { // to switch camera views
+			current_focus_entity = target_lock;
 			// start the camera transition (new current camera arm)
-			camarm = CurrentCameraArm();
-			target_pt = camarm.get_target_point();
-			focus_pt = camarm.get_focus_point();
+			auto &camarm2 = camera_arms.at(current_focus_entity);
+			target_pt = camarm2.get_target_point();
+			focus_pt = camarm2.get_focus_point();
 			camera_transition = target_pt - camera->transform->position;
 			camera_start_rot = camera->transform->rotation;
 			camera_end_rot = glm::quatLookAt(glm::normalize(focus_pt - target_pt), glm::vec3(0, 0, 1));
 		}
 
-		if (glm::length(focus_pt - camera->transform->position) <= (camarm.camera_arm_length * camarm.entity->radius) * 1.1f || 
-			glm::length(camera_transition) < 0.01f) {
-			//TODO: fix the spinning when go directly over and up is parallel to dir
-			// Doing this probably requires not using the transformation matrix's vectors for finding right and up vecs
-			camera->transform->position = target_pt;
-			camera->transform->rotation = glm::quatLookAt(glm::normalize(focus_pt - camera->transform->position), glm::vec3(0, 0, 1));
-		}
-		else {
+		bool done_interp = false;
+		if (camera_transition != glm::vec3{0.f}) {
 			float t = 1.0f - glm::length(camera->transform->position - target_pt) / glm::length(camera_transition);
 			{ // smoothly interpolate position (with bell-like curve)
 				auto bell_curve = [](float x){return 1.f * std::exp(-std::powf(x - 0.5f, 6.0f) / 0.01f); };
@@ -788,6 +778,21 @@ void PlayMode::update(float elapsed) {
 			{ // smoothly interpolate rotation (linearly)
 				camera->transform->rotation = glm::mix(camera_start_rot, camera_end_rot, t);
 			}
+			if (camera_transition_interp > t) // see where the peak occurs (hit t \approx 1)
+				done_interp = true;
+			camera_transition_interp = t; // track previous interpolation
+		} else {
+			camera_transition_interp = 0;
+			done_interp = true;
+		}
+
+		if (done_interp) {
+			//TODO: fix the spinning when go directly over and up is parallel to dir
+			// Doing this probably requires not using the transformation matrix's vectors for finding right and up vecs
+			camera->transform->position = target_pt;
+			camera->transform->rotation = glm::quatLookAt(glm::normalize(focus_pt - camera->transform->position), glm::vec3(0, 0, 1));
+			camera_transition = glm::vec3{0.f};
+			camera_transition_interp = 0.f;
 		}
 	}
 
@@ -806,9 +811,10 @@ void PlayMode::update(float elapsed) {
 		float min_dist = std::numeric_limits<float>::max(); // infinity
 		glm::vec2 homing_reticle_pos = reticle_aim;
 		glm::vec3 homing_target{0.f, 0.f, 0.f};
+		target_lock = nullptr;
 		for (const Entity *entity : entities) {
-			if (entity == (&spaceship) || !camera->in_view(entity->pos))
-				continue; // don't shoot laser at self or offscreen objects
+			if (!camera->in_view(entity->pos))
+				continue; // can't focus on offscreen elements
 			glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(entity->pos, 1.0f));
 			glm::vec2 pos2d{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)};
 			float ss_dist = glm::length(reticle_aim - pos2d); // screen-space distance (for comparisons)
@@ -816,6 +822,7 @@ void PlayMode::update(float elapsed) {
 				min_dist = ss_dist;
 				homing_reticle_pos = pos2d;
 				homing_target = entity->pos;
+				target_lock = entity;
 			}
 		}
 		reticle_homing = (homing_reticle_pos != reticle_aim); // whether or not we locked onto a target

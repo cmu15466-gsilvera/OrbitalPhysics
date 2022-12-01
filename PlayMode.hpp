@@ -69,6 +69,7 @@ struct PlayMode : Mode {
 	HUD::Sprite *bar;
 	HUD::Sprite *target;
 	HUD::Sprite *reticle;
+	const Entity *target_lock = nullptr;
 
 	glm::vec2 target_xy;
 
@@ -142,18 +143,17 @@ struct PlayMode : Mode {
 	};
 
 	std::unordered_map< const Entity*, CameraArm > camera_arms;
-	std::vector< const Entity* > camera_views;
-	size_t camera_view_idx = 0;
 	glm::vec3 camera_transition{0.f};
+	float camera_transition_interp = 0.f;
 	glm::quat camera_start_rot, camera_end_rot;
+	const Entity *current_focus_entity = nullptr;
 
 	CameraArm &CurrentCameraArm() {
-		if (camera_view_idx > camera_views.size() || camera_view_idx > camera_arms.size())
-			throw std::runtime_error("camera view index " + std::to_string(camera_view_idx) + " oob");
-		const Entity* entity = camera_views[camera_view_idx];
-		if (camera_arms.find(entity) == camera_arms.end())
-			throw std::runtime_error("camera entity " + std::to_string(camera_view_idx) + " not in arm map");
-		return camera_arms.at(entity);
+		if (current_focus_entity == nullptr)
+			throw std::runtime_error("No current focus entity for camera!");
+		if (camera_arms.find(current_focus_entity) == camera_arms.end())
+			throw std::runtime_error("Current camera entity not in map!");
+		return camera_arms.at(current_focus_entity);
 	}
 
 	// text UI
