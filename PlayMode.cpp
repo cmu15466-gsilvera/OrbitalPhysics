@@ -168,6 +168,8 @@ void PlayMode::serialize(std::string const &filename) {
 		throw std::runtime_error("Failed to open save file '" + filename + "'.");
 	}
 
+	file << std::setprecision(16);
+
 	for (auto &body : bodies) {
 		serialize_body(file, body);
 		file << '\n';
@@ -291,6 +293,8 @@ void PlayMode::deserialize(std::string const &filename) {
 		}
 	}
 
+	file.close();
+
 	// track order of focus points for camera
 	for (const Entity *entity : entities) {
 		camera_arms.insert({entity, CameraArm(entity)});
@@ -326,16 +330,16 @@ void PlayMode::deserialize_orbit(std::string const &line, std::list< Orbit > &ol
 		int origin_id = std::stoi(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		float c = std::stof(token);
+		double c = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		float p = std::stof(token);
+		double p = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		float phi = std::stof(token);
+		double phi = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		float theta = std::stof(token);
+		double theta = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
 		bool retrograde = std::stoi(token) != 0;
@@ -381,7 +385,7 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 	Scene::Transform *trans = &scene.transforms.back();
 	trans->name = name;
 
-	float radius, mass, soi_radius, dayLengthInSeconds;
+	double radius, mass, soi_radius, dayLengthInSeconds;
 	errmsg = "Malformed save file: body - '" + line + "' should be '{float},{float},{float},{float}'.";
 	try { //load radius, mass, soi_radius
 		throw_on_err(std::getline(file, line),
@@ -389,16 +393,16 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 		std::stringstream linestream(line);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		radius = std::stof(token);
+		radius = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		mass = std::stof(token);
+		mass = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		soi_radius = std::stof(token);
+		soi_radius = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		dayLengthInSeconds = std::stof(token);
+		dayLengthInSeconds = std::stod(token);
 	} catch (std::runtime_error &rethrow) {
 		throw rethrow;
 	} catch (std::exception &e) {
@@ -470,7 +474,7 @@ void PlayMode::deserialize_asteroid(std::ifstream &file) {
 	Scene::Transform *trans = &scene.transforms.back();
 	trans->name = name;
 
-	float radius, mass;
+	double radius, mass;
 	errmsg = "Malformed save file: asteroid - '" + line + "' should be '{float},{float}'.";
 	try { //load radius, mass
 		throw_on_err(std::getline(file, line),
@@ -478,10 +482,10 @@ void PlayMode::deserialize_asteroid(std::ifstream &file) {
 		std::stringstream linestream(line);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		radius = std::stof(token);
+		radius = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		mass = std::stof(token);
+		mass = std::stod(token);
 	} catch (std::runtime_error &rethrow) {
 		throw rethrow;
 	} catch (std::exception &e) {
@@ -540,13 +544,13 @@ void PlayMode::deserialize_rocket(std::ifstream &file) {
 		std::stringstream linestream(line);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		spaceship.theta = std::stof(token);
+		spaceship.theta = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		spaceship.fuel = std::stof(token);
+		spaceship.fuel = std::stod(token);
 
 		throw_on_err(std::getline(linestream, token, ','), errmsg);
-		spaceship.laser_timer = std::stof(token);
+		spaceship.laser_timer = std::stod(token);
 	} catch (std::runtime_error &rethrow) {
 		throw rethrow;
 	} catch (std::exception &e) {
@@ -716,9 +720,9 @@ void PlayMode::update(float elapsed) {
 
 		static float constexpr dtheta_update_amount = glm::radians(20.0f);
 		if (left.downs > 0 && right.downs == 0) {
-			spaceship.control_dtheta = std::min(20.f * dtheta_update_amount, spaceship.control_dtheta + dtheta_update_amount);
+			spaceship.control_dtheta = std::min(20. * dtheta_update_amount, spaceship.control_dtheta + dtheta_update_amount);
 		} else if (right.downs > 0 && left.downs == 0) {
-			spaceship.control_dtheta = std::max(-20.f * dtheta_update_amount, spaceship.control_dtheta - dtheta_update_amount);;
+			spaceship.control_dtheta = std::max(-20. * dtheta_update_amount, spaceship.control_dtheta - dtheta_update_amount);;
 		} else {
 			spaceship.control_dtheta *= 0.9f; // slow decay
 			if (std::fabs(spaceship.control_dtheta) < 0.01) // threshold to 0
@@ -743,19 +747,19 @@ void PlayMode::update(float elapsed) {
 			}
 			bCanThrustChangeDir = (!increase_thrust && !decrease_thrust);
 
-			const float MaxThrust = 100.f;
-			const float SlowDelta = 1.f;
-			const float FastDelta = 10.f;
+			const double MaxThrust = 100.;
+			const double SlowDelta = 1.;
+			const double FastDelta = 10.;
 			if (forward_thrust) {
 				if (increase_thrust) {
 					spaceship.thrust_percent = std::min(spaceship.thrust_percent + SlowDelta , MaxThrust);
 				} else if (decrease_thrust) {
-					spaceship.thrust_percent = std::max(spaceship.thrust_percent - FastDelta, 0.0f);
+					spaceship.thrust_percent = std::max(spaceship.thrust_percent - FastDelta, 0.0);
 				}
 			}
 			else {
 				if (increase_thrust) {
-					spaceship.thrust_percent = std::min(spaceship.thrust_percent + FastDelta , 0.0f);
+					spaceship.thrust_percent = std::min(spaceship.thrust_percent + FastDelta , 0.0);
 				} else if (decrease_thrust) {
 					spaceship.thrust_percent = std::max(spaceship.thrust_percent - SlowDelta , -MaxThrust);
 				}
@@ -921,7 +925,7 @@ void PlayMode::update(float elapsed) {
 		reticle_aim = homing_reticle_pos * 0.5f + 0.5f; // [-1:1]^2 -> [0:1]^2
 
 		// now make sure the rocket laser launcher system follows this direction
-		glm::vec3 world_target{0.f, 0.f, 0.f};
+		glm::dvec3 world_target{0., 0., 0.};
 		if (reticle_homing) {
 			world_target = homing_target; // already know what position the target is
 		}
@@ -1081,10 +1085,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		float radius = radscale * CurrentCameraArm().camera_arm_length / CameraArm::init_radius_multiples;
 		float circle_radius = 0.4f * radius;
 		if (radius > 1.f / radscale) {
-			glm::vec3 heading = spaceship.get_heading();
+			glm::dvec3 heading = spaceship.get_heading();
 			vector_lines.draw(
-				spaceship.pos + heading * (0.5f * circle_radius),
-				spaceship.pos + heading * (1.5f * circle_radius),
+				spaceship.pos + heading * (0.5 * circle_radius),
+				spaceship.pos + heading * (1.5 * circle_radius),
 				white);
 
 			auto draw_circle = [&vector_lines](glm::vec3 const &center, glm::vec2 const &radius, glm::u8vec4 const &color,
@@ -1157,8 +1161,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	/* 	UI_text.draw(1.f, drawable_size, width, glm::vec2(x, y), 1.f, DilationColor(dilation)); */
 	/* } */
 
-	float thrust_amnt = std::fabs(spaceship.thrust_percent) / 100.0f;
-	float fuel_amt = (spaceship.fuel / spaceship.maxFuel);
+	float thrust_amnt = std::fabs(static_cast< float >(spaceship.thrust_percent)) / 100.0f;
+	float fuel_amt = static_cast< float >(spaceship.fuel / spaceship.maxFuel);
 	HUD::drawElement(glm::vec2(0, throttle->height), throttle);
 	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(0, 0)), clock);
 	HUD::drawElement(HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-timecontroller->width + 10, timecontroller->height / 2)), timecontroller);
@@ -1170,12 +1174,12 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	ThrottleReading.draw(1.f, drawable_size, 200, glm::vec2(22, 220), 1.3f, glm::vec4(1.0));
 	SpeedupReading.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-5, 142)), 1.3f, DilationColor(dilation));
     for (int i = 0; i < dilationInt + 1; i++){
-	    HUD::drawElement(glm::vec2(70, 23), HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-75, -145 + (46 * i))), bar, glm::vec4(DilationColor(dilation) * 255.0f, 255.0));
+	    HUD::drawElement(glm::vec2(70, 23), HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-75, -145 + (46 * i))), bar, glm::vec4(DilationColor(dilation) * 255.0, 255.0));
     }
 	CollisionHeader.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -60)), 0.3f, glm::vec4(1.0f));
 	CollisionTimer.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -100)), 0.75f, glm::vec4(0.1f, 1.0f, 0.1f, 1.0f));
 
-	float cooldown = (spaceship.LaserCooldown - spaceship.laser_timer) / spaceship.LaserCooldown;
+	float cooldown = static_cast< float >((spaceship.LaserCooldown - spaceship.laser_timer) / spaceship.LaserCooldown);
 	HUD::drawElement(glm::vec2((drawable_size.x - lasercooldown->width) / 2, lasercooldown->height), lasercooldown);
 	HUD::drawElement(glm::vec2(371.0f * cooldown, 22.0f), glm::vec2((drawable_size.x - 370) / 2, 26), bar, glm::vec4(0x00, 0xff, 0x00, 0xe0));
 	LaserText.draw(1.f, drawable_size, 400, HUD::fromAnchor(HUD::Anchor::BOTTOMCENTER, glm::vec2(0, 10)), 0.3f, glm::vec4(1.0f));

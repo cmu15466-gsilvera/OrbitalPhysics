@@ -173,12 +173,12 @@ struct PlayMode : Mode {
 		float camera_arm_length = init_radius_multiples;
 
 		inline static glm::vec3 camera_pan_offset{1.0f, 1.0f, 1.0f}; // must not be zeros
-		inline const glm::vec3 &get_focus_point() const { // for smooth transitions
+		inline const glm::vec3 get_focus_point() const { // for smooth transitions
 			return entity->pos;
 		};
 
 		inline const glm::vec3 get_target_point() const { // for smooth transitions
-			return get_focus_point() + camera_arm_length * entity->radius * camera_pan_offset;
+			return get_focus_point() + static_cast< float>(camera_arm_length * entity->radius) * camera_pan_offset;
 		};
 	};
 

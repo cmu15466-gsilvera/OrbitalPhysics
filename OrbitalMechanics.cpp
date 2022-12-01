@@ -18,7 +18,7 @@
 
 //Windows doesn't have M_PI apparently
 #ifndef M_PI // but other OS's do
-#define M_PI 3.141529f
+#define M_PI 3.14159265358979323846264
 #endif
 
 #define PARTICLE_COUNT 100
@@ -42,7 +42,7 @@ Load< Sound::Sample > engine_sfx(LoadTagDefault, []() -> Sound::Sample const * {
 
 
 //universal time
-float universal_time = 0.0f;
+double universal_time = 0.0;
 
 
 //Time acceleration
@@ -88,19 +88,19 @@ bool operator>(DilationLevel a, DilationLevel b) {
 	return static_cast< int >(a) > static_cast< int >(b);
 }
 
-glm::vec3 DilationColor(const DilationLevel &level) {
+glm::dvec3 DilationColor(const DilationLevel &level) {
 	switch (level) {
 	case LEVEL_0:
-		return glm::vec3(1.0f); // white
+		return glm::dvec3(1.0); // white
 	case LEVEL_1:
-		return glm::vec3(1.0f, 1.0f, 0.0f); // yellow
+		return glm::dvec3(1.0, 1.0, 0.0); // yellow
 	case LEVEL_2:
-		return glm::vec3(1.0f, 0.64f, 0.0f); // orange
+		return glm::dvec3(1.0, 0.64, 0.0); // orange
 	case LEVEL_3:
 	case LEVEL_4:
 	case LEVEL_5:
 	default:
-		return glm::vec3(1.0f, 0.0f, 0.0f); // red
+		return glm::dvec3(1.0, 0.0, 0.0); // red
 	}
 }
 
@@ -131,8 +131,8 @@ void Body::set_orbit(Orbit *orbit_) {
 	orbit->predict();
 }
 
-void Body::update(float elapsed) {
-	transform->rotation = transform->rotation * glm::quat(glm::vec3(0.f, 0.f, (2 * M_PI) * dilation * (elapsed / dayLengthInSeconds)));
+void Body::update(double elapsed) {
+	transform->rotation = transform->rotation * glm::quat(glm::dvec3(0., 0., (2 * M_PI) * dilation * (elapsed / dayLengthInSeconds)));
 
 	if (orbit != nullptr) {
 		orbit->update(elapsed);
@@ -157,7 +157,7 @@ void Body::init_sim() {
 	}
 }
 
-void Body::simulate(float time) {
+void Body::simulate(double time) {
 	if (orbit != nullptr) {
 		orbit->simulate(time);
 	}
@@ -169,7 +169,7 @@ void Body::simulate(float time) {
 	}
 }
 
-void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color, float scale) {
+void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color, double scale) {
 	if (orbit != nullptr && scale >= orbit->p) orbit->draw(lines, color);
 
 	for (Body *body : satellites) {
@@ -182,32 +182,32 @@ void Beam::draw(DrawLines &DL) const {
 	// drawing one timestep "ago" since the time dilation makes it really fast
 	// ==> so that we always see the start of the beam at the rocket
 	// "mass" equates to beam strength which dissipates over time (opacity)
-	const glm::vec3 start = pos - compute_delta_pos();
-	const glm::vec3 &end = pos;
+	const glm::dvec3 start = pos - compute_delta_pos();
+	const glm::dvec3 &end = pos;
 
 	/// NOTE: we are drawing many lines per dilation to account for opacity shift
-	const glm::vec3 delta = (end - start) / static_cast<float>(dilation);
+	const glm::dvec3 delta = (end - start) / static_cast<double>(dilation);
 	for (int i = 0; i < dilation; i++) {
-		glm::vec3 istart = start + static_cast<float>(i) * delta;
-		float mass = get_mass(istart + delta);
-		if (mass < 1.0e-2f) break;
+		glm::dvec3 istart = start + static_cast<double>(i) * delta;
+		double mass = get_mass(istart + delta);
+		if (mass < 1.0e-2) break;
 		DL.draw(istart, istart + delta, glm::u8vec4{col.x, col.y, col.z, mass * col.w});
 	}
 }
 
-glm::vec3 Beam::compute_delta_pos() const {
+glm::dvec3 Beam::compute_delta_pos() const {
 	// used to compute the delta to where this beam will be in 1 timestep (dt)
-	return vel * heading * dt * static_cast< float >(dilation);
+	return vel * heading * dt * static_cast< double >(dilation);
 }
 
-bool Beam::collide(glm::vec3 x) const {
-	glm::vec3 prev_pos = pos - compute_delta_pos();
+bool Beam::collide(glm::dvec3 x) const {
+	glm::dvec3 prev_pos = pos - compute_delta_pos();
 	return glm::l2Norm(pos - x) + glm::l2Norm(prev_pos - x) - glm::l2Norm(pos - prev_pos) < 0.1f;
 }
 
-float Beam::get_mass(glm::vec3 x) const {
-	float denom = 1.0f + glm::l2Norm(x - start_pos) * 0.05f;
-	return 1.0f / (denom * denom);
+double Beam::get_mass(glm::dvec3 x) const {
+	double denom = 1.0 + glm::l2Norm(x - start_pos) * 0.05;
+	return 1.0 / (denom * denom);
 }
 
 void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene, Asteroid const &asteroid) {
@@ -217,13 +217,13 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene, Aster
 	Orbit &orbit = orbits.front();
 	pos = orbit.get_pos();
 	vel = orbit.get_vel();
-	acc = glm::vec3(0.0f);
+	acc = glm::dvec3(0.0);
 	orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
 	orbit.find_closest_approach(asteroid.orbits.front(), 0, 0, closest);
 
 	transform = transform_;
 	transform->position = pos;
-	transform->scale = glm::vec3(radius);
+	transform->scale = glm::dvec3(radius);
 
 	thrustParticles.reserve(PARTICLE_COUNT);
 	for(int i = 0; i < PARTICLE_COUNT; i++){
@@ -232,7 +232,7 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene, Aster
 		it--;
 		it->name = "Particle";
 		auto drawable = Scene::make_drawable(*scene, &(*it), particles);
-		thrustParticles.push_back(ThrustParticle(it, 5.0f, glm::vec3(0), 0.04f));
+		thrustParticles.push_back(ThrustParticle(it, 5.0, glm::dvec3(0), 0.04));
 		ThrustParticle *currentParticle = &thrustParticles[thrustParticles.size() - 1];
 		drawable->set_uniforms = [currentParticle]() {
 			glUniform4fv(emissive_program->COLOR_vec4, 1, glm::value_ptr(currentParticle->color));
@@ -240,23 +240,23 @@ void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene, Aster
 		it->enabled = false;
 	}
 
-	engine_loop = Sound::loop(*engine_sfx, thrust_percent / 100.0f, 0.0f);
+	engine_loop = Sound::loop(*engine_sfx, static_cast< float >(thrust_percent) / 100.0f, 0.0f);
 }
 
-glm::vec3 Rocket::get_heading() const {
-	return {std::cos(theta), std::sin(theta), 0.0f};
+glm::dvec3 Rocket::get_heading() const {
+	return {std::cos(theta), std::sin(theta), 0.0};
 }
 
 void Rocket::fire_laser() {
-	if (laser_timer > 0.0f) return;
+	if (laser_timer > 0.0) return;
 
 	lasers.emplace_back(Beam(pos, aim_dir));
-	Sound::play(*laser_sfx, 0.5f, 0.0f);
+	Sound::play(*laser_sfx, 0.5, 0.0);
 
 	laser_timer = LaserCooldown;
 }
 
-void Rocket::update_lasers(float elapsed) {
+void Rocket::update_lasers(double elapsed) {
 	for (Beam &b : lasers) {
 		b.dt = elapsed;
 		b.pos += b.compute_delta_pos();
@@ -269,31 +269,31 @@ void Rocket::update_lasers(float elapsed) {
 	}
 }
 
-void Rocket::update(float elapsed, Asteroid const &asteroid) {
+void Rocket::update(double elapsed, Asteroid const &asteroid) {
 	bool moved = false;
 
-	engine_loop->set_volume(thrust_percent / 100.0f);
-	if (laser_timer > 0.0f) {
-		laser_timer = std::max(laser_timer - elapsed * dilation, 0.0f);
+	engine_loop->set_volume(static_cast< float >(thrust_percent) / 100.0f);
+	if (laser_timer > 0.0) {
+		laser_timer = std::max(laser_timer - elapsed * dilation, 0.0);
 	}
 
 	{ //update thrust particles
 		if (thrust_percent > 0){
-			float rate = glm::mix(0.0f, 250.0f, std::min((thrust_percent / 10.0f), 1.0f));
-			while (timeSinceLastParticle > (1.0f / rate)) {
+			double rate = glm::mix(0.0, 250.0, std::min((thrust_percent / 10.0), 1.0));
+			while (timeSinceLastParticle > (1.0 / rate)) {
 				auto particle = &thrustParticles[lastParticle];
 				auto trans = thrustParticles[lastParticle].transform;
 				trans->position = transform->make_local_to_world() * glm::vec4(
-					-3.5f, Utils::RandBetween(-0.5f, 0.5f), Utils::RandBetween(-0.5f, 0.5f), 1
+					-3.5, Utils::RandBetween(-0.5, 0.5), Utils::RandBetween(-0.5, 0.5), 1
 				);
-				trans->scale = glm::vec3(0.1f,0.1f,0.1f);
+				trans->scale = glm::dvec3(0.1,0.1,0.1);
 				particle->_t = 0;
-				timeSinceLastParticle -= (1.0f / rate);
-				glm::vec3 velocity = transform->make_local_to_world() * glm::vec4(
-					Utils::RandBetween(-10.5f, -5.0f), 0, 0, 0.0f
+				timeSinceLastParticle -= (1.0 / rate);
+				glm::dvec3 velocity = transform->make_local_to_world() * glm::vec4(
+					Utils::RandBetween(-10.5f, -5.0f), 0, 0, 0.0
 				);
 				particle->velocity = velocity;
-				particle->color = glm::vec4(1, 0, 0, 1);
+				particle->color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
 				particle->lifeTime = Utils::RandBetween(0.34f, 0.36f);
 				trans->enabled = true;
 				lastParticle = (1 + lastParticle) % PARTICLE_COUNT;
@@ -308,8 +308,8 @@ void Rocket::update(float elapsed, Asteroid const &asteroid) {
 				particle.transform->enabled = false;
 			}
 			particle.transform->position += particle.velocity * elapsed;
-			float a = (particle.lifeTime - particle._t) / particle.lifeTime;
-			particle.transform->scale = glm::vec3(particle.scale * a);
+			double a = (particle.lifeTime - particle._t) / particle.lifeTime;
+			particle.transform->scale = glm::dvec3(particle.scale * a);
 			particle.color = glm::vec4(1, (1 - a), 0, 1);
 		}
 	}
@@ -323,27 +323,27 @@ void Rocket::update(float elapsed, Asteroid const &asteroid) {
 			theta -= 2 * M_PI;
 		if (theta < -M_PI)
 			theta += 2 * M_PI;
-		transform->rotation = glm::quat(glm::vec3(0.f, 0.f, theta));
+		transform->rotation = glm::quat(glm::dvec3(0., 0., theta));
 
-		if (thrust_percent != 0.0f && fuel > 0.0f) {
+		if (thrust_percent != 0.0 && fuel > 0.0) {
 			moved = true; //set flag to trigger orbit recalc later on
 
 			//calculate acceleration: F = ma ==> acc = thrust * MaxThrust / (DryMass + fuel);
 			//Note conversion from MegaNewtons/Megagram == meter/s^2 to Megameter/s^2
-			float acc_magnitude = thrust_percent * MaxThrust / ((DryMass + fuel) * 1000.0f);
-			acc = glm::vec3(
+			double acc_magnitude = thrust_percent * MaxThrust / ((DryMass + fuel) * 1000.0);
+			acc = glm::dvec3(
 				acc_magnitude * std::cos(theta),
 				acc_magnitude * std::sin(theta),
-				0.0f
+				0.0
 			);
 
 			//update fuel consumption
-			fuel = std::max(fuel - std::fabs(thrust_percent) * MaxFuelConsumption, 0.0f);
+			fuel = std::max(fuel - std::fabs(thrust_percent) * MaxFuelConsumption, 0.0);
 
 			//update velocity
 			vel += acc * elapsed;
 		} else {
-			acc = glm::vec3(0.0f);
+			acc = glm::dvec3(0.0);
 		}
 	}
 
@@ -355,7 +355,7 @@ void Rocket::update(float elapsed, Asteroid const &asteroid) {
 			orbit = Orbit(orbit.origin, pos, vel, false);
 			orbit.continuation = temp;
 			orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
-			closest.dist = std::numeric_limits< float >::infinity();
+			closest.dist = std::numeric_limits< double >::infinity();
 			orbit.find_closest_approach(asteroid.orbits.front(), 0, 0, closest);
 		}
 
@@ -378,7 +378,7 @@ void Rocket::update(float elapsed, Asteroid const &asteroid) {
 
 			orbit = Orbit(new_origin, pos, vel, false);
 			orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
-			closest.dist = std::numeric_limits< float >::infinity();
+			closest.dist = std::numeric_limits< double >::infinity();
 			orbit.find_closest_approach(asteroid.orbits.front(), 0, 0, closest);
 		}
 
@@ -386,7 +386,7 @@ void Rocket::update(float elapsed, Asteroid const &asteroid) {
 			if (satellite->in_soi(pos)) {
 				orbit = Orbit(satellite, pos, vel, false);
 				orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
-				closest.dist = std::numeric_limits< float >::infinity();
+				closest.dist = std::numeric_limits< double >::infinity();
 				orbit.find_closest_approach(asteroid.orbits.front(), 0, 0, closest);
 				break;
 			}
@@ -407,16 +407,16 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 	Orbit &orbit = orbits.front();
 	pos = orbit.get_pos();
 	vel = orbit.get_vel();
-	acc = glm::vec3(0.0f);
+	acc = glm::dvec3(0.0);
 	orbit.sim_predict(root, orbits, 0, orbits.begin(), universal_time);
 	time_of_collision = orbit.find_time_of_collision();
 
 	transform = transform_;
 	transform->position = pos;
-	transform->scale = glm::vec3(radius);
+	transform->scale = glm::dvec3(radius);
 }
 
-void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
+void Asteroid::update(double elapsed, std::deque< Beam > const &lasers) {
 	bool moved = false;
 	{
 		//simplification: only consider first laser in contact with asteroid
@@ -428,13 +428,13 @@ void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 			}
 		}
 		if (beam != nullptr) {
-			float dvel_magnitude =
-				beam->get_mass(pos) * Beam::MaxStrength / (mass * 1000.0f);
+			double dvel_magnitude =
+				beam->get_mass(pos) * Beam::MaxStrength / (mass * 1000.0);
 
 			// LOG("|dvel|: " << dvel_magnitude);
 			// LOG("|accum|: " << dvel_mag_accum);
 			// LOG("|vel|: " << glm::l2Norm(vel));
-			if (dvel_magnitude > 5.0e-3f * glm::l2Norm(vel)) {
+			if (dvel_magnitude > 5.0e-3 * glm::l2Norm(vel)) {
 				moved = true;
 
 				//update velocity
@@ -493,7 +493,7 @@ void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 	}
 }
 
-Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel, bool simulated) : origin(origin_) {
+Orbit::Orbit(Body *origin_, glm::dvec3 pos, glm::dvec3 vel, bool simulated) : origin(origin_) {
 	//Math references:
 	//https://orbital-mechanics.space/classical-orbital-elements/orbital-elements-and-the-state-vector.html
 	//https://scienceworld.wolfram.com/physics/SemilatusRectum.html
@@ -503,7 +503,7 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel, bool simulated) : orig
 	// LOG("\tentry vel: " << glm::to_string(vel));
 
 	mu = G * origin->mass;
-	glm::vec3 d, v;
+	glm::dvec3 d, v;
 	if (!simulated || origin->orbit == nullptr) {
 		d = pos - origin->pos; //relative position
 		v = vel - origin->vel; //relative velocity
@@ -513,63 +513,63 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel, bool simulated) : orig
 		v = vel - orbit->sim.vel; //relative velocity
 	}
 
-	glm::vec3 hvec = glm::cross(d, v); //specific orbital angular momentum
+	glm::dvec3 hvec = glm::cross(d, v); //specific orbital angular momentum
 	// LOG("\thvec: " << glm::to_string(hvec));
 
 	//Remove inclination
-	hvec.x = 0.0f;
-	hvec.y = 0.0f;
+	hvec.x = 0.0;
+	hvec.y = 0.0;
 
 	// incl = glm::acos(h.z / glm::l2Norm(h));
-	incl = hvec.z >= 0.0f ? 0.0f : M_PI;
-	float sign = hvec.z >= 0.0f ? 1.0f : -1.0f;
+	incl = hvec.z >= 0.0 ? 0.0 : M_PI;
+	double sign = hvec.z >= 0.0 ? 1.0 : -1.0;
 
-	glm::vec3 e = glm::cross(v, hvec) / mu - glm::normalize(d); //eccentricity vector, points to periapsis
+	glm::dvec3 e = glm::cross(v, hvec) / mu - glm::normalize(d); //eccentricity vector, points to periapsis
 	// LOG("\te: " << glm::to_string(e));
 
 	//Remove inclination
-	e.z = 0.0f;
+	e.z = 0.0;
 
 	c = glm::l2Norm(e);
 
-	float temp = glm::length2(hvec);
+	double temp = glm::length2(hvec);
 	p = temp / mu;
 	mu_over_h = mu / std::sqrt(temp);
 
-	if (c == 0.0f) { //true circular orbit doesn't really have a periapsis e will be zero-vector with no direction
-		phi = 0.0f;
+	if (c == 0.0) { //true circular orbit doesn't really have a periapsis e will be zero-vector with no direction
+		phi = 0.0;
 	} else {
 		phi = glm::atan(e.y, e.x);
 	}
 
-	if (std::abs(c - 1.0f) > 1.0e-5f) {
+	if (std::abs(c - 1.0) > 1.0e-5) {
 		a = p / (1.0f - c * c);
 	} else {
-		a = std::numeric_limits< float >::infinity();
+		a = std::numeric_limits< double >::infinity();
 	}
-	inv_a = 1.0f / a;
+	inv_a = 1.0 / a;
 
 	// LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a << " incl: " << incl);
 
-	rot = glm::mat3(
-		std::cos(-phi), -std::sin(-phi), 0.0f,
-		std::sin(-phi), std::cos(-phi), 0.0f,
-		0.0f, 0.0f, 1.0f
-	) * glm::mat3(
-		1.0f, 0.0f, 0.0f,
-		0.0f, std::cos(incl), std::sin(incl),
-		0.0f, -std::sin(incl), std::cos(incl)
+	rot = glm::dmat3(
+		std::cos(-phi), -std::sin(-phi), 0.0,
+		std::sin(-phi), std::cos(-phi), 0.0,
+		0.0, 0.0, 1.0
+	) * glm::dmat3(
+		1.0, 0.0, 0.0,
+		0.0, std::cos(incl), std::sin(incl),
+		0.0, -std::sin(incl), std::cos(incl)
 	);
 
 	theta = sign * (glm::atan(d.y, d.x) - phi);
-	float d_norm = glm::l2Norm(d);
+	double d_norm = glm::l2Norm(d);
 	if (p / d_norm > MinPForDegen) {
 		init_dynamics();
 	} else {
 		//degenerate orbit (freefall), do not use Kepler's equations
 		r = d_norm;
-		dtheta = 0.0f;
-		p = 0.0f;
+		dtheta = 0.0;
+		p = 0.0;
 		rpos = d;
 		rvel = v;
 	}
@@ -580,26 +580,26 @@ Orbit::Orbit(Body *origin_, glm::vec3 pos, glm::vec3 vel, bool simulated) : orig
 	// LOG("\tnew vel: " << glm::to_string(get_vel()));
 }
 
-Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool retrograde)
+Orbit::Orbit(Body *origin_, double c_, double p_, double phi_, double theta_, bool retrograde)
 		: origin(origin_), c(c_), p(p_), phi(phi_), theta(theta_) {
 
-	incl = retrograde ? M_PI : 0.0f;
-	if (c != 1.0f) {
-		a = p / (1.0f - c * c);
+	incl = retrograde ? M_PI : 0.0;
+	if (c != 1.0) {
+		a = p / (1.0 - c * c);
 	} else {
-		a = std::numeric_limits< float >::infinity();
+		a = std::numeric_limits< double >::infinity();
 	}
-	inv_a = 1.0f / a;
+	inv_a = 1.0 / a;
 	mu = G * origin->mass;
 	mu_over_h = mu / std::sqrt(mu * p);
-	rot = glm::mat3(
-		std::cos(-phi), -std::sin(-phi), 0.0f,
-		std::sin(-phi), std::cos(-phi), 0.0f,
-		0.0f, 0.0f, 1.0f
-	) * glm::mat3(
-		1.0f, 0.0f, 0.0f,
-		0.0f, std::cos(incl), std::sin(incl),
-		0.0f, -std::sin(incl), std::cos(incl)
+	rot = glm::dmat3(
+		std::cos(-phi), -std::sin(-phi), 0.0,
+		std::sin(-phi), std::cos(-phi), 0.0,
+		0.0, 0.0, 1.0
+	) * glm::dmat3(
+		1.0, 0.0, 0.0,
+		0.0, std::cos(incl), std::sin(incl),
+		0.0, -std::sin(incl), std::cos(incl)
 	);
 
 	LOG("Created orbit around: " << origin_->transform->name);
@@ -608,34 +608,34 @@ Orbit::Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool r
 	init_dynamics();
 }
 
-glm::vec3 Orbit::get_rpos(float theta_, float r_) {
-	return rot * glm::vec3(
+glm::dvec3 Orbit::get_rpos(double theta_, double r_) {
+	return rot * glm::dvec3(
 		r_ * std::cos(theta_),
 		r_ * std::sin(theta_),
-		0.0f
+		0.0
 	);
 }
 
-glm::vec3 Orbit::get_rvel(float theta_) {
-	return rot * glm::vec3(
+glm::dvec3 Orbit::get_rvel(double theta_) {
+	return rot * glm::dvec3(
 		-mu_over_h * std::sin(theta_),
 		mu_over_h * (c + std::cos(theta_)),
-		0.0f
+		0.0
 	);
 }
 
-void Orbit::update(float elapsed) {
-	const float time_step = elapsed * static_cast< float >(dilation) / static_cast< float >(UpdateSteps);
-	if (p == 0.0f) { //degenerate case
-		glm::vec3 drvel;
+void Orbit::update(double elapsed) {
+	const double time_step = elapsed * static_cast< double >(dilation) / static_cast< double >(UpdateSteps);
+	if (p == 0.0) { //degenerate case
+		glm::dvec3 drvel;
 		for (size_t i = 0; i < UpdateSteps; i++) {
-			float f = -mu / (r * r);
-			drvel = time_step * f * (rot * glm::vec3(
+			double f = -mu / (r * r);
+			drvel = time_step * f * (rot * glm::dvec3(
 				std::cos(theta),
 				std::sin(theta),
-				0.0f
+				0.0
 			));
-			rpos += (rvel + 0.5f * drvel) * time_step;
+			rpos += (rvel + 0.5 * drvel) * time_step;
 			rvel += drvel;
 			r = glm::l2Norm(rpos);
 			theta = glm::atan(rpos.y, rpos.x);
@@ -654,11 +654,11 @@ void Orbit::update(float elapsed) {
 
 void Orbit::predict() {
 	//Use this only for bodies, not for player
-	assert(c < 1.0f);
+	assert(c < 1.0);
 
 	for (size_t i = 0; i < PredictDetail; i++) {
-		float theta_ = static_cast< float >(i) * PredictAngle;
-		float r_ = compute_r(theta_);
+		double theta_ = static_cast< double >(i) * PredictAngle;
+		double r_ = compute_r(theta_);
 
 		points[i] = get_rpos(theta_, r_);
 	}
@@ -676,23 +676,23 @@ void Orbit::init_sim() {
 }
 
 void Orbit::sim_predict(
-		Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it, float start_time) {
+		Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it, double start_time) {
 	root->init_sim();
 	init_sim();
 
-	float current_time = start_time;
+	double current_time = start_time;
 	points[0] = sim.rpos;
 	point_times[0] =  current_time;
 	++it;
 
-	if (p == 0.0f) { //degenerate case
-		points[1] = glm::vec3(0.0f);
+	if (p == 0.0) { //degenerate case
+		points[1] = glm::dvec3(0.0);
 		points[2] = Invalid;
 		return;
 	}
 
-	float aligned = std::ceil(sim.theta / PredictAngle) * PredictAngle;
-	float step = (aligned - sim.theta) / sim.dtheta;
+	double aligned = std::ceil(sim.theta / PredictAngle) * PredictAngle;
+	double step = (aligned - sim.theta) / sim.dtheta;
 	for (size_t i = 1; i < PredictDetail; i++) {
 		root->simulate(step);
 		simulate(step);
@@ -750,23 +750,23 @@ void Orbit::sim_predict(
 	}
 
 	if (continuation != nullptr) {
-		soi_transit = std::numeric_limits< float >::infinity();
+		soi_transit = std::numeric_limits< double >::infinity();
 		continuation = nullptr;
 	}
 }
 
-void Orbit::simulate(float time) {
-	const float time_step = time / static_cast< float >(UpdateSteps);
-	if (p == 0.0f) { //degenerate case
-		glm::vec3 drvel;
+void Orbit::simulate(double time) {
+	const double time_step = time / static_cast< double >(UpdateSteps);
+	if (p == 0.0) { //degenerate case
+		glm::dvec3 drvel;
 		for (size_t i = 0; i < UpdateSteps; i++) {
-			float f = -mu / (sim.r * sim.r);
-			drvel = time_step * f * (rot * glm::vec3(
+			double f = -mu / (sim.r * sim.r);
+			drvel = time_step * f * (rot * glm::dvec3(
 				std::cos(sim.theta),
 				std::sin(sim.theta),
-				0.0f
+				0.0
 			));
-			sim.rpos += (sim.rvel + 0.5f * drvel) * time_step;
+			sim.rpos += (sim.rvel + 0.5 * drvel) * time_step;
 			sim.rvel += drvel;
 			sim.r = glm::l2Norm(sim.rpos);
 			sim.theta = glm::atan(sim.rpos.y, sim.rpos.x);
@@ -796,16 +796,16 @@ void Orbit::find_closest_approach(
 	size_t i = points_idx;
 	size_t j = other_points_idx;
 	while (i < ni && j < nj) {
-		glm::vec3 pos_i = points[i];
-		glm::vec3 pos_j = other.points[j];
+		glm::dvec3 pos_i = points[i];
+		glm::dvec3 pos_j = other.points[j];
 
 		if (pos_i == Orbit::Invalid || pos_j == Orbit::Invalid) {
 			break;
 		}
 
-		if (std::abs(point_times[i] - other.point_times[j]) < 1e8f && origin == other.origin) {
+		if (std::abs(point_times[i] - other.point_times[j]) < 1e8 && origin == other.origin) {
 			//find distance and update closest if needed
-			float dist = glm::distance(pos_i, pos_j);
+			double dist = glm::distance(pos_i, pos_j);
 			if (dist < closest.dist) {
 				closest.origin = origin;
 				closest.rocket_rpos = pos_i;
@@ -834,14 +834,14 @@ void Orbit::find_closest_approach(
 	}
 }
 
-float Orbit::find_time_of_collision() {
+double Orbit::find_time_of_collision() {
 	// Call only for asteroid / rocket orbit
 	size_t n = points.size();
 
 	for (size_t i = 0; i < n; i++) {
 		if (points[i] == Orbit::Invalid) break;
 
-		float dist = glm::l2Norm(points[i]);
+		double dist = glm::l2Norm(points[i]);
 		if (dist < origin->radius) { //collision
 			return point_times[i];
 		}
@@ -850,23 +850,23 @@ float Orbit::find_time_of_collision() {
 	if (continuation != nullptr) {
 		return continuation->find_time_of_collision();
 	} else {
-		return std::numeric_limits< float >::infinity();
+		return std::numeric_limits< double >::infinity();
 	}
 }
 
 void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 	size_t n = points.size();
 
-	glm::vec3 const &origin_pos = origin->pos;
+	glm::dvec3 const &origin_pos = origin->pos;
 
 	// LOG(n << " points");
 	for (size_t i = 0; i < n; i++) {
 		// LOG("drawing " << glm::to_string(points[i-1])  << " to " << glm::to_string(points[i]));
-		glm::vec3 next = points[(i + 1) % n];
+		glm::dvec3 next = points[(i + 1) % n];
 
-		if (next == Orbit::Invalid || glm::l2Norm(next) > 1e8f) break;
+		if (next == Orbit::Invalid || glm::l2Norm(next) > 1e8) break;
 
-		float alpha = color.w * std::max(0.2f, static_cast< float >(n - i)) / n;
+		double alpha = color.w * std::max(0.2, static_cast< double >(n - i)) / n;
 		lines.draw(points[i] + origin_pos, next + origin_pos, glm::u8vec4(color.x, color.y, color.z, alpha));
 	}
 

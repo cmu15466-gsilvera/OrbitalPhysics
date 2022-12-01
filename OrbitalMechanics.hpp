@@ -19,7 +19,7 @@
 
 #include "EmissiveShaderProgram.hpp"
 
-extern float universal_time;
+extern double universal_time;
 
 //Forward declarations
 struct Body;
@@ -40,24 +40,24 @@ extern int dilationInt;
 DilationLevel operator++(DilationLevel &level, int);
 DilationLevel operator--(DilationLevel &level, int);
 bool operator>(DilationLevel a, DilationLevel b);
-glm::vec3 DilationColor(const DilationLevel &level);
+glm::dvec3 DilationColor(const DilationLevel &level);
 std::string DilationSchematic(const DilationLevel &level);
 
 // Thing in the space
 struct Entity {
-	Entity(float r, float m) : radius(r), mass(m) {}
-	glm::vec3 pos{0.f};
-	glm::vec3 vel{0.f};
-	glm::vec3 acc{0.f};
-	float radius; //collision radius, Megameters (1000 kilometers)
-	float mass; //mass used for gravity calculation, Gigagrams (1 million kilograms)
+	Entity(double r, double m) : radius(r), mass(m) {}
+	glm::dvec3 pos{0.};
+	glm::dvec3 vel{0.};
+	glm::dvec3 acc{0.};
+	double radius; //collision radius, Megameters (1000 kilometers)
+	double mass; //mass used for gravity calculation, Gigagrams (1 million kilograms)
 };
 
 //Stars, Planets, Moons, etc.
 struct Body : public Entity {
-	Body(int _id, float r, float m, float sr) : Entity(r, m), id(_id), soi_radius(sr) {}
+	Body(int _id, double r, double m, double sr) : Entity(r, m), id(_id), soi_radius(sr) {}
 
-    float dayLengthInSeconds = 1.0f;
+    double dayLengthInSeconds = 1.0;
 
 	void set_orbit(Orbit *orbit_);
 	void set_transform(Scene::Transform *transform_)  {
@@ -67,16 +67,16 @@ struct Body : public Entity {
 	void add_satellite(Body *body) {
 		satellites.emplace_back(body);
 	}
-	bool check_collision(glm::vec3 target_pos, float target_radius) {
+	bool check_collision(glm::dvec3 target_pos, double target_radius) {
 		return glm::distance(pos, target_pos) <= radius + target_radius;
 	}
-	bool in_soi(glm::vec3 target_pos) {
+	bool in_soi(glm::dvec3 target_pos) {
 		return glm::distance(pos, target_pos) <= soi_radius;
 	}
-	void update(float elapsed);
+	void update(double elapsed);
 	void init_sim();
-	void simulate(float time);
-	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color, float scale);
+	void simulate(double time);
+	void draw_orbits(DrawLines &lines, glm::u8vec4 const &color, double scale);
 
 	std::vector< Body * > satellites;
 	Orbit *orbit = nullptr;
@@ -84,44 +84,44 @@ struct Body : public Entity {
 
 	//Fixed values
 	int id;
-	float soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
+	double soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
 };
 
 struct Beam {
 	Beam() = delete;
-	Beam(glm::vec3 &p, glm::vec3 h) : pos(p), heading(h), start_pos(p) {};
+	Beam(glm::dvec3 &p, glm::dvec3 h) : pos(p), heading(h), start_pos(p) {};
 	static constexpr glm::u8vec4 col = glm::u8vec4(0x00, 0xff, 0x00, 0xff); // green lasers
-	static constexpr float vel = 299.792f; // speed of light in megameters/sec
-	static constexpr float MaxStrength = 0.1f; // MegaNewtons.
+	static constexpr double vel = 299.792; // speed of light in megameters/sec
+	static constexpr double MaxStrength = 0.1; // MegaNewtons.
 	//NOTE: 100 kN is roughly weight of 2.5 elephants
-	glm::vec3 pos;
-	const glm::vec3 heading; // maybe we can make this change due to gravity of bodies?
-	float dt = 0.f;
-	const glm::vec3 start_pos;
+	glm::dvec3 pos;
+	const glm::dvec3 heading; // maybe we can make this change due to gravity of bodies?
+	double dt = 0.;
+	const glm::dvec3 start_pos;
 
-	glm::vec3 compute_delta_pos() const;
-	bool collide(glm::vec3 x) const;
-	float get_mass(glm::vec3 x) const;
+	glm::dvec3 compute_delta_pos() const;
+	bool collide(glm::dvec3 x) const;
+	double get_mass(glm::dvec3 x) const;
 	void draw(DrawLines &DL) const;
 };
 
 //Closest approach information
 struct ClosestApproachInfo {
 	Body *origin = nullptr;
-	glm::vec3 rocket_rpos; //rocket position (relative to body it orbits) at closest approach
-	glm::vec3 asteroid_rpos; //asteroid position (relative to body it orbits) at closest approach
-	float time_diff = std::numeric_limits< float >::infinity(); //used for debug
-	float dist = std::numeric_limits< float >::infinity();
+	glm::dvec3 rocket_rpos; //rocket position (relative to body it orbits) at closest approach
+	glm::dvec3 asteroid_rpos; //asteroid position (relative to body it orbits) at closest approach
+	double time_diff = std::numeric_limits< double >::infinity(); //used for debug
+	double dist = std::numeric_limits< double >::infinity();
 };
 
 //Asteroid
 struct Asteroid : public Entity {
-	Asteroid(float r_, float m_) : Entity(r_, m_) {}
+	Asteroid(double r_, double m_) : Entity(r_, m_) {}
 
 	void init(Scene::Transform *transform_, Body *root);
-	void update(float elapsed, std::deque< Beam > const &lasers);
+	void update(double elapsed, std::deque< Beam > const &lasers);
 	std::string get_time_remaining() {
-		if (time_of_collision == std::numeric_limits< float >::infinity()) {
+		if (time_of_collision == std::numeric_limits< double >::infinity()) {
 			return "∞";
 		}
 		std::stringstream stream;
@@ -134,59 +134,59 @@ struct Asteroid : public Entity {
 	Scene::Transform *transform;
 
 	bool crashed = false;
-	float time_of_collision = 42.0f; // dummy init value so we don't start on 0 and trigger win
+	double time_of_collision = 42.0; // dummy init value so we don't start on 0 and trigger win
 };
 
 //Player
 struct Rocket : public Entity {
-	Rocket() : Entity(0.2f, 0.01f) {}
+	Rocket() : Entity(0.2, 0.01) {}
 
 	void init(Scene::Transform *transform_, Body *root, Scene *scene, Asteroid const &asteroid);
 
-	void update(float elapsed, Asteroid const &asteroid);
-	void update_lasers(float elapsed);
+	void update(double elapsed, Asteroid const &asteroid);
+	void update_lasers(double elapsed);
 	void fire_laser();
 
-	glm::vec3 get_heading() const;
+	glm::dvec3 get_heading() const;
 
 	Body *root;
 	std::list< Orbit > orbits;
 	Scene::Transform *transform;
 	std::shared_ptr< Sound::PlayingSample > engine_loop;
 
-	static float constexpr DryMass = 4.0f; // Megagram
-	static float constexpr MaxThrust = 0.05f; // MegaNewtons
-	static float constexpr MaxFuelConsumption = 0.00002f; // Measured by mass, Megagram
-	static float constexpr LaserCooldown = 1.0e4f;
+	static double constexpr DryMass = 4.0; // Megagram
+	static double constexpr MaxThrust = 0.05; // MegaNewtons
+	static double constexpr MaxFuelConsumption = 0.00002; // Measured by mass, Megagram
+	static double constexpr LaserCooldown = 1.0e4;
 
 	static int constexpr MAX_BEAMS = 1000; // don't have more than this
-	glm::vec3 aim_dir;
+	glm::dvec3 aim_dir;
 	std::deque<Beam> lasers; // fast insertion/deletion at both ends
 
-	float control_dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
-	float dtheta = 0.0f; //change in theta indicated by user controls(yaw rotation)
-	float theta = 0.0f; //rotation along XY plane, radians
-	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
-	float fuel = 8.0f; //measured by mass, Megagram
-	float maxFuel = 8.0f; //measured by mass, Megagram
+	double control_dtheta = 0.0; //change in theta indicated by user controls(yaw rotation)
+	double dtheta = 0.0; //change in theta indicated by user controls(yaw rotation)
+	double theta = 0.0; //rotation along XY plane, radians
+	double thrust_percent = 0.0; //forward thrust, expressed as a percentage of MaxThrust
+	double fuel = 8.0; //measured by mass, Megagram
+	double maxFuel = 8.0; //measured by mass, Megagram
 
-	float laser_timer = 0.0f; //when 0, laser is fireable
+	double laser_timer = 0.0; //when 0, laser is fireable
 
 	ClosestApproachInfo closest;
 
 	bool crashed = false;
 
-	float timeSinceLastParticle = 0.0f;
+	double timeSinceLastParticle = 0.0;
 	int lastParticle = 0;
 
 	struct ThrustParticle {
-		float lifeTime;
-		glm::vec3 velocity;
-		float scale;
-		float _t;
+		double lifeTime;
+		glm::dvec3 velocity;
+		double scale;
+		double _t;
 		glm::vec4 color;
 		std::list<Scene::Transform>::iterator transform;
-		ThrustParticle(std::list<Scene::Transform>::iterator trans_, float lifeTime_, glm::vec3 v_, float scale) : lifeTime(lifeTime_), velocity(v_), scale(scale), transform(trans_) {
+		ThrustParticle(std::list<Scene::Transform>::iterator trans_, double lifeTime_, glm::dvec3 v_, double scale) : lifeTime(lifeTime_), velocity(v_), scale(scale), transform(trans_) {
 			_t = 0;
 		}
 	};
@@ -199,8 +199,8 @@ struct Rocket : public Entity {
 //Orbital path: https://en.wikipedia.org/wiki/Kepler_orbit
 //Orbital velocity: https://en.wikipedia.org/wiki/Vis-viva_equation
 struct Orbit {
-	Orbit(Body *origin, glm::vec3 pos, glm::vec3 vel, bool simulated);
-	Orbit(Body *origin_, float c_, float p_, float phi_, float theta_, bool retrograde);
+	Orbit(Body *origin, glm::dvec3 pos, glm::dvec3 vel, bool simulated);
+	Orbit(Body *origin_, double c_, double p_, double phi_, double theta_, bool retrograde);
 
 	void init_dynamics() {
 		assert(p > MinPForDegen);
@@ -211,96 +211,96 @@ struct Orbit {
 	}
 
 	// Computing dynamics
-	float compute_dtheta(float r_) {
+	double compute_dtheta(double r_) {
 		//vis-viva equation: https://en.wikipedia.org/wiki/Vis-viva_equation
-		return std::sqrt(mu * (2.0f / r_ - inv_a)) / r_;
+		return std::sqrt(mu * (2.0 / r_ - inv_a)) / r_;
 	}
-	float compute_dtheta() {
+	double compute_dtheta() {
 		return dtheta = compute_dtheta(r);
 	}
-	float compute_r(float theta_) {
+	double compute_r(double theta_) {
 		//Kepler orbit equation: https://en.wikipedia.org/wiki/Kepler_orbit
-		float denom = (1.0f + c * std::cos(theta_));
-		return denom != 0.0f ? p / denom : p;
+		double denom = (1.0 + c * std::cos(theta_));
+		return denom != 0.0 ? p / denom : p;
 	}
-	float compute_r() {
+	double compute_r() {
 		return r = compute_r(theta);
 	}
-	void update(float elapsed);
-	glm::vec3 get_rpos(float theta_, float r_);
-	glm::vec3 get_rvel(float theta_);
+	void update(double elapsed);
+	glm::dvec3 get_rpos(double theta_, double r_);
+	glm::dvec3 get_rvel(double theta_);
 
 	//Convenience functions
-	glm::vec3 get_pos() {
+	glm::dvec3 get_pos() {
 		return rpos + origin->pos;
 	}
-	glm::vec3 get_vel() {
+	glm::dvec3 get_vel() {
 		return rvel + origin->vel;
 	}
 
 	//Simulate and draw the orbit (populate points)
 	void predict();
 	void init_sim();
-	void simulate(float time);
+	void simulate(double time);
 	void sim_predict(
-		Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it, float start_time);
-	bool will_soi_transit(float elapsed)  {
-		return theta + 32.0f * dtheta * elapsed * static_cast< float >(dilation) >= soi_transit;
+		Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it, double start_time);
+	bool will_soi_transit(double elapsed)  {
+		return theta + 32.0f * dtheta * elapsed * static_cast< double >(dilation) >= soi_transit;
 	}
 	void find_closest_approach(Orbit const &other, size_t points_idx, size_t other_points_idx,
 		ClosestApproachInfo &closest);
-	float find_time_of_collision();
+	double find_time_of_collision();
 	void draw(DrawLines &lines, glm::u8vec4 const &color);
 
 	//Constants
-	static float constexpr G = 6.67430e-23f; //Standard gravitational constant
-	static float constexpr MinPForDegen = 1.0e-4f;
+	static double constexpr G = 6.67430e-23; //Standard gravitational constant
+	static double constexpr MinPForDegen = 1.0e-4;
 	static size_t constexpr UpdateSteps = 100;
 	static size_t constexpr PredictDetail = 900; //number of points to generate when predicting
-	static float constexpr PredictAngle = glm::radians(360.0f / static_cast< float >(PredictDetail)); //change btwn pts
-	static float constexpr TimeStep = 1.0f; //time step, seconds
-	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI
+	static double constexpr PredictAngle = glm::radians(360.0 / static_cast< double >(PredictDetail)); //change btwn pts
+	static double constexpr TimeStep = 1.0; //time step, seconds
+	static glm::dvec3 constexpr Invalid = glm::dvec3(std::numeric_limits< double >::max()); // signifies point outside SOI
 	static int constexpr MaxLevel = 2;
 	//Fixed values
 	Body *origin;
 
 	//Future trajectory, populated by predict()
-	std::array< glm::vec3, PredictDetail > points; //Cache of orbit points for drawing
-	std::array< float, PredictDetail > point_times; //Used only for Rocket/Asteroid closest approach calc
-	float soi_transit = std::numeric_limits< float >::infinity(); //theta value for SOI transit
+	std::array< glm::dvec3, PredictDetail > points; //Cache of orbit points for drawing
+	std::array< double, PredictDetail > point_times; //Used only for Rocket/Asteroid closest approach calc
+	double soi_transit = std::numeric_limits< double >::infinity(); //theta value for SOI transit
 	Orbit *continuation = nullptr; //Continuation in next SOI
 
 	//Values defining orbit
-	float c; //eccentricity (unitless)
-	float p; //semi-latus rectum, in Megameters
-	float a; //semi-major axis, in Megameters
-	float phi; //radial component of periapsis, in radians
-	float incl; //inclination, in radians
+	double c; //eccentricity (unitless)
+	double p; //semi-latus rectum, in Megameters
+	double a; //semi-major axis, in Megameters
+	double phi; //radial component of periapsis, in radians
+	double incl; //inclination, in radians
 
 	//Cached for performance
-	float mu; //standard gravitation parameter, mu = G * origin->mass;
-	float mu_over_h; //=mu/h, h is magnitude of specific orbital angular momentum
-	float inv_a; //=1/a
-	glm::mat3 rot; //rotation matrix from orbital plane to world
+	double mu; //standard gravitation parameter, mu = G * origin->mass;
+	double mu_over_h; //=mu/h, h is magnitude of specific orbital angular momentum
+	double inv_a; //=1/a
+	glm::dmat3 rot; //rotation matrix from orbital plane to world
 
 	//Dynamics
-	float r; //orbital distance, a.k.a distance from center of origin, in Megameters
-	float theta; //true anomaly, a.k.a angle from periapsis, in radians
-	float dtheta; //orbital angular velocity, in radians
+	double r; //orbital distance, a.k.a distance from center of origin, in Megameters
+	double theta; //true anomaly, a.k.a angle from periapsis, in radians
+	double dtheta; //orbital angular velocity, in radians
 
-	glm::vec3 rpos; //relative position (from origin)
-	glm::vec3 rvel; //relative velocity (from origin)
+	glm::dvec3 rpos; //relative position (from origin)
+	glm::dvec3 rvel; //relative velocity (from origin)
 
 	//Dynamics under simulation
 	struct Simulation {
-		float r;
-		float theta;
-		float dtheta;
-		glm::vec3 pos;
-		glm::vec3 vel;
+		double r;
+		double theta;
+		double dtheta;
+		glm::dvec3 pos;
+		glm::dvec3 vel;
 
-		glm::vec3 rpos;
-		glm::vec3 rvel;
+		glm::dvec3 rpos;
+		glm::dvec3 rvel;
 	};
 
 	Simulation sim;
