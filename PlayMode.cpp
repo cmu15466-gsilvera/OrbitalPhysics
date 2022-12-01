@@ -145,6 +145,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 
 	{ //load text
 		UI_text.init(Text::AnchorType::LEFT);
+		GameOverText.init(Text::AnchorType::CENTER);
         ThrottleHeader.init(Text::AnchorType::LEFT);
         ThrottleReading.init(Text::AnchorType::LEFT);
         SpeedupReading.init(Text::AnchorType::RIGHT);
@@ -761,11 +762,17 @@ void PlayMode::update(float elapsed) {
 
 	if (playing) { // collision logic
 		if (asteroid.crashed) {
-			LOG("Game Over: Asteroid crashed!");
 			target_lock = &asteroid;
 			tab.downs = 1; // to trigger the camera transition
 			game_status = GameStatus::LOSE;
+			dilation = LEVEL_0;
+			anim = 0.f;
 		}
+	}
+
+	if (!playing) {
+		anim += 0.01f * elapsed;
+		anim = std::min(anim, 1.0f);
 	}
 
 	if (playing) { //laser
@@ -1117,6 +1124,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
     for(int i = 0; i < dilationInt + 1; i++){
 	    HUD::drawElement(glm::vec2(70, 23), HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-75, -145 + (46 * i))), bar, glm::vec4(DilationColor(dilation) * 255.0f, 255.0));
     }
+
+	if (game_status != GameStatus::PLAYING) {
+		std::string message = game_status == GameStatus::WIN ? "Mission Accomplished!" : "Mission Failed!";
+		auto color = game_status == GameStatus::WIN ? glm::u8vec4{0x0, 0xff, 0x0, 0xff} : glm::u8vec4{0xff, 0x0, 0x0, 0xff};
+		GameOverText.set_text(message);
+		GameOverText.draw(anim, drawable_size, 200, 0.5f * glm::vec2(drawable_size), 2.0f, color);
+	}
 
 	/* glm::u8vec4 color{0xff}; */
 	/* if (spaceship.thrust_percent > 0) { */

@@ -129,6 +129,8 @@ struct PlayMode : Mode {
 		LOSE,
 	};
 	GameStatus game_status = GameStatus::PLAYING;
+	Text GameOverText;
+	float anim = 0.f;
 
 
 	//camera:
