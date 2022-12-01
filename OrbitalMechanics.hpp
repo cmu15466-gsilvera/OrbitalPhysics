@@ -125,7 +125,7 @@ struct Asteroid : public Entity {
 			return "∞";
 		}
 		std::stringstream stream;
-		stream << std::setfill('0') << std::setw(9) << static_cast< int >(time_of_collision - universal_time);
+		stream << std::setfill('0') << std::setw(9) << std::max(static_cast< int >(time_of_collision - universal_time), 0);
 		return "T-" + stream.str();
 	}
 
@@ -245,7 +245,7 @@ struct Orbit {
 	void sim_predict(
 		Body *root, std::list< Orbit > &orbits, int level, std::list< Orbit >::iterator it, float start_time);
 	bool will_soi_transit(float elapsed)  {
-		return theta + 4.0f * dtheta * elapsed * static_cast< float >(dilation) >= soi_transit;
+		return theta + 32.0f * dtheta * elapsed * static_cast< float >(dilation) >= soi_transit;
 	}
 	void find_closest_approach(Orbit const &other, size_t points_idx, size_t other_points_idx,
 		ClosestApproachInfo &closest);
@@ -256,7 +256,7 @@ struct Orbit {
 	static float constexpr G = 6.67430e-23f; //Standard gravitational constant
 	static float constexpr MinPForDegen = 1.0e-4f;
 	static size_t constexpr UpdateSteps = 100;
-	static size_t constexpr PredictDetail = 300; //number of points to generate when predicting
+	static size_t constexpr PredictDetail = 3600; //number of points to generate when predicting
 	static float constexpr PredictAngle = glm::radians(360.0f / static_cast< float >(PredictDetail)); //change btwn pts
 	static float constexpr TimeStep = 1.0f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI

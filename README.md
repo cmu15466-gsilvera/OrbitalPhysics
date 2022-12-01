@@ -22,7 +22,7 @@ Project Athena is a space game operating with realistic orbital mechanics. It of
 The goal of the game is to use your laser to move the asteroid until it is no longer on a collision course. Currently, there are three levels of increasing difficulty and an in-game tutorial covering the basic controls. A more in-depth tutorial is laid out below:
 
 ### Camera Controls:
-- Zotate by dragging with any mouse button
+- Rotate by dragging with any mouse button
 - Zoom in/out using the scroll wheel
 - While hovering your cursor over an object, press `TAB` to switch focus to that object. Pressing `~` will reset focus to the player.
 
@@ -43,7 +43,7 @@ The goal of the game is to use your laser to move the asteroid until it is no lo
 - Orbital mechanics can be confusing at the start. Unlike a more grounded environment, you don't simply fire your rocket toward where you want to go. Oversimplified:
     - Burning (a.k.a fire your rocket) along your current velocity (the line tangent to the orbit) will inflate the part of the orbit on the opposite side of your location. This is known as burning 'prograde'.
     - Burn against your current velocity will deflate the part of the orbit on the opposite side of your location. This is known as burning 'retrograde'.
-    - Burn perpendicular to your current velocity to inflate the orbit on one side (i.e. left) while deflating the other side (i.e. right). This is known as burning 'radial-in' and burning'radial-out.
+    - Burn perpendicular to your current velocity to inflate the orbit on one side (i.e. left) while deflating the other side (i.e. right). This is known as burning 'radial-in' and burning 'radial-out'.
     - Note that the position you are at can highly impact how much fuel it takes to change your orbit by a certain amount! For example, it's much easier to raise the highest point of your orbit by burning prograde at the lowest point in your orbit than it is at the highest point of your orbit.
 - Astrodynamics often presents excellent examples of the Butterfly Effect. A tiny change in velocity can result in massive changes in future orbit trajectories or very little at all. Even after our simplifications, there is still a sizeable learning curve and will not be easy for everyone. Quicksaving often can speed up the learning process!
 

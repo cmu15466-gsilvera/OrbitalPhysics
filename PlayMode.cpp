@@ -200,14 +200,14 @@ void PlayMode::serialize_body(std::ofstream &file, Body const &body) {
 	 * ---
 	 * Body:
 	 * name_of_transform,id
-	 * radius,mass,soi_radius
+	 * radius,mass,soi_radius,day_length
 	 * Orbit: origin_id;c,p,phi,theta,retrograde
 	 * ---
 	 * For the star, which has no orbit, will have "Orbit: None" instead.
 	 */
 	assert(body.transform != nullptr);
 	file << "Body:\n" << body.transform->name << ',' << body.id << '\n';
-	file << body.radius << ',' << body.mass << ',' << body.soi_radius << '\n';
+	file << body.radius << ',' << body.mass << ',' << body.soi_radius << "," << body.dayLengthInSeconds << '\n';
 	if (body.orbit == nullptr) {
 		file << "Orbit: None\n";
 		return;
@@ -268,6 +268,7 @@ void PlayMode::deserialize(std::string const &filename) {
 	camera_arms.clear();
 	scene.drawables.clear();
 	dilation = LEVEL_0;
+	dilationInt = 0;
 
 	entities.push_back(&spaceship);
 	current_focus_entity = &spaceship; // first focus should be on spaceship
@@ -808,10 +809,10 @@ void PlayMode::update(float elapsed) {
 			game_status = GameStatus::LOSE;
 			dilation = LEVEL_0;
 		} else if (asteroid.time_of_collision == std::numeric_limits< float >::infinity()) {
-			target_lock = &spaceship;
-			tab.downs = 1; // to trigger the camera transition
-			game_status = GameStatus::WIN;
-			dilation = LEVEL_0;
+			// target_lock = &spaceship;
+			// tab.downs = 1; // to trigger the camera transition
+			// game_status = GameStatus::WIN;
+			// dilation = LEVEL_0;
 		}
 	}
 
