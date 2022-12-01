@@ -156,7 +156,7 @@ struct Rocket : public Entity {
 
 	static float constexpr DryMass = 4.0f; // Megagram
 	static float constexpr MaxThrust = 0.05f; // MegaNewtons
-	static float constexpr MaxFuelConsumption = 0.00001f; // Measured by mass, Megagram
+	static float constexpr MaxFuelConsumption = 0.00002f; // Measured by mass, Megagram
 	static float constexpr LaserCooldown = 1.0e4f;
 
 	static int constexpr MAX_BEAMS = 1000; // don't have more than this

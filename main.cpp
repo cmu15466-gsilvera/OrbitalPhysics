@@ -69,9 +69,9 @@ int main(int argc, char **argv) {
 
 	//create window:
 	SDL_Window *window = SDL_CreateWindow(
-		"Athena: game prototype", //TODO: remember to set a title for your game!
+		"Project Athena",
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		1920, 1080, //TODO: modify window size if you'd like
+		1920, 1080,
 		SDL_WINDOW_OPENGL
 		| SDL_WINDOW_RESIZABLE //uncomment to allow resizing
 		// | SDL_WINDOW_ALLOW_HIGHDPI //uncomment for full resolution on high-DPI screens

@@ -197,7 +197,7 @@ struct PlayMode : Mode {
 	}
 
 	// text UI
-	Text UI_text;
+	// Text UI_text;
 	Text ThrottleHeader;
 	Text ThrottleReading;
 	Text SpeedupReading;

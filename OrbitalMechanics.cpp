@@ -418,8 +418,7 @@ void Asteroid::init(Scene::Transform *transform_, Body *root_) {
 
 void Asteroid::update(float elapsed, std::deque< Beam > const &lasers) {
 	bool moved = false;
-	{ //TODO: this is a placeholder for when rocket and asteroid interact
-
+	{
 		//simplification: only consider first laser in contact with asteroid
 		const Beam *beam = nullptr;
 		for (auto &laser : lasers) {

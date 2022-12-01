@@ -145,7 +145,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	//NOTE: For testing purposes, feel free to change the above to level_2 or level_3
 
 	{ //load text
-		UI_text.init(Text::AnchorType::LEFT);
+		// UI_text.init(Text::AnchorType::LEFT);
 		GameOverText.init(Text::AnchorType::CENTER);
         ThrottleHeader.init(Text::AnchorType::LEFT);
         ThrottleReading.init(Text::AnchorType::LEFT);
@@ -642,8 +642,6 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		camarm.camera_arm_length = std::max(camarm.camera_arm_length, 5.f);
 		// evt.wheel.x for horizontal scrolling
 	}
-	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
-	//(for orbital manuever planning tool)
 
 	return false;
 }
@@ -769,14 +767,13 @@ void PlayMode::update(float elapsed) {
 		spaceship.thrust_percent = 0.f;
 	}
 
-	{ //update text UI
-		std::stringstream stream;
-		stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
-			   << '\n' << "fuel: " << spaceship.fuel << '\n'
-			   << '\n' << "time: " << DilationSchematic(dilation) << " ("  << dilation << "x)";
-		// stream << "a" << std::endl << "b";
-		UI_text.set_text(stream.str());
-	}
+	// { //update text UI
+	// 	std::stringstream stream;
+	// 	stream << std::fixed << std::setprecision(1) << "thrust: " << spaceship.thrust_percent << "%" << '\n'
+	// 		   << '\n' << "fuel: " << spaceship.fuel << '\n'
+	// 		   << '\n' << "time: " << DilationSchematic(dilation) << " ("  << dilation << "x)";
+	// 	UI_text.set_text(stream.str());
+	// }
 
     if (playing) {
 		ThrottleHeader.set_text("Throttle");
@@ -992,7 +989,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	camera->aspect = float(drawable_size.x) / float(drawable_size.y);
 
 	//set up light type and position for lit_color_texture_program:
-	// TODO: consider using the Light(s) in the scene to do this
 	glUseProgram(lit_color_texture_program->program);
 	glUniform3fv(lit_color_texture_program->AMBIENT_COLOR_vec3, 1, glm::value_ptr(glm::vec3(0.1f, 0.1f,0.1f)));
 	glUniform3fv(lit_color_texture_program->LIGHT_DIRECTION_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 0.0f,-1.0f)));
