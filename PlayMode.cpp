@@ -292,7 +292,12 @@ void PlayMode::deserialize(std::string const &filename) {
 	}
 
 	// tune custom params as follows
-	camera_arms.at(&spaceship).scroll_zoom = 5.f;
+	CameraArm::camera_pan_offset = glm::normalize(CameraArm::camera_pan_offset);
+	auto &camarm0 = camera_arms.at(&spaceship);
+	{ // set the spaceship as the first camera focus
+		camera->transform->position = camarm0.get_target_point();
+		camera->transform->rotation = glm::quatLookAt(glm::normalize(camarm0.get_focus_point() - camera->transform->position), glm::vec3(0, 0, 1));
+	}
 }
 
 inline static void throw_on_err(std::istream &s, std::string const &errmsg) {
@@ -618,36 +623,15 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 	} else if(evt.type == SDL_MOUSEWHEEL) {
 		auto &camarm = CurrentCameraArm();
-		camarm.scroll_zoom = std::max(camarm.scroll_zoom * (1.0f - evt.wheel.y * camarm.ScrollSensitivity), 5.f);
+		float scroll_zoom = -evt.wheel.y * camarm.ScrollSensitivity;
+		camarm.camera_arm_length += scroll_zoom * (camarm.camera_arm_length / camarm.init_radius_multiples);
+		camarm.camera_arm_length = std::max(camarm.camera_arm_length, 0.f);
 		// evt.wheel.x for horizontal scrolling
 	}
 	//TODO: down the line, we might want to record mouse motion if we want to support things like click-and-drag
 	//(for orbital manuever planning tool)
 
 	return false;
-}
-
-void PlayMode::CameraArm::update(Scene::Camera *cam, float mouse_x, float mouse_y) {
-	const glm::vec3 &focus_point = entity->pos;
-	camera_arm_length = std::max(entity->radius, 1.0f) * scroll_zoom;
-
-	// camera arm length depends on radius
-	{
-		glm::mat4x3 frame = cam->transform->make_local_to_parent();
-		glm::vec3 right_vec = frame[0];
-		glm::vec3 up_vec = frame[1];
-
-		this->camera_offset -= (mouse_x * right_vec + mouse_y * up_vec) * camera_arm_length * MouseSensitivity;
-		this->camera_offset = camera_arm_length * glm::normalize(camera_offset);
-
-		glm::vec3 new_pos = focus_point + camera_offset;
-		glm::vec3 dir = glm::normalize(focus_point - new_pos);
-
-		//TODO: fix the spinning when go directly over and up is parallel to dir
-		// Doing this probably requires not using the transformation matrix's vectors for finding right and up vecs
-		cam->transform->position = new_pos;
-		cam->transform->rotation = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
-	}
 }
 
 void PlayMode::update(float elapsed) {
@@ -759,17 +743,51 @@ void PlayMode::update(float elapsed) {
 	}
 
 	{ //update camera controls (after spaceship update for smooth motion)
-		if (tab.downs > 0) {
+		auto update_camera_pan = [&](){ // compute camera offset according to mouse
+			if (can_pan_camera) {
+				glm::mat4x3 frame = camera->transform->make_local_to_parent();
+				glm::vec3 right_vec = frame[0];
+				glm::vec3 up_vec = frame[1];
+				const float s = 5.0f; // scale mouse
+				CameraArm::camera_pan_offset -= (mouse_motion_rel.x * right_vec + mouse_motion_rel.y * up_vec) * s;
+				CameraArm::camera_pan_offset = glm::normalize(CameraArm::camera_pan_offset);
+			};
+		};
+		update_camera_pan();
+
+
+		auto &camarm = CurrentCameraArm();
+		glm::vec3 focus_pt = camarm.get_focus_point(); // center of the body of mass
+		glm::vec3 target_pt = camarm.get_target_point(); // where the camera actually goes (not in the center)
+		if (tab.downs > 0) { // to switch camera views
 			uint8_t dir = shift.pressed ? -1 : 1;
 			camera_view_idx = (camera_view_idx + dir) % camera_arms.size();
-		}
-		CameraArm &camarm = CurrentCameraArm();
 
-		if (can_pan_camera) {
-			camarm.update(camera,  mouse_motion_rel.x,  mouse_motion_rel.y);
+			// start the camera transition (new current camera arm)
+			camarm = CurrentCameraArm();
+			target_pt = camarm.get_target_point();
+			focus_pt = camarm.get_focus_point();
+			camera_transition = target_pt - camera->transform->position;
+			camera_start_rot = camera->transform->rotation;
+			camera_end_rot = glm::quatLookAt(glm::normalize(focus_pt - target_pt), glm::vec3(0, 0, 1));
+		}
+
+		if (glm::length(focus_pt - camera->transform->position) <= (camarm.camera_arm_length * camarm.entity->radius) * 1.1f || 
+			glm::length(camera_transition) < 0.01f) {
+			//TODO: fix the spinning when go directly over and up is parallel to dir
+			// Doing this probably requires not using the transformation matrix's vectors for finding right and up vecs
+			camera->transform->position = target_pt;
+			camera->transform->rotation = glm::quatLookAt(glm::normalize(focus_pt - camera->transform->position), glm::vec3(0, 0, 1));
 		}
 		else {
-			camarm.update(camera,  0.f,  0.f);
+			float t = 1.0f - glm::length(camera->transform->position - target_pt) / glm::length(camera_transition);
+			{ // smoothly interpolate position (with bell-like curve)
+				auto bell_curve = [](float x){return 1.f * std::exp(-std::powf(x - 0.5f, 6.0f) / 0.01f); };
+				camera->transform->position += camera_transition * elapsed * bell_curve(t);
+			}
+			{ // smoothly interpolate rotation (linearly)
+				camera->transform->rotation = glm::mix(camera_start_rot, camera_end_rot, t);
+			}
 		}
 	}
 
@@ -957,7 +975,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		// static float constexpr display_multiplier = 1000.0f;
 
 		const float radscale = 0.5f;
-		float radius = radscale * CurrentCameraArm().scroll_zoom / CameraArm::init_scroll_zoom;
+		float radius = radscale * CurrentCameraArm().camera_arm_length / CameraArm::init_radius_multiples;
 		float circle_radius = 0.4f * radius;
 		if (radius > 1.f / radscale) {
 			glm::vec3 heading = spaceship.get_heading();

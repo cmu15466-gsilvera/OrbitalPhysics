@@ -122,23 +122,30 @@ struct PlayMode : Mode {
 
 		CameraArm() = delete; // must pass in an Entity to focus on!
 		CameraArm(const Entity *e) : entity(e) {}
-		void update(Scene::Camera *camera, float mouse_x, float mouse_y);
 
 		const Entity *entity = nullptr;
 
 		static float constexpr ScrollSensitivity = 0.25f;
-		static float constexpr MouseSensitivity = 5.0f;
 
 		//Controls position
-		glm::vec3 camera_offset{0.0f, 1.0f, 1.0f};
-		static constexpr float init_scroll_zoom = 10.0f;
-		float scroll_zoom = init_scroll_zoom;
-		float camera_arm_length = 20.0f;
+		static constexpr float init_radius_multiples = 20.0f;
+		float camera_arm_length = init_radius_multiples;
+
+		inline static glm::vec3 camera_pan_offset{1.0f, 1.0f, 1.0f}; // must not be zeros
+		inline const glm::vec3 &get_focus_point() const { // for smooth transitions
+			return entity->pos;
+		};
+
+		inline const glm::vec3 get_target_point() const { // for smooth transitions
+			return get_focus_point() + camera_arm_length * entity->radius * camera_pan_offset;
+		};
 	};
 
 	std::unordered_map< const Entity*, CameraArm > camera_arms;
 	std::vector< const Entity* > camera_views;
 	size_t camera_view_idx = 0;
+	glm::vec3 camera_transition{0.f};
+	glm::quat camera_start_rot, camera_end_rot;
 
 	CameraArm &CurrentCameraArm() {
 		if (camera_view_idx > camera_views.size() || camera_view_idx > camera_arms.size())
