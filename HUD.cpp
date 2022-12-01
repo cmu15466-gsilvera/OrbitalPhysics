@@ -6,6 +6,7 @@
 #include "gl_errors.hpp"
 #include <iostream>
 #include <glm/gtc/type_ptr.hpp>
+#include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION   // use of stb functions once and for all
 #include "stb_image.h"
@@ -13,6 +14,9 @@
 GLuint HUD::buffer;
 GLuint HUD::vao;
 bool HUD::initialized = false;
+
+glm::uvec2 HUD::SCREEN_DIM = glm::vec2(0);
+std::vector<HUD::Sprite*> HUD::sprites;
 
 void HUD::init(){
 	glGenVertexArrays(1, &vao);
@@ -45,6 +49,36 @@ void HUD::init(){
 	GL_ERRORS();
 }
 
+glm::vec2 HUD::fromAnchor(Anchor anchor, glm::vec2 offset){
+    switch (anchor) {
+        case TOPLEFT:
+            return offset + glm::vec2(0, SCREEN_DIM.y);
+        case TOPCENTER:
+            return offset + glm::vec2(SCREEN_DIM.x / 2, SCREEN_DIM.y);
+        case TOPRIGHT:
+            return offset + glm::vec2(SCREEN_DIM.x, SCREEN_DIM.y);
+        case CENTERRIGHT:
+            return offset + glm::vec2(SCREEN_DIM.x, SCREEN_DIM.y / 2);
+        case BOTTOMRIGHT:
+            return offset + glm::vec2(SCREEN_DIM.x, 0);
+        case BOTTOMCENTER:
+            return offset + glm::vec2(SCREEN_DIM.x / 2, 0);
+        case BOTTOMLEFT:
+            return offset;
+        case CENTERLEFT:
+            return offset + glm::vec2(0, SCREEN_DIM.y / 2);
+        default:
+            return offset;
+            break;
+    }
+}
+
+void HUD::freeSprites(){
+    for(auto it = sprites.begin(); it < sprites.end(); it++){
+        free(*it);
+    }
+}
+
 HUD::Sprite *HUD::loadSprite(std::string path){
 	if(!HUD::initialized)
 		init();
@@ -74,14 +108,16 @@ HUD::Sprite *HUD::loadSprite(std::string path){
 
 	stbi_image_free(data);
 
+    sprites.push_back(ret);
+
 	return ret;
 }
 
-void HUD::drawElement(glm::vec2 size, glm::vec2 pos, Sprite *sprite, glm::uvec2 const &dims, glm::u8vec4 const &color) {
-	drawElement(size, pos, sprite, static_cast<float>(dims.x), static_cast<float>(dims.y), color);
+void HUD::drawElement(glm::vec2 pos, HUD::Sprite *sprite, glm::u8vec4 const &color){
+    drawElement(glm::vec2(static_cast<float>(sprite->width),static_cast<float>(sprite->height)), pos, sprite, color);
 }
 
-void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float width, float height, glm::u8vec4 const &color){
+void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, glm::u8vec4 const &color){
 	glUseProgram(color_texture_program->program);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, sprite->textureID);
@@ -92,7 +128,7 @@ void HUD::drawElement(glm::vec2 size, glm::vec2 pos, HUD::Sprite *sprite, float 
 	glEnableVertexAttribArray(1);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glUniformMatrix4fv(color_texture_program->OBJECT_TO_CLIP_mat4, 1, GL_FALSE, glm::value_ptr(glm::ortho(0.0f, width, 0.f, height, 0.f, 1.0f)));
+	glUniformMatrix4fv(color_texture_program->OBJECT_TO_CLIP_mat4, 1, GL_FALSE, glm::value_ptr(glm::ortho(0.0f, static_cast<float>(SCREEN_DIM.x), 0.f, static_cast<float>(SCREEN_DIM.y), 0.f, 1.0f)));
 	glUniform4fv(color_texture_program->OFFSET_vec4, 1, glm::value_ptr(glm::vec4(size.x, -size.y, pos.x, pos.y)));
 	glUniform4fv(color_texture_program->COLOR_vec4, 1, glm::value_ptr(glm::vec4(color) / 255.f));
 

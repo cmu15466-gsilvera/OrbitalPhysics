@@ -31,6 +31,7 @@ enum DilationLevel {
 };
 
 extern DilationLevel dilation;
+extern int dilationInt;
 
 DilationLevel operator++(DilationLevel &level, int);
 DilationLevel operator--(DilationLevel &level, int);
@@ -152,6 +153,7 @@ struct Rocket : public Entity {
 	float theta = 0.0f; //rotation along XY plane, radians
 	float thrust_percent = 0.0f; //forward thrust, expressed as a percentage of MaxThrust
 	float fuel = 8.0f; //measured by mass, Megagram
+	float maxFuel = 8.0f; //measured by mass, Megagram
 
 	float laser_timer = 0.0f; //when 0, laser is fireable
 

@@ -47,6 +47,7 @@ static float universal_time = 0.0f;
 
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
+int dilationInt = 0;
 static DilationLevel constexpr MAX_SOI_TRANS_DILATION = LEVEL_3;
 
 DilationLevel operator++(DilationLevel &level, int) {

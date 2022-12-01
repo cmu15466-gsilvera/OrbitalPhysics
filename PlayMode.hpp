@@ -65,7 +65,9 @@ struct PlayMode : Mode {
 	bool framebuffer_ready = false; // needs to initialize
 
 	HUD::Sprite *throttle;
-	HUD::Sprite *window;
+	HUD::Sprite *throttleOverlay;
+	HUD::Sprite *clock;
+	HUD::Sprite *timecontroller;
 	HUD::Sprite *handle;
 	HUD::Sprite *bar;
 	HUD::Sprite *target;
@@ -117,6 +119,7 @@ struct PlayMode : Mode {
 	std::unordered_map< int, Body * > id_to_body;
 	std::list< FancyPlanet > fancyPlanets;
     Skybox skybox = Skybox();
+	std::vector< HUD::Sprite* > sprites;
 
 	//camera:
 	Scene::Camera *camera = nullptr;
@@ -153,6 +156,9 @@ struct PlayMode : Mode {
 
 	// text UI
 	Text UI_text;
+	Text ThrottleHeader;
+	Text ThrottleReading;
+	Text SpeedupReading;
 
 	// bgm
 	std::shared_ptr< Sound::PlayingSample > bgm_loop;
