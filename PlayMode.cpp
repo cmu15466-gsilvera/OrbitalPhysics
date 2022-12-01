@@ -639,7 +639,10 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
-	{ //handle quicksave/quickload
+
+	bool playing = (game_status == GameStatus::PLAYING);
+
+	if (playing) { //handle quicksave/quickload
 		if (f5.downs > 0) {
 			serialize(data_path("quicksave.txt"));
 		} else if (f9.downs > 0 && std::filesystem::exists(data_path("quicksave.txt"))) {
@@ -647,7 +650,7 @@ void PlayMode::update(float elapsed) {
 		}
 	}
 
-	{ //update dilation
+	if (playing) { //update dilation
 		if (plus.downs > 0 && minus.downs == 0) {
 			dilation++;
             if(dilationInt < 5){
@@ -662,7 +665,7 @@ void PlayMode::update(float elapsed) {
 	}
 
 
-	{ // update rocket controls
+	if (playing) { // update rocket controls
 		{ // reset dilation on controls
 			if (up.downs || down.downs ||  shift.downs || control.downs) {
 				dilationInt = 0;
@@ -733,7 +736,7 @@ void PlayMode::update(float elapsed) {
 		UI_text.set_text(stream.str());
 	}
 
-    {
+    if (playing) {
 		ThrottleHeader.set_text("Throttle");
         if(spaceship.thrust_percent < 100.0f){
 		    ThrottleReading.set_text(std::to_string(static_cast<int>(spaceship.thrust_percent)) + "%");
@@ -750,14 +753,23 @@ void PlayMode::update(float elapsed) {
 		Sound::listener.set_position_right(frame_at, frame_right, 1.0f / 60.0f);
 	}
 
-	{ //orbital simulation
+	if (playing) { //orbital simulation
 		star->update(elapsed);
 		asteroid.update(elapsed, spaceship.lasers);
 		spaceship.update(elapsed, asteroid);
 	}
 
-	{ //laser
-		if (space.pressed){
+	if (playing) { // collision logic
+		if (asteroid.crashed) {
+			LOG("Game Over: Asteroid crashed!");
+			target_lock = &asteroid;
+			tab.downs = 1; // to trigger the camera transition
+			game_status = GameStatus::LOSE;
+		}
+	}
+
+	if (playing) { //laser
+		if (space.pressed) {
 			spaceship.fire_laser();
 		}
 
@@ -820,13 +832,13 @@ void PlayMode::update(float elapsed) {
 		}
 	}
 
-	{ //asteroid target (NOTE: this relies on camera pos being updated)
+	if (playing) { //asteroid target (NOTE: this relies on camera pos being updated)
 		glm::mat4 world_to_screen = camera->make_projection() * glm::mat4(camera->transform->make_world_to_local());
 		glm::vec3 pos3d = glm::vec3(world_to_screen * glm::vec4(asteroid.pos, 1.0f)); // [-1..1]^2
 		target_xy = glm::vec2{(pos3d.x / pos3d.z), (pos3d.y / pos3d.z)} * 0.5f + 0.5f; // -> [0,1]^2
 	}
 
-	{ //reticle tracker
+	if (playing) { //reticle tracker
 		// make the reticle follow the mouse
 		reticle_aim = mouse_motion;
 
@@ -1066,7 +1078,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		}
 	}
 
-	{ // draw mouse cursor reticle
+	if (game_status == GameStatus::PLAYING) { // draw mouse cursor reticle
 		static constexpr glm::u8vec4 red = glm::u8vec4(0xcc, 0x00, 0x00, 0x65); // target locked
 		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xcc, 0xd3, 0x00, 0x75);
 		glm::u8vec4 color = reticle_homing ? red : yellow;
@@ -1075,7 +1087,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		HUD::drawElement(reticle_size, reticle_pos, target, color);
 	}
 
-	if (camera->in_view(asteroid.pos)) { //draw asteroid target
+	if (game_status == GameStatus::PLAYING && camera->in_view(asteroid.pos)) { //draw asteroid target
 		glm::vec2 target_size = glm::vec2{60, 60};
 		glm::vec2 target_pos{target_xy.x * drawable_size.x - 0.5f * target_size.x, target_xy.y * drawable_size.y + 0.5f * target_size.y};
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);

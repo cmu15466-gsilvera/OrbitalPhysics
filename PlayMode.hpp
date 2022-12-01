@@ -122,6 +122,15 @@ struct PlayMode : Mode {
     Skybox skybox = Skybox();
 	std::vector< HUD::Sprite* > sprites;
 
+	// game stuff
+	enum GameStatus : uint8_t {
+		PLAYING=0,
+		WIN,
+		LOSE,
+	};
+	GameStatus game_status = GameStatus::PLAYING;
+
+
 	//camera:
 	Scene::Camera *camera = nullptr;
 	struct CameraArm { //Encapsulated so that we can have individually tracked views per body later on

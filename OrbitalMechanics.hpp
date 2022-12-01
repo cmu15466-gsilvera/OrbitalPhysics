@@ -120,6 +120,8 @@ struct Asteroid : public Entity {
 	Body *root = nullptr;
 	std::list< Orbit > orbits;
 	Scene::Transform *transform;
+
+	bool crashed = false;
 };
 
 //Player
