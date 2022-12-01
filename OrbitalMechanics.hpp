@@ -161,6 +161,8 @@ struct Rocket : public Entity {
 
 	ClosestApproachInfo closest;
 
+	bool crashed = false;
+
 	float timeSinceLastParticle = 0.0f;
 	int lastParticle = 0;
 

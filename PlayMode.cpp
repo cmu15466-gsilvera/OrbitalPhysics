@@ -586,6 +586,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			SDL_SetRelativeMouseMode(SDL_FALSE);
 			was_key_down = true;
 			bLevelLoaded = false; // reload level on menu
+			game_status = GameStatus::PLAYING; // reset game status on menu
 			Mode::set_current(next_mode); // switch to menu mode
 		}
 		return was_key_down;
@@ -768,6 +769,14 @@ void PlayMode::update(float elapsed) {
 	if (playing) { // collision logic
 		if (asteroid.crashed) {
 			target_lock = &asteroid;
+			tab.downs = 1; // to trigger the camera transition
+			game_status = GameStatus::LOSE;
+			dilation = LEVEL_0;
+			anim = 0.f;
+		}
+		
+		if (spaceship.crashed) {
+			target_lock = &spaceship;
 			tab.downs = 1; // to trigger the camera transition
 			game_status = GameStatus::LOSE;
 			dilation = LEVEL_0;

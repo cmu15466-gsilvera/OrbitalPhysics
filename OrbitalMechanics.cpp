@@ -364,7 +364,9 @@ void Rocket::update(float elapsed, Asteroid const &asteroid) {
 		}
 
 		orbit.update(elapsed);
-		assert(orbit.r > orbit.origin->radius);
+		crashed = (orbit.r <= orbit.origin->radius);
+		if (crashed)
+			return;
 		pos = orbit.get_pos();
 		vel = orbit.get_vel();
 
