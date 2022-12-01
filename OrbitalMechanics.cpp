@@ -843,7 +843,6 @@ float Orbit::find_time_of_collision() {
 
 		float dist = glm::l2Norm(points[i]);
 		if (dist < origin->radius) { //collision
-			LOG(dist << " " << origin->radius << " " << point_times[i]);
 			return point_times[i];
 		}
 	}
@@ -851,7 +850,6 @@ float Orbit::find_time_of_collision() {
 	if (continuation != nullptr) {
 		return continuation->find_time_of_collision();
 	} else {
-		LOG("no collision " << origin->transform->name);
 		return std::numeric_limits< float >::infinity();
 	}
 }

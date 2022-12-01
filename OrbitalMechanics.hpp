@@ -256,7 +256,7 @@ struct Orbit {
 	static float constexpr G = 6.67430e-23f; //Standard gravitational constant
 	static float constexpr MinPForDegen = 1.0e-4f;
 	static size_t constexpr UpdateSteps = 100;
-	static size_t constexpr PredictDetail = 3600; //number of points to generate when predicting
+	static size_t constexpr PredictDetail = 900; //number of points to generate when predicting
 	static float constexpr PredictAngle = glm::radians(360.0f / static_cast< float >(PredictDetail)); //change btwn pts
 	static float constexpr TimeStep = 1.0f; //time step, seconds
 	static glm::vec3 constexpr Invalid = glm::vec3(std::numeric_limits< float >::max()); // signifies point outside SOI

@@ -809,10 +809,10 @@ void PlayMode::update(float elapsed) {
 			game_status = GameStatus::LOSE;
 			dilation = LEVEL_0;
 		} else if (asteroid.time_of_collision == std::numeric_limits< float >::infinity()) {
-			// target_lock = &spaceship;
-			// tab.downs = 1; // to trigger the camera transition
-			// game_status = GameStatus::WIN;
-			// dilation = LEVEL_0;
+			target_lock = &spaceship;
+			tab.downs = 1; // to trigger the camera transition
+			game_status = GameStatus::WIN;
+			dilation = LEVEL_0;
 		}
 	}
 
