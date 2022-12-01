@@ -63,6 +63,7 @@ MenuMode::~MenuMode()
 
 bool MenuMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 {
+	HUD::SCREEN_DIM = window_size;
 	if (evt.type == SDL_KEYDOWN)
 	{
 		bool was_key_down = false;
