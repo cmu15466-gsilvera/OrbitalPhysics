@@ -821,7 +821,7 @@ void PlayMode::update(float elapsed) {
 	}
 
 	if (!playing) {
-		anim = 0.3f * elapsed;
+		anim = elapsed;
 	}
 
 	if (playing && !bIsTutorial) { //laser
@@ -1170,30 +1170,30 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	HUD::drawElement(glm::vec2(390.0f * thrust_amnt, 107.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 192)), bar, throttle_color);
 	HUD::drawElement(glm::vec2(390.0f * 0.60f, 111.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(81, 192)), throttleOverlay);
 	HUD::drawElement(glm::vec2(390.0f * fuel_amt, 61.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 79)), bar, glm::vec4(221, 131, 0.0, 255));
-	ThrottleHeader.draw(1.f, drawable_size, 200, glm::vec2(22, 290), 0.5f, glm::vec4(1.0));
-	ThrottleReading.draw(1.f, drawable_size, 200, glm::vec2(22, 220), 1.3f, glm::vec4(1.0));
-	SpeedupReading.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-5, 142)), 1.3f, DilationColor(dilation));
-    for (int i = 0; i < dilationInt + 1; i++){
+	ThrottleHeader.draw(1.f, drawable_size,  20.f,  glm::vec2(22, 290), 1.f, glm::vec4(1.f));
+	ThrottleReading.draw(1.f, drawable_size, 60.f, glm::vec2(22, 220), 1.f, glm::vec4(1.f));
+	SpeedupReading.draw(1.f, drawable_size,  60.f,  HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-5, 142)), 1.f, DilationColor(dilation));
+    for (int i = 0; i < dilationInt + 1; i++) {
 	    HUD::drawElement(glm::vec2(70, 23), HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-75, -145 + (46 * i))), bar, glm::vec4(DilationColor(dilation) * 255.0, 255.0));
     }
-	CollisionHeader.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -60)), 0.3f, glm::vec4(1.0f));
-	CollisionTimer.draw(1.f, drawable_size, 200, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -100)), 0.75f, glm::vec4(0.1f, 1.0f, 0.1f, 1.0f));
+	CollisionHeader.draw(1.f, drawable_size, 20.f, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -60)), 1.f, glm::vec4(1.0f));
+	CollisionTimer.draw(1.f, drawable_size, 35.f, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -100)), 1.f, glm::vec4(0.1f, 1.0f, 0.1f, 1.0f));
 
 	float cooldown = static_cast< float >((spaceship.LaserCooldown - spaceship.laser_timer) / spaceship.LaserCooldown);
 	HUD::drawElement(glm::vec2((drawable_size.x - lasercooldown->width) / 2, lasercooldown->height), lasercooldown);
 	HUD::drawElement(glm::vec2(371.0f * cooldown, 22.0f), glm::vec2((drawable_size.x - 370) / 2, 26), bar, glm::vec4(0x00, 0xff, 0x00, 0xe0));
-	LaserText.draw(1.f, drawable_size, 400, HUD::fromAnchor(HUD::Anchor::BOTTOMCENTER, glm::vec2(0, 10)), 0.3f, glm::vec4(1.0f));
+	LaserText.draw(1.f, drawable_size, 15.f, HUD::fromAnchor(HUD::Anchor::BOTTOMCENTER, glm::vec2(0, 10)), 1.f, glm::vec4(1.0f));
 
 	if (game_status != GameStatus::PLAYING) {
 		std::string message = game_status == GameStatus::WIN ? "Mission Accomplished!" : "Mission Failed!";
 		auto color = game_status == GameStatus::WIN ? glm::u8vec4{0x0, 0xff, 0x0, 0xff} : glm::u8vec4{0xff, 0x0, 0x0, 0xff};
 		GameOverText.set_text(message);
-		GameOverText.draw(anim, drawable_size, 200, 0.5f * glm::vec2(drawable_size), 2.0f, color);
+		GameOverText.draw(anim, drawable_size, 0.025f * drawable_size.x, 0.5f * glm::vec2(drawable_size), 2.0f, color);
 	}
 
 	if (bIsTutorial) { // draw tutorial text
 		auto color = glm::u8vec4{0xff};
-		tutorial_text.draw(tut_anim, drawable_size, 0.3f * drawable_size.x, glm::vec2{0.45f * drawable_size.x, 0.75f * drawable_size.y}, 1.0f, color);
+		tutorial_text.draw(tut_anim, drawable_size, 0.02f * drawable_size.x, glm::vec2{0.45f * drawable_size.x, 0.75f * drawable_size.y}, 1.0f, color);
 	}
 
 	/* glm::u8vec4 color{0xff}; */

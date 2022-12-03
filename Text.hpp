@@ -219,7 +219,7 @@ struct Text {
         }
     }
 
-    void draw(float dt, const glm::vec2& drawable_size, float width, const glm::vec2& pos, float ss_scale, glm::vec3 color)
+    void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color)
     {
         // drawable_size - window size
         // width - how wide the displayed string gets to be
@@ -227,7 +227,7 @@ struct Text {
         // ss_scale - screenspace scale (lower quality but cheap)
         // color - rgb(1) colour
 
-        float new_font_scale = (float)drawable_size.y * (32.0f / 720.0f); // scale font size off window height
+        float new_font_scale = scale; // scale font size off window height
         set_font_size(font_size, new_font_scale);
 
         projection = glm::ortho(0.0f, drawable_size.x, 0.0f, drawable_size.y);
