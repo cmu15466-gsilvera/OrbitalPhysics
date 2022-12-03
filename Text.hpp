@@ -118,6 +118,9 @@ struct Text {
     struct Atlas {
         // attempting to "glom" all relevant textures to a single texture atlas
         // https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_02
+
+        // especially helpful reading:
+        // https://gitlab.com/wikibooks-opengl/modern-tutorials/-/blob/master/text02_atlas/text.cpp#L226
         
         GLuint tex;
         unsigned int w, h;
@@ -402,6 +405,11 @@ struct Text {
         return anchor_x_start;
     }
 
+    void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color) {
+        // overload to cast scale to int
+        draw(dt, drawable_size, static_cast<int>(scale), pos, ss_scale, color);
+    }
+
     void draw(float dt, const glm::vec2& drawable_size, int scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color) {
         // draw a text element using an atlas texture to draw it all at once
 
@@ -480,7 +488,7 @@ struct Text {
 
         // draw triangles (this is the expensive part!)
         glBufferData(GL_ARRAY_BUFFER, num_render_chars * sizeof(float) * 6 * 4, render_data.data(), GL_DYNAMIC_DRAW);
-        glDrawArrays(GL_TRIANGLES, 0, num_render_chars * 6);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(num_render_chars * 6));
         glDisableVertexAttribArray(shader_coord);
         GL_ERRORS();
 
