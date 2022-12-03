@@ -708,7 +708,7 @@ void PlayMode::update(float elapsed) {
             }
 		}
 	}
-
+	LOG(1.f / elapsed);
 
 	if (playing) { // update rocket controls
 		{ // reset dilation on controls

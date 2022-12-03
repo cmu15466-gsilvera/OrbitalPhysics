@@ -25,9 +25,10 @@
 
 struct Character {
     unsigned int TextureID; // ID handle of the glyph texture
-    glm::ivec2 Size; // Size of glyph
-    glm::ivec2 Bearing; // Offset from baseline to left/top of glyph
+    glm::ivec2 Size; // Size of glyph (glyph width, rows)
+    glm::ivec2 Bearing; // Offset from baseline to left/top of glyph (glyph left,top)
     unsigned int Advance; // Offset to advance to next glyph
+    GLvoid *data = nullptr;
 
     // construct a character from a char request and typeface (glyph) collection
     static Character Load(hb_codepoint_t request, FT_Face typeface)
@@ -53,12 +54,17 @@ struct Character {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // not using mipmap
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // not using mipmap
+        // also store the bitmap buffer
+        size_t size = typeface->glyph->bitmap.width * typeface->glyph->bitmap.rows * sizeof(char);
+        GLvoid *data = malloc(size);
+        memcpy(data, typeface->glyph->bitmap.buffer, size);
         // now store character for later use
         return {
             tex,
             glm::ivec2(typeface->glyph->bitmap.width, typeface->glyph->bitmap.rows),
             glm::ivec2(typeface->glyph->bitmap_left, typeface->glyph->bitmap_top),
-            (unsigned int)(typeface->glyph->advance.x)
+            (unsigned int)(typeface->glyph->advance.x), // since using ascii, advance.y => 0 anyways
+            data,
         };
     }
 };
@@ -84,6 +90,8 @@ struct Text {
     inline static GLuint VAO = 0;
     inline static GLuint VBO = 0;
 
+    inline static GLuint VBO_deferred = 0;
+
     // text anchor
     enum AnchorType : uint8_t {
         LEFT=0,
@@ -107,8 +115,14 @@ struct Text {
         const glm::vec3 color;
         const float xpos, ypos;
         const float w, h;
+        float tx = 0.f; // index into the larger atlas texture if available
     };
     inline static std::vector<RenderCharacter> render_chars;
+
+    struct Atlas {
+        
+    };
+
 
     void init(AnchorType _anchor) {
         init(_anchor, false);
@@ -131,25 +145,25 @@ struct Text {
         if (Text::draw_text_program == 0) {
             // https://learnopengl.com/code_viewer_gh.php?code=src/7.in_practice/2.text_rendering/text.vs
             const auto vertex_shader = "#version 330 core\n"
-                                       "layout (location = 0) in vec4 vertex;\n"
-                                       "out vec2 TexCoords;\n"
+                                       "in vec4 coord;\n"
+                                       "out vec2 texpos;\n"
                                        "uniform mat4 projection;\n"
                                        "void main()\n"
                                        "{\n"
-                                       "    gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);\n"
-                                       "    TexCoords = vertex.zw;\n"
+                                       "    gl_Position = projection * vec4(coord.xy, 0.0, 1.0);\n"
+                                       "    texpos = coord.zw;\n"
                                        "}\n";
 
             // https://learnopengl.com/code_viewer_gh.php?code=src/7.in_practice/2.text_rendering/text.fs
             const auto fragment_shader = "#version 330 core\n"
-                                         "in vec2 TexCoords;\n"
+                                         "in vec2 texpos;\n"
                                          "layout (location = 0) out vec4 color;\n"
                                          "layout (location = 1) out vec4 bright;\n"
-                                         "uniform sampler2D text;\n"
+                                         "uniform sampler2D tex;\n"
                                          "uniform vec3 textColor;\n"
                                          "void main()\n"
                                          "{\n"
-                                         "	vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);\n"
+                                         "	 vec4 sampled = vec4(1.0, 1.0, 1.0, texture(tex, texpos).r);\n"
                                          "   color = vec4(textColor, 1.0) * sampled;\n"
                                          "   bright = vec4(vec3(0.0), 1.0);\n"
                                          "}\n";
@@ -170,9 +184,9 @@ struct Text {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glGenVertexArrays(1, &Text::VAO);
             glGenBuffers(1, &Text::VBO);
-            glBindVertexArray(VAO);
+            glBindVertexArray(Text::VAO);
             glBindBuffer(GL_ARRAY_BUFFER, Text::VBO);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, nullptr, GL_DYNAMIC_DRAW);
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -229,8 +243,7 @@ struct Text {
         }
     }
 
-    hb_glyph_info_t* prepare_draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color,
-                                  unsigned int &num_chars, float &amnt, float &char_x, float &char_y, float &anchor_x_start) {
+    hb_glyph_info_t* prepare_draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color, unsigned int &num_chars, float &amnt, float &char_x, float &char_y, float &anchor_x_start) {
         float new_font_scale = scale; // scale font size off window height
         set_font_size(font_size, new_font_scale);
 
@@ -301,7 +314,7 @@ struct Text {
             const Character& ch = chars[char_req];
             if (char_req != hb_codepoint_t{'\0'}){
                 float xpos = char_x + ch.Bearing.x * ss_scale;
-                float ypos = char_y - (ch.Size.y - ch.Bearing.y) * ss_scale;
+                float ypos = -char_y - (ch.Size.y - ch.Bearing.y) * ss_scale;
                 float w = ch.Size.x * ss_scale;
                 float h = ch.Size.y * ss_scale;
 
@@ -320,6 +333,7 @@ struct Text {
 
     void draw_immediate(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color)
     {
+        return;
         // draw a text element immediately! (this directly talks to the GPU)
 
         // drawable_size - window size
@@ -391,38 +405,106 @@ struct Text {
     }
 
     static void draw_all(const glm::vec2 &drawable_size) {
+        // attempting to "glom" all relevant rextures (sizes, shapes, colors) to a single texture atlas
+        // https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_02
         glUseProgram(Text::draw_text_program);
+
+        // find the size of the atlas texture
+        int atlas_width = 0; // width of all glyphs together
+        int atlas_height = 0; // height of single tallest glyph
+        for (const auto &rc : render_chars) {
+            atlas_width += rc.ch.Size.x;
+            atlas_height = std::max(atlas_height, rc.ch.Size.y);
+        }
+        // std::cout << "generated atlas with dims: " << atlas_width << " x " << atlas_height << std::endl;
+
+        auto tex = glGetUniformLocation(Text::draw_text_program, "tex");
+        auto attribute_coord = glGetAttribLocation(Text::draw_text_program, "coord");
+
+        // create empty texture for atlas
+        GLuint atlas_tex;
+        glActiveTexture(GL_TEXTURE0);
+        glGenTextures(1, &atlas_tex);
+        glBindTexture(GL_TEXTURE_2D, atlas_tex);
+        glUniform1i(tex, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, atlas_width, atlas_height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+        GL_ERRORS();
+
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // 1 byte alignment
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // clamping to avoid artifacts
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // clamping to avoid artifacts
+        GL_ERRORS();
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // linear filtering usually best for text
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // linear filtering usually best for text
+        GL_ERRORS();
+
+
+        // fill in the texture with all the glyphs
+        size_t x = 0;
+        for(auto &rc : render_chars) {
+            glTexSubImage2D(GL_TEXTURE_2D, 0, x, 0, rc.ch.Size.x, rc.ch.Size.y, GL_RED, GL_UNSIGNED_BYTE, rc.ch.data);
+            rc.tx = static_cast<float>(x) / atlas_width;
+            x += rc.ch.Size.x;
+        }
+        GL_ERRORS();
 
         auto projection = glm::ortho(0.0f, drawable_size.x, 0.0f, drawable_size.y);
         glUniformMatrix4fv(glGetUniformLocation(Text::draw_text_program, "projection"), 1, GL_FALSE, &projection[0][0]);
-        glActiveTexture(GL_TEXTURE0);
-        glBindVertexArray(Text::VAO);
+        glUniform3f(glGetUniformLocation(Text::draw_text_program, "textColor"), 1.f, 1.f, 1.f);
+        GL_ERRORS();
 
-        for (const RenderCharacter &rc : render_chars) {
-                glUniform3f(glGetUniformLocation(Text::draw_text_program, "textColor"), rc.color.x, rc.color.y, rc.color.z);
+        // use the texture containing the atlas
+        glBindTexture(GL_TEXTURE_2D, atlas_tex);
+        glUniform1i(tex, 0);
+        GL_ERRORS();
 
-                // update VBO for each character
-                float vertices[6][4] = {
-                    { rc.xpos, rc.ypos + rc.h, 0.0f, 0.0f },
-                    { rc.xpos, rc.ypos, 0.0f, 1.0f },
-                    { rc.xpos + rc.w, rc.ypos, 1.0f, 1.0f },
-
-                    { rc.xpos, rc.ypos + rc.h, 0.0f, 0.0f },
-                    { rc.xpos + rc.w, rc.ypos, 1.0f, 1.0f },
-                    { rc.xpos + rc.w, rc.ypos + rc.h, 1.0f, 0.0f }
-                };
-
-                glBindTexture(GL_TEXTURE_2D, rc.ch.TextureID);
-                glBindBuffer(GL_ARRAY_BUFFER, Text::VBO);
-                glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-                glBindBuffer(GL_ARRAY_BUFFER, 0);
-                glDrawArrays(GL_TRIANGLES, 0, 6);
+        // set up the VBO for vertex data
+        if (Text::VBO_deferred == 0) {
+            glGenBuffers(1, &Text::VBO_deferred);
         }
+        glBindVertexArray(Text::VAO); // since glEnableVertexAttribArray sets state in the current VAO
+        glEnableVertexAttribArray(attribute_coord);
+        glBindBuffer(GL_ARRAY_BUFFER, Text::VBO_deferred);
+        glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
+        GL_ERRORS();
+
+        // loop through all characters
+        std::vector<float> render_data; // should be 6 * 4 * render_chars.size()
+        for (size_t i = 0; i < render_chars.size(); i++) {
+            const RenderCharacter &rc = render_chars[i];
+
+            float bw = rc.w;
+            float bh = rc.h;
+
+            if (!bw || !bh) // glyphs with no pixels
+                continue;
+
+            // each 4 tuple is a {x, y, s, t} to index into the vertex/texture coordinates/attribute
+            render_data.insert(render_data.end(), {
+                rc.xpos,        -rc.ypos - rc.h, rc.tx,                    bh / atlas_height,
+                rc.xpos,        -rc.ypos,        rc.tx,                    0.0f,
+                rc.xpos + rc.w, -rc.ypos,        rc.tx + bw / atlas_width, 0.0f,
+                rc.xpos,        -rc.ypos - rc.h, rc.tx,                    bh / atlas_height,
+                rc.xpos + rc.w, -rc.ypos,        rc.tx + bw / atlas_width, 0.0f,
+                rc.xpos + rc.w, -rc.ypos - rc.h, rc.tx + bw / atlas_width, bh / atlas_height
+            });
+        }
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * render_data.size(), render_data.data(), GL_DYNAMIC_DRAW);
+        glDrawArrays(GL_TRIANGLES, 0, render_data.size());
+        glDisableVertexAttribArray(attribute_coord);
+        GL_ERRORS();
 
         // reset openGL stuff
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
+
+        // clean VBO
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // glDeleteBuffers(1, &VBO_deferred);
+
         glUseProgram(0);
+        glDeleteTextures(1, &atlas_tex);
 
         GL_ERRORS();
 

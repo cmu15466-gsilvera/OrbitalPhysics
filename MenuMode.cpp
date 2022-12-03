@@ -261,8 +261,8 @@ void MenuMode::draw(glm::uvec2 const &drawable_size)
 	{ // start text
 		float x = drawable_size.x * 0.5f;
 		float y = drawable_size.y * 0.9f; // top is 1.f bottom is 0.f
-		float fontsize = drawable_size.x * 0.04f;
-		start_menu_text.draw(1.f, drawable_size, fontsize, glm::vec2(x, y), 1.4f, glm::u8vec4{0xff});
+		float fontsize = drawable_size.x * 0.05f;
+		start_menu_text.draw(1.f, drawable_size, fontsize, glm::vec2(x, y), 1.f, glm::u8vec4{0xff});
 	}
 
 	{ // other text
