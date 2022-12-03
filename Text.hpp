@@ -123,11 +123,23 @@ struct Text {
         unsigned int w, h;
         std::array<Character, 128> chars;
         static constexpr int MAXTEXWIDTH = 1024;
+        int fontscale;
 
         Atlas(FT_Face face, int scale) {
             // create a single large atlas texture for all the ASCII characters of size scale
+            update(face, scale);
+            std::cout << "Generated Atlas with dims: (" << w << " x " << h << ")"  << std::endl;
+        }
 
-            FT_Set_Pixel_Sizes(face, 0, scale);
+        ~Atlas() {
+            reset();
+            GL_ERRORS();
+        }
+
+        void update(FT_Face face, int scale) {
+            fontscale = scale;
+            
+            FT_Set_Pixel_Sizes(face, 0, fontscale);
 		    FT_GlyphSlot g = face->glyph;
             
             // find the size of the atlas texture (big  width limited by MAXTEXWIDTH)
@@ -154,6 +166,8 @@ struct Text {
             w = std::max(w, roww);
             h += rowh;
 
+            reset(); // kill existing atlas texture if exists
+
             // create empty texture for atlas
             glActiveTexture(GL_TEXTURE0);
             glGenTextures(1, &tex);
@@ -171,7 +185,7 @@ struct Text {
             GL_ERRORS();
 
             // fill in the texture with all the glyphs
-            glm::ivec2 offset;
+            glm::ivec2 offset{0, 0};
             rowh = 0;
             for (int i = 32; i < 128; i++) {
                 if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
@@ -187,7 +201,7 @@ struct Text {
                     glm::ivec2{g->bitmap.width, g->bitmap.rows}, // size
                     glm::ivec2{g->bitmap_left, g->bitmap_top}, // bearing 
                     (unsigned int)(g->advance.x), // advance
-                    g->bitmap.buffer, // buffer data 
+                    g->bitmap.buffer, // buffer data
                     {static_cast<float>(offset.x) / this->w, static_cast<float>(offset.y) / this->h},// texture
                 };
                 glTexSubImage2D(GL_TEXTURE_2D, 0, offset.x, offset.y, ch.Size.x, ch.Size.y, GL_RED, GL_UNSIGNED_BYTE, ch.data);
@@ -197,17 +211,21 @@ struct Text {
                 offset.x += ch.Size.x + 1;
             }
             GL_ERRORS();
-            std::cout << "Generated Atlas with dims: (" << w << " x " << h << ")"  << std::endl;
         }
 
-        ~Atlas() {
+        void reset() {
             if (tex != 0) {
                 glDeleteTextures(1, &tex);
             }
-            GL_ERRORS();
         }
     };
     Atlas *atlas = nullptr;    
+
+    ~Text() {
+        if (atlas != nullptr) {
+            delete atlas;
+        }
+    }
 
     void init(AnchorType _anchor) {
         init(_anchor, false);
@@ -384,13 +402,16 @@ struct Text {
         return anchor_x_start;
     }
 
-    void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color) {
+    void draw(float dt, const glm::vec2& drawable_size, int scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color) {
         // draw a text element using an atlas texture to draw it all at once
 
-        /// TODO: support rebuilding the atlas on window resize/param change
         if (atlas == nullptr) {
             /// TODO: make atlas "content-aware" so to only allocate memory & load necessary glyphs
             atlas = new Atlas(typeface, scale);
+        }
+
+        if (scale != atlas->fontscale) {
+            atlas->update(typeface, scale); // resize
         }
         
         size_t num_newlines;
@@ -407,7 +428,6 @@ struct Text {
         const size_t num_render_chars = static_cast<size_t>(amnt * text_content.size());
         for (size_t i = 0; i < num_render_chars; i++) {
             char char_req = text_content[i];
-            // std::cout << char_req << std::endl;
             const Character& ch = atlas->chars[char_req];
             if (char_req != '\n') {
                 float xpos = char_x + ch.Bearing.x * ss_scale;
@@ -472,8 +492,5 @@ struct Text {
         glUseProgram(0);
 
         GL_ERRORS();
-
-        // if (atlas != nullptr)
-        //     delete atlas;
     }
 };
