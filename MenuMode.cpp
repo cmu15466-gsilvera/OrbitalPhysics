@@ -172,7 +172,7 @@ void MenuMode::ButtonSprite::draw(glm::vec2 const &drawable_size) const
 	if (text != nullptr && text->text_content.size() > 0)
 	{
 		glm::vec2 center_loc = top_left_loc + 0.5f * glm::vec2{_size.x, -1.2f * _size.y} * drawable_size;
-		text->draw(1.f, drawable_size, _size.x * 200.f, center_loc, 1.f, glm::u8vec4{0xff});
+		text->draw_immediate(1.f, drawable_size, _size.x * 200.f, center_loc, 1.f, glm::u8vec4{0xff});
 	}
 	HUD::drawElement(_size * drawable_size, top_left_loc, sprite, _color);
 }
@@ -281,5 +281,6 @@ void MenuMode::draw(glm::uvec2 const &drawable_size)
 		skybox.draw(camera);
 	}
 
+	Text::draw_all(drawable_size); // draws all characters in one fell swoop
 	GL_ERRORS();
 }

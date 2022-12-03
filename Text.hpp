@@ -80,10 +80,9 @@ struct Text {
     hb_font_t* hb_typeface = nullptr;
 
     // for drawing
-    glm::mat4 projection;
-    GLuint draw_text_program = 0;
-    GLuint VAO = 0;
-    GLuint VBO = 0;
+    inline static GLuint draw_text_program = 0;
+    inline static GLuint VAO = 0;
+    inline static GLuint VBO = 0;
 
     // text anchor
     enum AnchorType : uint8_t {
@@ -99,6 +98,17 @@ struct Text {
 
     // using hb_codepoint_t as the codepoint type from hb_buffer_get_glyph_positions
     std::map<hb_codepoint_t, Character> chars;
+
+
+    struct RenderCharacter {
+        RenderCharacter(const Character &c, glm::vec3 const &col, const float x, const float y, const float _w, const float _h) :
+           ch(c), color(col), xpos(x), ypos(y), w(_w), h(_h) {};
+        const Character ch;
+        const glm::vec3 color;
+        const float xpos, ypos;
+        const float w, h;
+    };
+    inline static std::vector<RenderCharacter> render_chars;
 
     void init(AnchorType _anchor) {
         init(_anchor, false);
@@ -118,7 +128,7 @@ struct Text {
         }
 
         // create shaders for rendering
-        {
+        if (Text::draw_text_program == 0) {
             // https://learnopengl.com/code_viewer_gh.php?code=src/7.in_practice/2.text_rendering/text.vs
             const auto vertex_shader = "#version 330 core\n"
                                        "layout (location = 0) in vec4 vertex;\n"
@@ -143,7 +153,7 @@ struct Text {
                                          "   color = vec4(textColor, 1.0) * sampled;\n"
                                          "   bright = vec4(vec3(0.0), 1.0);\n"
                                          "}\n";
-            draw_text_program = gl_compile_program(vertex_shader, fragment_shader);
+            Text::draw_text_program = gl_compile_program(vertex_shader, fragment_shader);
         }
 
         // set initial harfbuzz buffer params/data
@@ -154,14 +164,14 @@ struct Text {
         }
 
         // initialize openGL for rendering
-        {
+        if (Text::VAO == 0 || Text::VBO == 0) {
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            glGenVertexArrays(1, &VAO);
-            glGenBuffers(1, &VBO);
+            glGenVertexArrays(1, &Text::VAO);
+            glGenBuffers(1, &Text::VBO);
             glBindVertexArray(VAO);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glBindBuffer(GL_ARRAY_BUFFER, Text::VBO);
             glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
@@ -219,27 +229,12 @@ struct Text {
         }
     }
 
-    void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color)
-    {
-        // drawable_size - window size
-        // width - how wide the displayed string gets to be
-        // pos - position in screenspace where the text gets rendered
-        // ss_scale - screenspace scale (lower quality but cheap)
-        // color - rgb(1) colour
-
+    hb_glyph_info_t* prepare_draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color,
+                                  unsigned int &num_chars, float &amnt, float &char_x, float &char_y, float &anchor_x_start) {
         float new_font_scale = scale; // scale font size off window height
         set_font_size(font_size, new_font_scale);
 
-        projection = glm::ortho(0.0f, drawable_size.x, 0.0f, drawable_size.y);
-
-        glUseProgram(draw_text_program);
-        glUniform3f(glGetUniformLocation(draw_text_program, "textColor"), color.x, color.y, color.z);
-        glUniformMatrix4fv(glGetUniformLocation(draw_text_program, "projection"), 1, GL_FALSE, &projection[0][0]);
-        glActiveTexture(GL_TEXTURE0);
-
-        glBindVertexArray(VAO);
-
-        unsigned int num_chars = 0;
+        num_chars = 0;
         hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &num_chars);
         if (glyph_info == nullptr) {
             throw std::runtime_error("Unable to get glyph info from buffer!");
@@ -270,7 +265,7 @@ struct Text {
             final_width = std::max(line_width, final_width);
         }
 
-        float anchor_x_start = pos.x; // default (left)
+        anchor_x_start = pos.x; // default (left)
         if (anchor == Text::AnchorType::CENTER) {
             anchor_x_start -= final_width / 2.f; // to be horizontally centered
         }
@@ -278,13 +273,22 @@ struct Text {
             anchor_x_start -= final_width; // all the way to the right
         }
 
-        float char_x = anchor_x_start;
-        float char_y = pos.y;
+        char_x = anchor_x_start;
+        char_y = pos.y;
 
         // handle animation (only draw fraction of total depending on time)
         time += dt;
-        float amnt = std::min(time / (anim_time * line_widths.size()), 1.f);
-        // std::cout << amnt << " | " << time << std::endl;
+        amnt = std::min(time / (anim_time * line_widths.size()), 1.f);
+
+        return glyph_info;
+    }
+
+    void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color) {
+        // draw a text element at once the draw_all() call is made, deferred can improve performance
+
+        unsigned int num_chars;
+        float amnt, char_x, char_y, anchor_x_start;
+        hb_glyph_info_t *glyph_info = prepare_draw(dt, drawable_size, scale, pos, ss_scale, color, num_chars, amnt, char_x, char_y, anchor_x_start);
 
         // this loop was taken almost verbatim from https://learnopengl.com/In-Practice/Text-Rendering
         for (unsigned int i = 0; i < static_cast< unsigned int >(amnt * num_chars); i++) {
@@ -296,6 +300,56 @@ struct Text {
 
             const Character& ch = chars[char_req];
             if (char_req != hb_codepoint_t{'\0'}){
+                float xpos = char_x + ch.Bearing.x * ss_scale;
+                float ypos = char_y - (ch.Size.y - ch.Bearing.y) * ss_scale;
+                float w = ch.Size.x * ss_scale;
+                float h = ch.Size.y * ss_scale;
+
+                render_chars.emplace_back(ch, color, xpos, ypos, w, h);
+                // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+                char_x += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
+            }
+            // / TODO: logic for newline? (reset x, increase y?)
+            else {
+                char_x = anchor_x_start; // reset x
+                char_y -= ch.Size.y; // increment Y
+            }
+        }
+    }
+
+
+    void draw_immediate(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color)
+    {
+        // draw a text element immediately! (this directly talks to the GPU)
+
+        // drawable_size - window size
+        // scale - how wide the displayed string gets to be
+        // pos - position in screenspace where the text gets rendered
+        // ss_scale - screenspace scale (lower quality but cheap)
+        // color - rgb(1) colour
+
+        unsigned int num_chars;
+        float amnt, char_x, char_y, anchor_x_start;
+        hb_glyph_info_t *glyph_info = prepare_draw(dt, drawable_size, scale, pos, ss_scale, color, num_chars, amnt, char_x, char_y, anchor_x_start);
+
+        glUseProgram(Text::draw_text_program);
+
+        auto projection = glm::ortho(0.0f, drawable_size.x, 0.0f, drawable_size.y);
+        glUniformMatrix4fv(glGetUniformLocation(Text::draw_text_program, "projection"), 1, GL_FALSE, &projection[0][0]);
+        glUniform3f(glGetUniformLocation(Text::draw_text_program, "textColor"), color.x, color.y, color.z);
+        glActiveTexture(GL_TEXTURE0);
+        glBindVertexArray(Text::VAO);
+
+        // this loop was taken almost verbatim from https://learnopengl.com/In-Practice/Text-Rendering
+        for (unsigned int i = 0; i < static_cast< unsigned int >(amnt * num_chars); i++) {
+            hb_codepoint_t char_req = glyph_info[i].codepoint;
+            if (chars.find(char_req) == chars.end()) { // not already loaded
+                Character ch = Character::Load(char_req, typeface);
+                chars.insert(std::pair<hb_codepoint_t, Character>(char_req, ch));
+            }
+
+            const Character& ch = chars[char_req];
+            if (char_req != hb_codepoint_t{'\0'}) {
                 float xpos = char_x + ch.Bearing.x * ss_scale;
                 float ypos = char_y - (ch.Size.y - ch.Bearing.y) * ss_scale;
                 float w = ch.Size.x * ss_scale;
@@ -313,7 +367,7 @@ struct Text {
                 };
 
                 glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-                glBindBuffer(GL_ARRAY_BUFFER, VBO);
+                glBindBuffer(GL_ARRAY_BUFFER, Text::VBO);
                 glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
                 glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -334,5 +388,45 @@ struct Text {
         glUseProgram(0);
 
         GL_ERRORS();
+    }
+
+    static void draw_all(const glm::vec2 &drawable_size) {
+        glUseProgram(Text::draw_text_program);
+
+        auto projection = glm::ortho(0.0f, drawable_size.x, 0.0f, drawable_size.y);
+        glUniformMatrix4fv(glGetUniformLocation(Text::draw_text_program, "projection"), 1, GL_FALSE, &projection[0][0]);
+        glActiveTexture(GL_TEXTURE0);
+        glBindVertexArray(Text::VAO);
+
+        for (const RenderCharacter &rc : render_chars) {
+                glUniform3f(glGetUniformLocation(Text::draw_text_program, "textColor"), rc.color.x, rc.color.y, rc.color.z);
+
+                // update VBO for each character
+                float vertices[6][4] = {
+                    { rc.xpos, rc.ypos + rc.h, 0.0f, 0.0f },
+                    { rc.xpos, rc.ypos, 0.0f, 1.0f },
+                    { rc.xpos + rc.w, rc.ypos, 1.0f, 1.0f },
+
+                    { rc.xpos, rc.ypos + rc.h, 0.0f, 0.0f },
+                    { rc.xpos + rc.w, rc.ypos, 1.0f, 1.0f },
+                    { rc.xpos + rc.w, rc.ypos + rc.h, 1.0f, 0.0f }
+                };
+
+                glBindTexture(GL_TEXTURE_2D, rc.ch.TextureID);
+                glBindBuffer(GL_ARRAY_BUFFER, Text::VBO);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
+
+        // reset openGL stuff
+        glBindVertexArray(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0);
+
+        GL_ERRORS();
+
+        // it is very important to clear all the characters for the next frame else this will accumulate/leak!
+        render_chars.clear();
     }
 };
