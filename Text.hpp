@@ -31,7 +31,7 @@ struct Character {
     glm::ivec2 Bearing; // Offset from baseline to left/top of glyph (glyph left,top)
     unsigned int Advance; // Offset to advance to next glyph
     GLvoid *data = nullptr;
-    float tx = 0.f; // index into the larger atlas texture if available
+    glm::vec2 t{0.f, 0.f}; // index into the larger atlas texture if available
 
     // construct a character from a char request and typeface (glyph) collection
     static Character Load(hb_codepoint_t request, FT_Face typeface, bool bLoadTexture = true)
@@ -122,14 +122,16 @@ struct Text {
         GLuint tex;
         unsigned int w, h;
         std::array<Character, 128> chars;
+        static constexpr int MAXTEXWIDTH = 1024;
 
-        Atlas(FT_Face face, int scale, glm::vec3 const &col) {
-            // create a single large atlas texture for all the ASCII characters of size scale & color col
+        Atlas(FT_Face face, int scale) {
+            // create a single large atlas texture for all the ASCII characters of size scale
 
             FT_Set_Pixel_Sizes(face, 0, scale);
 		    FT_GlyphSlot g = face->glyph;
             
-            // find the size of the atlas texture (1 x n texture)
+            // find the size of the atlas texture (big  width limited by MAXTEXWIDTH)
+            unsigned int roww = 0, rowh = 0;
             w = 0; // width of all glyphs together
             h = 0; // height of single tallest glyph
             for (int i = 32; i < 128; i++) { // all ascii character
@@ -138,9 +140,19 @@ struct Text {
                     continue;
                 }
 
-                w += g->bitmap.width + 1;
-                h = std::max(h, g->bitmap.rows);
+                if (roww + g->bitmap.width + 1 >= MAXTEXWIDTH) {
+                    w = std::max(w, roww);
+                    h += rowh;
+                    // reset the dims to a new row
+                    roww = 0;
+                    rowh = 0;
+                }
+
+                roww += g->bitmap.width + 1;
+                rowh = std::max(rowh, g->bitmap.rows);
             }
+            w = std::max(w, roww);
+            h += rowh;
 
             // create empty texture for atlas
             glActiveTexture(GL_TEXTURE0);
@@ -159,22 +171,33 @@ struct Text {
             GL_ERRORS();
 
             // fill in the texture with all the glyphs
-            size_t x = 0;
+            glm::ivec2 offset;
+            rowh = 0;
             for (int i = 32; i < 128; i++) {
                 if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
                     fprintf(stderr, "Loading character %c failed!\n", i);
                     continue;
                 }
-                Character ch{0, glm::ivec2{g->bitmap.width, g->bitmap.rows}, glm::ivec2{g->bitmap_left, g->bitmap_top}, (unsigned int)(g->advance.x), g->bitmap.buffer};
-                glTexSubImage2D(GL_TEXTURE_2D, 0, x, 0, ch.Size.x, ch.Size.y, GL_RED, GL_UNSIGNED_BYTE, ch.data);
-                ch.tx = static_cast<float>(x) / this->w;
+                if (offset.x + g->bitmap.width + 1 >= MAXTEXWIDTH) {
+                    offset.y += rowh;
+                    rowh = 0;
+                    offset.x = 0;
+                }
+                Character ch{0, // no texture
+                    glm::ivec2{g->bitmap.width, g->bitmap.rows}, // size
+                    glm::ivec2{g->bitmap_left, g->bitmap_top}, // bearing 
+                    (unsigned int)(g->advance.x), // advance
+                    g->bitmap.buffer, // buffer data 
+                    {static_cast<float>(offset.x) / this->w, static_cast<float>(offset.y) / this->h},// texture
+                };
+                glTexSubImage2D(GL_TEXTURE_2D, 0, offset.x, offset.y, ch.Size.x, ch.Size.y, GL_RED, GL_UNSIGNED_BYTE, ch.data);
                 chars[i] = ch;
 
-                /// TODO: check if this should be +1 or not?
-                x += ch.Size.x + 1; 
+                rowh = std::max(rowh, g->bitmap.rows);
+                offset.x += ch.Size.x + 1;
             }
             GL_ERRORS();
-            std::cout << "Generated Atlas with dims: (" << w << " x " << h << ")" << std::endl;
+            std::cout << "Generated Atlas with dims: (" << w << " x " << h << ")"  << std::endl;
         }
 
         ~Atlas() {
@@ -184,6 +207,7 @@ struct Text {
             GL_ERRORS();
         }
     };
+    Atlas *atlas = nullptr;    
 
     void init(AnchorType _anchor) {
         init(_anchor, false);
@@ -241,10 +265,24 @@ struct Text {
 
         // initialize openGL for rendering
         { // get shader params
-            shader_tex = glGetUniformLocation(draw_text_program, "tex");          // the atlas texture
-            shader_coord = glGetAttribLocation(draw_text_program, "coord");       // the texture coordinate
-            shader_proj = glGetUniformLocation(draw_text_program, "projection");  // the projection to screen
-            shader_color = glGetUniformLocation(draw_text_program, "textColor");  // the text color (RGB)
+            auto get_uniform = [this](std::string const &name){
+                GLint param = glGetUniformLocation(this->draw_text_program, name.c_str());
+                if (param == -1) {
+                    throw std::runtime_error("Unable to read uniform param \""+name+"\"");
+                }
+                return param;
+            };
+            auto get_attrib = [this](std::string const &name){
+                GLint param = glGetAttribLocation(this->draw_text_program, name.c_str());
+                if (param == -1) {
+                    throw std::runtime_error("Unable to read uniform param \""+name+"\"");
+                }
+                return param;
+            };
+            shader_tex = get_uniform("tex");          // the atlas texture
+            shader_coord = get_attrib("coord");       // the texture coordinate
+            shader_proj = get_uniform("projection");  // the projection to screen
+            shader_color = get_uniform("textColor");  // the text color (RGB)
         }
 
         if (VAO == 0 || VBO == 0) {
@@ -309,16 +347,17 @@ struct Text {
         }
     }
 
-    float calculate_start_anchor(Atlas *atlas, size_t &num_newlines, float left_pos, float ss_scale) {
-        if (atlas == nullptr) {
+    float calculate_start_anchor(Atlas *_atlas, size_t &num_newlines, int &line_height, float left_pos, float ss_scale) {
+        if (_atlas == nullptr) {
             throw std::runtime_error("Atlas is null! cannot calculate start anchor!");
         }
 
         // calculate the final width of the text glyphs
         std::vector<float> line_widths;
         line_widths.push_back(0.f);
+        line_height = 0;
         for (char c : text_content) {
-            const Character& ch = atlas->chars[c];
+            const Character& ch = _atlas->chars[c];
 
             // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
             if (c == '\n') {
@@ -327,6 +366,7 @@ struct Text {
             else {
                 line_widths.back() += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
             }
+            line_height = std::max(line_height, ch.Size.y);
         }
         float final_width = 0.f;
         for (float line_width : line_widths) {
@@ -345,27 +385,27 @@ struct Text {
     }
 
     void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color) {
-        ss_scale = 1.0f;
         // draw a text element using an atlas texture to draw it all at once
 
         /// TODO: support rebuilding the atlas on window resize/param change
-        Atlas *atlas = nullptr;
         if (atlas == nullptr) {
             /// TODO: make atlas "content-aware" so to only allocate memory & load necessary glyphs
-            atlas = new Atlas(typeface, scale, color);
+            atlas = new Atlas(typeface, scale);
         }
         
         size_t num_newlines;
-        float anchor_x_start = calculate_start_anchor(atlas, num_newlines, pos.x, ss_scale);
+        int line_height;
+        float anchor_x_start = calculate_start_anchor(atlas, num_newlines, line_height, pos.x, ss_scale);
         float char_x = anchor_x_start;
-        float char_y = pos.y;
+        float char_y = pos.y + line_height;
 
         // handle animation (only draw fraction of total depending on time)
         time += dt;
         float amnt = std::min(time / (anim_time * num_newlines), 1.f); // 1.f => 100% is drawn
 
         std::vector<float> render_data; // should be 6 * 4 * render_chars.size()
-        for (size_t i = 0; i < static_cast<size_t>(amnt * text_content.size()); i++) {
+        const size_t num_render_chars = static_cast<size_t>(amnt * text_content.size());
+        for (size_t i = 0; i < num_render_chars; i++) {
             char char_req = text_content[i];
             // std::cout << char_req << std::endl;
             const Character& ch = atlas->chars[char_req];
@@ -374,25 +414,25 @@ struct Text {
                 float ypos = -char_y - (ch.Size.y - ch.Bearing.y) * ss_scale;
                 float w = ch.Size.x * ss_scale;
                 float h = ch.Size.y * ss_scale;
+                // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+                char_x += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
+
                 // if (!w || !h) // skip glyphs with no size
                 //     continue;
 
                 // each 4 tuple is a {x, y, s, t} to index into the vertex/texture coordinates/attribute
                 render_data.insert(render_data.end(), {
-                    xpos,     -ypos - h, ch.tx,                h / atlas->h,
-                    xpos,     -ypos,     ch.tx,                0.0f,
-                    xpos + w, -ypos,     ch.tx + w / atlas->w, 0.0f,
-                    xpos,     -ypos - h, ch.tx,                h / atlas->h,
-                    xpos + w, -ypos,     ch.tx + w / atlas->w, 0.0f,
-                    xpos + w, -ypos - h, ch.tx + w / atlas->w, h / atlas->h
+                    xpos,     -ypos - h, ch.t.x,                ch.t.y + h / atlas->h,
+                    xpos,     -ypos,     ch.t.x,                ch.t.y,
+                    xpos + w, -ypos,     ch.t.x + w / atlas->w, ch.t.y,
+                    xpos,     -ypos - h, ch.t.x,                ch.t.y + h / atlas->h,
+                    xpos + w, -ypos,     ch.t.x + w / atlas->w, ch.t.y,
+                    xpos + w, -ypos - h, ch.t.x + w / atlas->w, ch.t.y + h / atlas->h
                 });
-
-                // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-                char_x += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
             }
             else {
                 char_x = anchor_x_start; // reset x
-                char_y -= atlas->h; // increment Y
+                char_y -= line_height; // increment Y
             }
         }
 
@@ -419,8 +459,8 @@ struct Text {
         GL_ERRORS();
 
         // draw triangles (this is the expensive part!)
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * render_data.size(), render_data.data(), GL_DYNAMIC_DRAW);
-        glDrawArrays(GL_TRIANGLES, 0, render_data.size());
+        glBufferData(GL_ARRAY_BUFFER, num_render_chars * sizeof(float) * 6 * 4, render_data.data(), GL_DYNAMIC_DRAW);
+        glDrawArrays(GL_TRIANGLES, 0, num_render_chars * 6);
         glDisableVertexAttribArray(shader_coord);
         GL_ERRORS();
 
@@ -433,7 +473,7 @@ struct Text {
 
         GL_ERRORS();
 
-        if (atlas != nullptr)
-            delete atlas;
+        // if (atlas != nullptr)
+        //     delete atlas;
     }
 };
