@@ -708,7 +708,6 @@ void PlayMode::update(float elapsed) {
             }
 		}
 	}
-	LOG(1.f / elapsed);
 
 	if (playing) { // update rocket controls
 		{ // reset dilation on controls
@@ -1205,6 +1204,5 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	/* HUD::drawElement(glm::vec2(80, (250 * thrust_amnt)), glm::vec2(140, 32 + (250 * thrust_amnt)), bar, color); */
 	/* HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * thrust_amnt)), handle); */
 
-	Text::draw_all(drawable_size); // draws all characters in one fell swoop
 	GL_ERRORS();
 }
