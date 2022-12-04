@@ -709,7 +709,6 @@ void PlayMode::update(float elapsed) {
 		}
 	}
 
-
 	if (playing) { // update rocket controls
 		{ // reset dilation on controls
 			if (up.downs || down.downs ||  shift.downs || control.downs) {
@@ -1204,7 +1203,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	/* } */
 	/* HUD::drawElement(glm::vec2(80, (250 * thrust_amnt)), glm::vec2(140, 32 + (250 * thrust_amnt)), bar, color); */
 	/* HUD::drawElement(glm::vec2(120, 30), glm::vec2(120, 60 + (250 * thrust_amnt)), handle); */
-
 
 	GL_ERRORS();
 }
