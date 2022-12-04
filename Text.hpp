@@ -8,7 +8,8 @@
 #include "gl_errors.hpp"
 
 #include <iostream>
-#include <map>
+#include <unordered_map>
+#include <set>
 #include <string>
 #include <array>
 #include <vector>
@@ -114,6 +115,7 @@ struct Text {
 
     // for actual text content
     std::string text_content;
+    bool bIsStaticText = false; // whether or not to build a minimal Atlas (static text) or not (dynamic text)
 
     struct Atlas {
         // attempting to "glom" all relevant textures to a single texture atlas
@@ -124,13 +126,14 @@ struct Text {
         
         GLuint tex;
         unsigned int w, h;
-        std::array<Character, 128> chars;
+        std::array<Character, 128> chars; // supports a variable number of characters
+        // std::unordered_map<char, size_t> char_map; // mapping from char to char-index in atlas (for vector)
         static constexpr int MAXTEXWIDTH = 1024;
         int fontscale;
 
-        Atlas(FT_Face face, int scale) {
+        Atlas(FT_Face face, int scale, std::string const &text = "") {
             // create a single large atlas texture for all the ASCII characters of size scale
-            update(face, scale);
+            update(face, scale, text);
             std::cout << "Generated Atlas with dims: (" << w << " x " << h << ")"  << std::endl;
         }
 
@@ -139,19 +142,31 @@ struct Text {
             GL_ERRORS();
         }
 
-        void update(FT_Face face, int scale) {
+        void update(FT_Face face, int scale, std::string const &text = "") {
             fontscale = scale;
             
             FT_Set_Pixel_Sizes(face, 0, fontscale);
 		    FT_GlyphSlot g = face->glyph;
-            
+            std::set<char> render_chars = {}; // don't care about duplicates
+            if (text == "") {
+                for (int i = 32; i < 128; i++) { // all drawable ascii characters
+                    render_chars.insert(i);
+                }
+            } else {
+                std::cout << "Generating Atlas texture for text: \"" << text << "\"" << std::endl;
+                for (char c : text) {
+                    render_chars.insert(c);
+                }
+            }
+
+
             // find the size of the atlas texture (big  width limited by MAXTEXWIDTH)
             unsigned int roww = 0, rowh = 0;
             w = 0; // width of all glyphs together
             h = 0; // height of single tallest glyph
-            for (int i = 32; i < 128; i++) { // all ascii character
-			    if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
-                    throw std::runtime_error("Failed to load glyph: " + std::to_string(i));
+            for (char c : render_chars) { // all ascii character
+			    if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+                    throw std::runtime_error("Failed to load glyph for char: \'" + std::to_string(c) + "\'");
                     continue;
                 }
 
@@ -190,9 +205,9 @@ struct Text {
             // fill in the texture with all the glyphs
             glm::ivec2 offset{0, 0};
             rowh = 0;
-            for (int i = 32; i < 128; i++) {
-                if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
-                    fprintf(stderr, "Loading character %c failed!\n", i);
+            for (char c : render_chars) {
+                if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+                    throw std::runtime_error("Failed to load glyph for char: \'" + std::to_string(c) + "\'");
                     continue;
                 }
                 if (offset.x + g->bitmap.width + 1 >= MAXTEXWIDTH) {
@@ -200,15 +215,16 @@ struct Text {
                     rowh = 0;
                     offset.x = 0;
                 }
+                glm::vec2 tex_char_offset{static_cast<float>(offset.x) / this->w, static_cast<float>(offset.y) / this->h};
                 Character ch{0, // no texture
                     glm::ivec2{g->bitmap.width, g->bitmap.rows}, // size
                     glm::ivec2{g->bitmap_left, g->bitmap_top}, // bearing 
                     (unsigned int)(g->advance.x), // advance
                     g->bitmap.buffer, // buffer data
-                    {static_cast<float>(offset.x) / this->w, static_cast<float>(offset.y) / this->h},// texture
+                    tex_char_offset,// texture
                 };
                 glTexSubImage2D(GL_TEXTURE_2D, 0, offset.x, offset.y, ch.Size.x, ch.Size.y, GL_RED, GL_UNSIGNED_BYTE, ch.data);
-                chars[i] = ch;
+                chars[c] = ch;
 
                 rowh = std::max(rowh, g->bitmap.rows);
                 offset.x += ch.Size.x + 1;
@@ -339,6 +355,11 @@ struct Text {
         hb_shape(hb_typeface, hb_buffer, NULL, 0);
     }
 
+    void set_static_text(const std::string &new_text) {
+        set_text(new_text);
+        bIsStaticText = true;
+    }
+
     void set_text(const std::string& new_text)
     {
         text_content = new_text;
@@ -415,11 +436,11 @@ struct Text {
 
         if (atlas == nullptr) {
             /// TODO: make atlas "content-aware" so to only allocate memory & load necessary glyphs
-            atlas = new Atlas(typeface, scale);
+            atlas = new Atlas(typeface, scale, bIsStaticText ? text_content : "");
         }
 
         if (scale != atlas->fontscale) {
-            atlas->update(typeface, scale); // resize
+            atlas->update(typeface, scale, bIsStaticText ? text_content : ""); // resize
         }
         
         size_t num_newlines;

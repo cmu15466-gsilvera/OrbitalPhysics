@@ -52,7 +52,7 @@ struct MenuMode : Mode
 			sprite = HUD::loadSprite(sprite_path);
 			text = new Text();
 			text->init(Text::AnchorType::CENTER);
-			text->set_text(str);
+			text->set_static_text(str); // for now, buttons will always have static text
 		}
 		glm::u8vec4 color;
 		glm::u8vec4 color_hover;

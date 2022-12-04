@@ -780,14 +780,14 @@ void PlayMode::update(float elapsed) {
 	// }
 
     if (playing) {
-		ThrottleHeader.set_text("Throttle");
+		ThrottleHeader.set_static_text("Throttle");
         if(spaceship.thrust_percent < 100.0f){
 		    ThrottleReading.set_text(std::to_string(static_cast<int>(spaceship.thrust_percent)) + "%");
         }else{
 		    ThrottleReading.set_text("MAX");
         }
 		SpeedupReading.set_text(std::to_string(dilation));
-		CollisionHeader.set_text("Time to Impact");
+		CollisionHeader.set_static_text("Time to Impact");
 		CollisionTimer.set_text(asteroid.get_time_remaining());
 		LaserText.set_text(spaceship.laser_timer == 0.0f ? "Ready to Fire" : "Recharging");
     }

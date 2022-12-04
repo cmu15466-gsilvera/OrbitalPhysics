@@ -77,7 +77,10 @@ MenuMode::MenuMode()
 
 	{ // load text
 		start_menu_text.init(Text::AnchorType::CENTER);
+		start_menu_text.set_static_text("Project Athena");
+
 		menu_text_1.init(Text::AnchorType::CENTER);
+		menu_text_1.set_static_text("Press or click (1) (2) or (3) to start a level");
 	}
 }
 
@@ -179,20 +182,6 @@ void MenuMode::ButtonSprite::draw(glm::vec2 const &drawable_size) const
 
 void MenuMode::update(float elapsed)
 {
-	{ // update text UI
-		std::stringstream stream;
-		stream << "Project Athena";
-		// stream << "a" << std::endl << "b";
-		start_menu_text.set_text(stream.str());
-	}
-
-	{ // update text UI
-		std::stringstream stream;
-		stream << "Press or click (1) (2) or (3) to start a level";
-		// stream << "a" << std::endl << "b";
-		menu_text_1.set_text(stream.str());
-	}
-
 	{ // all hover checks for buttons
 		for (auto &button : buttons)
 		{
