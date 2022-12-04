@@ -150,7 +150,7 @@ struct Text {
             std::set<char> render_chars = {}; // don't care about duplicates
             if (text == "") {
                 for (int i = 32; i < 128; i++) { // all drawable ascii characters
-                    render_chars.insert(i);
+                    render_chars.insert(static_cast<char>(i));
                 }
             } else {
                 std::cout << "Generating Atlas texture for text: \"" << text << "\"" << std::endl;
