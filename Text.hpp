@@ -461,8 +461,8 @@ struct Text {
             if (char_req != '\n') {
                 float xpos = char_x + ch.Bearing.x;
                 float ypos = -char_y - (ch.Size.y - ch.Bearing.y);
-                float w = ch.Size.x;
-                float h = ch.Size.y;
+                float w = static_cast<float>(ch.Size.x);
+                float h = static_cast<float>(ch.Size.y);
                 // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
                 char_x += (ch.Advance >> 6); // bitshift by 6 to get value in pixels (2^6 = 64)
 
