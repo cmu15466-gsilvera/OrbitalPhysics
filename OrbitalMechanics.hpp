@@ -35,13 +35,12 @@ enum DilationLevel {
 };
 
 extern DilationLevel dilation;
-extern int dilationInt;
 
 DilationLevel operator++(DilationLevel &level, int);
 DilationLevel operator--(DilationLevel &level, int);
 bool operator>(DilationLevel a, DilationLevel b);
 glm::dvec3 DilationColor(const DilationLevel &level);
-std::string DilationSchematic(const DilationLevel &level);
+int DilationInt(const DilationLevel &level);
 
 // Thing in the space
 struct Entity {

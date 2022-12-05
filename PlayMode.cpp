@@ -270,7 +270,6 @@ void PlayMode::deserialize(std::string const &filename) {
 	camera_arms.clear();
 	scene.drawables.clear();
 	dilation = LEVEL_0;
-	dilationInt = 0;
 
 	entities.push_back(&spaceship);
 	current_focus_entity = &spaceship; // first focus should be on spaceship
@@ -698,21 +697,14 @@ void PlayMode::update(float elapsed) {
 	if (playing) { //update dilation
 		if (plus.downs > 0 && minus.downs == 0) {
 			dilation++;
-            if(dilationInt < 5){
-                dilationInt++;
-            }
 		} else if (minus.downs > 0 && plus.downs == 0) {
 			dilation--;
-            if(dilationInt > 0){
-                dilationInt--;
-            }
 		}
 	}
 
 	if (playing) { // update rocket controls
 		{ // reset dilation on controls
 			if (up.downs || down.downs ||  shift.downs || control.downs) {
-				dilationInt = 0;
 				dilation = LEVEL_0; // reset time so user inputs are used
 			}
 		}
@@ -1172,7 +1164,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	ThrottleHeader.draw(1.f, drawable_size,  20.f,  glm::vec2(22, 290), glm::vec4(1.f));
 	ThrottleReading.draw(1.f, drawable_size, 60.f, glm::vec2(22, 220), glm::vec4(1.f));
 	SpeedupReading.draw(1.f, drawable_size,  60.f,  HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-5, 142)), DilationColor(dilation));
-    for (int i = 0; i < dilationInt + 1; i++) {
+    for (int i = 0; i < DilationInt(dilation) + 1; i++) {
 	    HUD::drawElement(glm::vec2(70, 23), HUD::fromAnchor(HUD::Anchor::CENTERRIGHT, glm::vec2(-75, -145 + (46 * i))), bar, glm::vec4(DilationColor(dilation) * 255.0, 255.0));
     }
 	CollisionHeader.draw(1.f, drawable_size, 20.f, HUD::fromAnchor(HUD::Anchor::TOPLEFT, glm::vec2(450, -60)), glm::vec4(1.0f));

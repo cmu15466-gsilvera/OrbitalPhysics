@@ -47,7 +47,6 @@ double universal_time = 0.0;
 
 //Time acceleration
 DilationLevel dilation = LEVEL_0;
-int dilationInt = 0;
 static DilationLevel constexpr MAX_SOI_TRANS_DILATION = LEVEL_3;
 
 DilationLevel operator++(DilationLevel &level, int) {
@@ -104,22 +103,22 @@ glm::dvec3 DilationColor(const DilationLevel &level) {
 	}
 }
 
-std::string DilationSchematic(const DilationLevel &level) {
-	// used as a visual indicator in the UI
+int DilationInt(const DilationLevel &level) {
 	switch (level) {
 	case LEVEL_0:
-		return "[|.....]";
+		return 0;
 	case LEVEL_1:
-		return "[||....]";
+		return 1;
 	case LEVEL_2:
-		return "[|||...]";
+		return 2;
 	case LEVEL_3:
-		return "[||||..]";
+		return 3;
 	case LEVEL_4:
-		return "[|||||.]";
+		return 4;
 	case LEVEL_5:
+		return 5;
 	default:
-		return "[||||||]";
+		return -1; // error!
 	}
 }
 
