@@ -5,8 +5,8 @@ on:
     types: [created]
 
 env:
-  BASE_NAME: final-game
-  NEST_LIBS_VERSION: v0.10
+  BASE_NAME: project-athena
+  NEST_LIBS_VERSION: v1.0
 
 jobs:
   build-windows:
