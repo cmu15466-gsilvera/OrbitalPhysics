@@ -389,7 +389,7 @@ struct Text {
         }
     }
 
-    float calculate_start_anchor(Atlas *_atlas, size_t &num_newlines, int &line_height, float left_pos, float ss_scale) {
+    float calculate_start_anchor(Atlas *_atlas, size_t &num_newlines, int &line_height, float left_pos) {
         if (_atlas == nullptr) {
             throw std::runtime_error("Atlas is null! cannot calculate start anchor!");
         }
@@ -406,7 +406,7 @@ struct Text {
                 line_widths.push_back(0.f);
             }
             else {
-                line_widths.back() += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
+                line_widths.back() += (ch.Advance >> 6); // bitshift by 6 to get value in pixels (2^6 = 64)
             }
             line_height = std::max(line_height, ch.Size.y);
         }
@@ -426,12 +426,12 @@ struct Text {
         return anchor_x_start;
     }
 
-    void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color) {
+    void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, glm::vec3 const &color) {
         // overload to cast scale to int
-        draw(dt, drawable_size, static_cast<int>(scale), pos, ss_scale, color);
+        draw(dt, drawable_size, static_cast<int>(scale), pos, color);
     }
 
-    void draw(float dt, const glm::vec2& drawable_size, int scale, const glm::vec2& pos, float ss_scale, glm::vec3 const &color) {
+    void draw(float dt, const glm::vec2& drawable_size, int scale, const glm::vec2& pos, glm::vec3 const &color) {
         // draw a text element using an atlas texture to draw it all at once
 
         if (atlas == nullptr) {
@@ -445,7 +445,7 @@ struct Text {
         
         size_t num_newlines;
         int line_height;
-        float anchor_x_start = calculate_start_anchor(atlas, num_newlines, line_height, pos.x, ss_scale);
+        float anchor_x_start = calculate_start_anchor(atlas, num_newlines, line_height, pos.x);
         float char_x = anchor_x_start;
         float char_y = pos.y + line_height;
 
@@ -459,12 +459,12 @@ struct Text {
             char char_req = text_content[i];
             const Character& ch = atlas->chars[char_req];
             if (char_req != '\n') {
-                float xpos = char_x + ch.Bearing.x * ss_scale;
-                float ypos = -char_y - (ch.Size.y - ch.Bearing.y) * ss_scale;
-                float w = ch.Size.x * ss_scale;
-                float h = ch.Size.y * ss_scale;
+                float xpos = char_x + ch.Bearing.x;
+                float ypos = -char_y - (ch.Size.y - ch.Bearing.y);
+                float w = ch.Size.x;
+                float h = ch.Size.y;
                 // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-                char_x += (ch.Advance >> 6) * ss_scale; // bitshift by 6 to get value in pixels (2^6 = 64)
+                char_x += (ch.Advance >> 6); // bitshift by 6 to get value in pixels (2^6 = 64)
 
                 // if (!w || !h) // skip glyphs with no size
                 //     continue;

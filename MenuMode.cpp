@@ -175,7 +175,7 @@ void MenuMode::ButtonSprite::draw(glm::vec2 const &drawable_size) const
 	if (text != nullptr && text->text_content.size() > 0)
 	{
 		glm::vec2 center_loc = top_left_loc + 0.5f * glm::vec2{_size.x, -1.2f * _size.y} * drawable_size;
-		text->draw(1.f, drawable_size, drawable_size.x * 0.02f, center_loc, 1.f, glm::u8vec4{0xff});
+		text->draw(1.f, drawable_size, drawable_size.x * 0.02f, center_loc, glm::u8vec4{0xff});
 	}
 	HUD::drawElement(_size * drawable_size, top_left_loc, sprite, _color);
 }
@@ -251,14 +251,14 @@ void MenuMode::draw(glm::uvec2 const &drawable_size)
 		float x = drawable_size.x * 0.5f;
 		float y = drawable_size.y * 0.9f; // top is 1.f bottom is 0.f
 		float fontsize = drawable_size.x * 0.05f;
-		start_menu_text.draw(1.f, drawable_size, fontsize, glm::vec2(x, y), 1.f, glm::u8vec4{0xff});
+		start_menu_text.draw(1.f, drawable_size, fontsize, glm::vec2(x, y), glm::u8vec4{0xff});
 	}
 
 	{ // other text
 		float x = drawable_size.x * 0.5f;
 		float y = drawable_size.y * 0.6f; // top is 1.f bottom is 0.f
 		float fontsize = drawable_size.x * 0.03f;
-		menu_text_1.draw(1.f, drawable_size, fontsize, glm::vec2(x, y), 1.f, glm::u8vec4{0xff});
+		menu_text_1.draw(1.f, drawable_size, fontsize, glm::vec2(x, y), glm::u8vec4{0xff});
 	}
 
 	{ // menu buttons
