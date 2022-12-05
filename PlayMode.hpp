@@ -50,6 +50,7 @@ struct PlayMode : Mode {
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
 	glm::uvec2 window_dims;
+	HUD::ButtonSprite *menu_button = nullptr;
 
 	GLuint hdrFBO = 0;
 	GLuint rboDepth = 0;
@@ -198,7 +199,6 @@ struct PlayMode : Mode {
 	}
 
 	// text UI
-	// Text UI_text;
 	Text ThrottleHeader;
 	Text ThrottleReading;
 	Text SpeedupReading;

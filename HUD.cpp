@@ -113,6 +113,28 @@ HUD::Sprite *HUD::loadSprite(std::string path){
 	return ret;
 }
 
+bool HUD::ButtonSprite::is_hovered(glm::vec2 const &mouse)
+{
+	glm::vec2 mouse_abs = ((mouse / 2.f) + 0.5f); // to screen percentage
+	bool within_x = loc.x - size.x * 0.5f <= mouse_abs.x && mouse_abs.x <= loc.x + size.x * 0.5f;
+	bool within_y = loc.y - size.y * 0.5f <= mouse_abs.y && mouse_abs.y <= loc.y + size.y * 0.5f;
+	this->bIsHovered = within_x && within_y;
+	return bIsHovered;
+}
+
+void HUD::ButtonSprite::draw(glm::vec2 const &drawable_size) const
+{
+	auto _color = bIsHovered ? color_hover : color;
+	glm::vec2 _size = bIsHovered ? size_hover : size;
+	glm::vec2 top_left_loc = glm::vec2{loc.x - _size.x * 0.5f, loc.y + _size.y * 0.5f} * drawable_size;
+	if (text != nullptr && text->text_content.size() > 0)
+	{
+		glm::vec2 center_loc = top_left_loc + 0.5f * glm::vec2{_size.x, -1.2f * _size.y} * drawable_size;
+		text->draw(1.f, drawable_size, drawable_size.x * 0.02f, center_loc, glm::u8vec4{0xff});
+	}
+	HUD::drawElement(_size * drawable_size, top_left_loc, sprite, _color);
+}
+
 void HUD::drawElement(glm::vec2 pos, HUD::Sprite *sprite, glm::u8vec4 const &color){
     drawElement(glm::vec2(static_cast<float>(sprite->width),static_cast<float>(sprite->height)), pos, sprite, color);
 }

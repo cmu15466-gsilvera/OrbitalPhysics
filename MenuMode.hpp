@@ -35,41 +35,8 @@ struct MenuMode : Mode
 	Scene::Camera *camera = nullptr;
 	glm::vec3 random_direction;
 
-	struct ButtonSprite
-	{
-		ButtonSprite(ButtonSprite const &) = delete;
-		~ButtonSprite()
-		{
-			if (sprite != nullptr)
-				delete sprite;
-			if (text != nullptr)
-				delete text;
-		}
-		ButtonSprite(std::string const &sprite_path, glm::u8vec4 const &c0, glm::u8vec4 const &c1, glm::vec2 const &s0,
-					 glm::vec2 const &s1, glm::vec2 const &l, std::string const &str = "")
-			: color(c0), color_hover(c1), size(s0), size_hover(s1), loc(l)
-		{
-			sprite = HUD::loadSprite(sprite_path);
-			text = new Text();
-			text->init(Text::AnchorType::CENTER);
-			text->set_static_text(str); // for now, buttons will always have static text
-		}
-		glm::u8vec4 color;
-		glm::u8vec4 color_hover;
-		/// NOTE: location/size is relative to CENTER of sprite
-		glm::vec2 size;
-		glm::vec2 size_hover;
-		glm::vec2 loc;
-		Text *text = nullptr;
-		HUD::Sprite *sprite = nullptr;
-		bool bIsHovered = false;
-		bool is_hovered(glm::vec2 const &) const;
-		void draw(glm::vec2 const &) const;
-	};
-
-	HUD::Sprite *window;
-	ButtonSprite *play_button0, *play_button1, *play_button2, *tutorial_button, *exit_button;
-	std::list< ButtonSprite  > buttons;
+	HUD::ButtonSprite *play_button0, *play_button1, *play_button2, *tutorial_button, *exit_button;
+	std::list< HUD::ButtonSprite  > buttons;
 
 	glm::vec2 target_xy;
 

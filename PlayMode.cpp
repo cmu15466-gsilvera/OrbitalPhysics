@@ -156,6 +156,16 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		LaserText.init(Text::AnchorType::CENTER);
 	}
 
+	{ // menu buttons
+		const glm::u8vec4 button_color{0x66, 0x33, 0x55, 0x55};
+		const glm::u8vec4 button_color_hover{0x66, 0x33, 0x55, 0x66};
+		glm::vec2 size0 = glm::vec2(0.15f, 0.09f);
+		glm::vec2 size1 = 1.1f * size0;
+		glm::vec2 location = glm::vec2(0.5f, 0.35f);
+
+		menu_button = new HUD::ButtonSprite(data_path("assets/ui/sqr.png"), button_color, button_color_hover, size0, size1, location, "Menu");
+	}
+
 }
 
 PlayMode::~PlayMode() {
@@ -616,7 +626,8 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		return was_key_up;
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		can_pan_camera = true;
-		SDL_SetRelativeMouseMode(SDL_TRUE);
+		if (game_status == GameStatus::PLAYING)
+			SDL_SetRelativeMouseMode(SDL_TRUE);
 		return true;
 		// if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
 		// 	return true;
@@ -624,21 +635,20 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	} else if (evt.type == SDL_MOUSEBUTTONUP) {
 		// show the mouse cursor again once the mouse is released
 		can_pan_camera = false;
-		SDL_SetRelativeMouseMode(SDL_TRUE);
+		if (game_status == GameStatus::PLAYING)
+			SDL_SetRelativeMouseMode(SDL_TRUE);
 		return true;
 		// if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
 		// 	return true;
 		// }
 	} else if (evt.type == SDL_MOUSEMOTION) {
-		{
-			// mouse_motion is (1, 1) in top right, (-1, -1) in bottom left
-			mouse_motion = 2.f * glm::vec2(evt.motion.x / float(window_size.x) - 0.5f, -evt.motion.y / float(window_size.y) + 0.5f);
-			mouse_motion_rel = glm::vec2(
-				evt.motion.xrel / float(window_size.x),
-				-evt.motion.yrel / float(window_size.y)
-			);
-			return true;
-		}
+		// mouse_motion is (1, 1) in top right, (-1, -1) in bottom left
+		mouse_motion = 2.f * glm::vec2(evt.motion.x / float(window_size.x) - 0.5f, -evt.motion.y / float(window_size.y) + 0.5f);
+		mouse_motion_rel = glm::vec2(
+			evt.motion.xrel / float(window_size.x),
+			-evt.motion.yrel / float(window_size.y)
+		);
+		return true;
 	} else if(evt.type == SDL_MOUSEWHEEL) {
 		auto &camarm = CurrentCameraArm();
 		float scroll_zoom = -evt.wheel.y * camarm.ScrollSensitivity;
@@ -815,8 +825,14 @@ void PlayMode::update(float elapsed) {
 		}
 	}
 
-	if (!playing) {
+	if (!playing) { // post-game logic
 		anim = elapsed;
+		SDL_SetRelativeMouseMode(SDL_FALSE); // turn on mouse
+		if (menu_button->is_hovered(mouse_motion) && can_pan_camera)
+		{
+			Mode::set_current(next_mode);
+			next_mode->mode_level = 0;
+		}
 	}
 
 	if (playing && !bIsTutorial) { //laser
@@ -1183,6 +1199,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		auto color = game_status == GameStatus::WIN ? glm::u8vec4{0x0, 0xff, 0x0, 0xff} : glm::u8vec4{0xff, 0x0, 0x0, 0xff};
 		GameOverText.set_text(message);
 		GameOverText.draw(anim, drawable_size, 0.05f * drawable_size.x, 0.5f * glm::vec2(drawable_size), color);
+
+		if (menu_button != nullptr) {
+			menu_button->draw(drawable_size);
+		}
 	}
 
 	if (bIsTutorial) { // draw tutorial text
