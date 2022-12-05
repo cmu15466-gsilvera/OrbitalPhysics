@@ -102,6 +102,7 @@ struct PlayMode : Mode {
 	const float reticle_radius_screen = 0.1f; // 10% of the window-size
 	const float homing_threshold = 0.1f; // 1% of the window-size for homing threshold
 	glm::vec2 reticle_aim{0.f, 0.f}; // (0, 0) in center, (1, 1) top right, (-1, -1) bottom left
+	glm::dvec3 world_target{0., 0., 0.}; // where (in world space) is the reticle target
 	bool reticle_homing = false;
 
 	// spaceship

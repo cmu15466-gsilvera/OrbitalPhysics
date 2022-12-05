@@ -204,9 +204,13 @@ bool Beam::collide(glm::dvec3 x) const {
 	return glm::l2Norm(pos - x) + glm::l2Norm(prev_pos - x) - glm::l2Norm(pos - prev_pos) < 0.1f;
 }
 
-double Beam::get_mass(glm::dvec3 x) const {
-	double denom = 1.0 + glm::l2Norm(x - start_pos) * 0.05;
+double Beam::inverse_sq(glm::dvec3 const &x, glm::dvec3 const &start) {
+	double denom = 1.0 + glm::l2Norm(x - start) * 0.05;
 	return 1.0 / (denom * denom);
+}
+
+double Beam::get_mass(glm::dvec3 x) const {
+	return Beam::inverse_sq(x, start_pos);
 }
 
 void Rocket::init(Scene::Transform *transform_, Body *root_, Scene *scene, Asteroid const &asteroid) {

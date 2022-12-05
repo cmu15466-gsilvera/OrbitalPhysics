@@ -101,6 +101,7 @@ struct Beam {
 	glm::dvec3 compute_delta_pos() const;
 	bool collide(glm::dvec3 x) const;
 	double get_mass(glm::dvec3 x) const;
+	static double inverse_sq(glm::dvec3 const &x, glm::dvec3 const &start);
 	void draw(DrawLines &DL) const;
 };
 

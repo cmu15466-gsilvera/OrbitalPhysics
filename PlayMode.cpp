@@ -781,7 +781,11 @@ void PlayMode::update(float elapsed) {
 		SpeedupReading.set_text(std::to_string(dilation));
 		CollisionHeader.set_static_text("Time to Impact");
 		CollisionTimer.set_text(asteroid.get_time_remaining());
-		LaserText.set_text(spaceship.laser_timer == 0.0f ? "Ready to Fire" : "Recharging");
+
+
+		int laser_power = static_cast<int>(100.f * Beam::inverse_sq(world_target, spaceship.pos));
+		std::string strength_percent = reticle_homing ? " (" + std::to_string(laser_power) + "%)" : "";
+		LaserText.set_text(spaceship.laser_timer == 0.0f ? "Ready to Fire" + strength_percent : "Recharging");
     }
 
 	{ //update listener to camera position:
@@ -916,7 +920,6 @@ void PlayMode::update(float elapsed) {
 		reticle_aim = homing_reticle_pos * 0.5f + 0.5f; // [-1:1]^2 -> [0:1]^2
 
 		// now make sure the rocket laser launcher system follows this direction
-		glm::dvec3 world_target{0., 0., 0.};
 		if (reticle_homing) {
 			world_target = homing_target; // already know what position the target is
 		}
