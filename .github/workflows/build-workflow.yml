@@ -6,7 +6,7 @@ on:
 
 env:
   BASE_NAME: project-athena
-  NEST_LIBS_VERSION: v1.0
+  NEST_LIBS_VERSION: v0.10
 
 jobs:
   build-windows:
