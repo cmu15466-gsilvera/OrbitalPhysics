@@ -10,6 +10,9 @@
 //For asset loading:
 #include "Load.hpp"
 
+//For GP22 splash screen
+#include "GP22IntroMode.hpp"
+
 //For sound init:
 #include "Sound.hpp"
 
@@ -121,7 +124,9 @@ int main(int argc, char **argv) {
 	NotPlayingMode->next_mode = PlayingMode;
 	PlayingMode->next_mode = NotPlayingMode;
 
-	Mode::set_current(NotPlayingMode);
+	Mode::set_current(std::make_shared< GP22IntroMode >(NotPlayingMode));
+
+	// Mode::set_current(NotPlayingMode);
 
 	//------------ main loop ------------
 
