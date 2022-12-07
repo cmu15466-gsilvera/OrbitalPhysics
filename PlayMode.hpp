@@ -17,6 +17,7 @@
 #include <fstream>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 struct PlayMode : Mode {
 	PlayMode();
@@ -108,6 +109,9 @@ struct PlayMode : Mode {
 
 	// spaceship
 	Rocket spaceship;
+
+	// spaceship fuel
+	std::unordered_set<Particle*> fuel_pellets;
 
 	bool bEnableEasyMode = true; // allow "negative thrust" to correct for over-orbit
 	bool bCanThrustChangeDir = true; // whether or not we can thrust

@@ -86,6 +86,13 @@ struct Body : public Entity {
 	double soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
 };
 
+// "Body" in space that can be consumed (good/fuel or bad/debris) 
+// does not affect orbital mechanics (negligible)
+struct Particle : public Body {
+	Particle(double r_ = 0.1f) : Body(-1, 0.2, 0.0, 0.0) {} // using Id = -1 for pellets
+	float value = 1.f;
+};
+
 struct Beam {
 	Beam() = delete;
 	Beam(glm::dvec3 &p, glm::dvec3 h) : pos(p), heading(h), start_pos(p) {};
@@ -199,8 +206,8 @@ struct Rocket : public Entity {
 //Orbital path: https://en.wikipedia.org/wiki/Kepler_orbit
 //Orbital velocity: https://en.wikipedia.org/wiki/Vis-viva_equation
 struct Orbit {
-	Orbit(Body *origin, glm::dvec3 pos, glm::dvec3 vel, bool simulated);
-	Orbit(Body *origin_, double c_, double p_, double phi_, double theta_, bool retrograde);
+	Orbit(Body *origin, glm::dvec3 pos, glm::dvec3 vel, bool simulated, bool verbose = false);
+	Orbit(Body *origin_, double c_, double p_, double phi_, double theta_, bool retrograde, bool verbose = false);
 
 	void init_dynamics() {
 		assert(p > MinPForDegen);
@@ -250,7 +257,7 @@ struct Orbit {
 	void find_closest_approach(Orbit const &other, size_t points_idx, size_t other_points_idx,
 		ClosestApproachInfo &closest);
 	double find_time_of_collision();
-	void draw(DrawLines &lines, glm::u8vec4 const &color);
+	void draw(DrawLines &lines, glm::u8vec4 const &color) const;
 
 	//Constants
 	static double constexpr G = 6.67430e-23; //Standard gravitational constant

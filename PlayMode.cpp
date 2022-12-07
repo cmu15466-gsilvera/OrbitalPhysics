@@ -428,6 +428,7 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 	//check star
 	throw_on_err(std::getline(file, line),
 		"Malformed save file: body - not enough lines.");
+	size_t num_pellets = 0;
 	if (line == "Orbit: None") { //star
 		//set transform
 		body.set_transform(trans);
@@ -455,6 +456,32 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 
 		//make drawable
 		Scene::make_drawable(scene, trans, main_meshes.value);
+
+		// enable pellets for non-stars
+		num_pellets = static_cast<int>(radius + 1.f);
+	}
+
+	if (bLevelLoaded) { // scatter surrounding food & debris
+		for (size_t i = 0; i < num_pellets; i++) {
+			Particle *food = new Particle();
+			fuel_pellets.insert(food);
+			scene.transforms.emplace_back();
+			Scene::Transform *fuel_trans = &scene.transforms.back();
+			fuel_trans->name = "Moon"; // simple orange mush
+			fuel_trans->scale = glm::dvec3(0.3f); // very small!
+			Scene::make_drawable(scene, fuel_trans, main_meshes.value);
+			double c = (std::rand() % 100) / 100.f;
+			double p = radius * (1.f + 6.f * (std::rand() % 100) / 100.f);
+			double phi = 2.f * M_PI * (std::rand() % 100) / 100.f;
+			double theta = 2.f * M_PI * (std::rand() % 100) / 100.f;
+			double retrograde = 0.f;
+			auto *food_orb = new Orbit(&body, c, p, phi, theta, retrograde);
+			food->set_transform(fuel_trans);
+			food->set_orbit(food_orb);
+			body.add_satellite(food); // assign to this body
+			entities.push_back(food);
+		}
+		LOG("loaded " << num_pellets << " pellets for body \"" << name << "\" (" << fuel_pellets.size());
 	}
 
 	LOG("Loaded Body '" << name << "' (id: " << std::to_string(id) << ")");
@@ -662,6 +689,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::update(float elapsed) {
 	if (!bLevelLoaded) {
+		bLevelLoaded = true;
 		if (mode_level < 3)
 			deserialize(data_path("levels/level_" + std::to_string(mode_level + 1) + ".txt"));
 		else {
@@ -669,8 +697,6 @@ void PlayMode::update(float elapsed) {
 			deserialize(data_path("levels/level_1.txt"));
 			LOG("Starting tutorial...");
 		}
-
-		bLevelLoaded = true;
 	}
 
 	bool playing = (game_status == GameStatus::PLAYING);
@@ -1076,6 +1102,18 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		star->draw_orbits(orbit_lines, grey, CurrentCameraArm().camera_arm_length);
 		spaceship.orbits.front().draw(orbit_lines, cyan);
 		asteroid.orbits.front().draw(orbit_lines, green);
+
+		{ // draw the orbit of the fuel being hovered over
+			static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff);
+			if (target_lock != nullptr) {
+				Particle *fuel_key = static_cast<Particle*>(const_cast<Entity*>(target_lock));
+				if (fuel_pellets.find(fuel_key) != fuel_pellets.end()) {
+					Particle *draw_fuel = *(fuel_pellets.find(fuel_key));
+					if (draw_fuel != nullptr)
+						draw_fuel->orbit->draw(orbit_lines, red);
+				}
+			}
+		}
 	}
 
 
