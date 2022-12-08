@@ -73,7 +73,11 @@ int main(int argc, char **argv) {
 	//create window:
 	SDL_Window *window = SDL_CreateWindow(
 		"Project Athena",
+#ifdef _WIN32
 		0, 0,
+#else // for macos and linux
+		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+#endif
 		1920, 1080,
 		SDL_WINDOW_OPENGL
 		| SDL_WINDOW_RESIZABLE //uncomment to allow resizing
