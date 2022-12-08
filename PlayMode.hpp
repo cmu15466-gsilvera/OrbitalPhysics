@@ -129,6 +129,8 @@ struct PlayMode : Mode {
 
 	// spaceship fuel
 	std::list< Particle > fuel_pellets;
+	size_t fuel_particle_count = 30;
+	size_t debris_particle_count = 5;
 	int laser_closeness_for_particles = 40; // percent threshold that the laser needs to have to have effect on particles
 
 	bool bEnableEasyMode = false; // allow "negative thrust" to correct for over-orbit
@@ -159,6 +161,7 @@ struct PlayMode : Mode {
 	float anim = 0.f;
 
 	bool bLevelLoaded = false;
+	bool bLevelLaunched = false;
 	bool bIsTutorial = false;
 	struct TutorialState {
 		TutorialState(const std::vector<PlayMode::Button *> &bs, const std::string &t) : activations(bs), text(t) {}

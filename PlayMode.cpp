@@ -170,6 +170,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		menu_button = new HUD::ButtonSprite(data_path("assets/ui/sqr.png"), button_color, button_color_hover, size0, size1, location, "Menu");
 	}
 
+	read_params();
+
 }
 
 PlayMode::~PlayMode() {
@@ -186,6 +188,11 @@ void PlayMode::serialize(std::string const &filename) {
 
 	for (auto &body : bodies) {
 		serialize_body(file, body);
+		file << '\n';
+	}
+
+	for (auto &pellet : fuel_pellets) {
+		serialize_body(file, pellet);
 		file << '\n';
 	}
 
@@ -424,6 +431,25 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 		throw e;
 	}
 
+	if (id == -1) { // pellet
+		fuel_pellets.emplace_back(radius);
+		Particle &pellet = fuel_pellets.back();
+		pellet.dayLengthInSeconds = dayLengthInSeconds;
+		entities.push_back(&pellet);
+
+		throw_on_err(std::getline(file, line),
+		"Malformed save file: body - not enough lines.");
+		deserialize_orbit(line, orbits);
+		Orbit *orbit = &orbits.back();
+		pellet.set_orbit(orbit);
+		pellet.set_transform(trans);
+
+		Scene::make_drawable(scene, trans, main_meshes.value);
+
+		LOG("Loaded Particle #" << fuel_pellets.size());
+		return;
+	}
+
 	bodies.emplace_back(id, radius, mass, soi_radius);
 	Body &body = bodies.back();
     body.dayLengthInSeconds = dayLengthInSeconds;
@@ -532,11 +558,10 @@ void PlayMode::deserialize_asteroid(std::ifstream &file) {
 
 	LOG("Loaded Asteroid '" << name);
 
-	if (bLevelLoaded) { // scatter surrounding food & debris
-		static size_t constexpr num_pellets = 30;
+	if (bLevelLoaded && !bLevelLaunched) { // scatter surrounding food & debris
 		Orbit const &orbit = asteroid.orbits.front();
 
-		for (size_t i = 0; i < num_pellets; i++) {
+		for (size_t i = 0; i < fuel_particle_count; i++) {
 			double food_radius = 1.0;
 			fuel_pellets.emplace_back(food_radius);
 			Particle &food = fuel_pellets.back();
@@ -559,7 +584,7 @@ void PlayMode::deserialize_asteroid(std::ifstream &file) {
 			food.dayLengthInSeconds = 100.f;
 			entities.push_back(&food);
 		}
-		LOG("loaded " << num_pellets << " pellets for body \"" << name << "\" (" << fuel_pellets.size());
+		LOG("loaded " << fuel_particle_count << " pellets for body \"" << name << "\" (" << fuel_pellets.size() << ")");
 	}
 }
 
@@ -645,6 +670,10 @@ void PlayMode::read_params() {
 		return line.substr(line.find('=') + 1); // past the equals sign
 	};
 
+	auto deserialize_size_t = [](std::string const &str){
+		return static_cast<size_t>(std::atoi(str.c_str()));
+	};
+
 	auto deserialize_float = [](std::string const &str){
 		return static_cast<float>(std::atof(str.c_str()));
 	};
@@ -660,7 +689,7 @@ void PlayMode::read_params() {
 	auto deserialize_str = [](std::string const &str){
 		std::string ret = "";
 		for (char c : str) {
-			if (c == '\"' || c == '\'') 
+			if (c == '\"' || c == '\'')
 				continue;
 			ret += c;
 		}
@@ -684,11 +713,17 @@ void PlayMode::read_params() {
 			bEnableEasyMode = deserialize_bool(str);
 		} else if (assigns("quicksave_file", line)) {
 			quicksave_file = deserialize_str(str);
+		} else if (assigns("fuel_particle_count", line)) {
+			fuel_particle_count = deserialize_size_t(str);
+		} else if (assigns("debris_particle_count", line)) {
+			debris_particle_count = deserialize_size_t(str);
 		} else {
 			throw std::runtime_error("Malformed params file. Unknown '" + line + "'.");
 		}
 	}
 	LOG("Params from \"" << data_path(params_file) << "\" updated!");
+
+	file.close();
 }
 
 void PlayMode::exit_to_menu() {
@@ -780,6 +815,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::update(float elapsed) {
 	if (!bLevelLoaded) {
+		bLevelLaunched = bLevelLoaded;
 		bLevelLoaded = true;
 		if (mode_level < 3)
 			deserialize(data_path("levels/level_" + std::to_string(mode_level + 1) + ".txt"));
@@ -788,6 +824,7 @@ void PlayMode::update(float elapsed) {
 			deserialize(data_path("levels/level_1.txt"));
 			LOG("Starting tutorial...");
 		}
+		bLevelLaunched = true;
 	}
 
 	{ // update game params
