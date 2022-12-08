@@ -138,6 +138,7 @@ if (maek.OS === 'windows') {
 const game_names = [
   maek.CPP('HUD.cpp'),
   maek.CPP('OrbitalMechanics.cpp'),
+  maek.CPP('GP22IntroMode.cpp'),
   maek.CPP('PlayMode.cpp'),
   maek.CPP('MenuMode.cpp'),
   maek.CPP('main.cpp'),
