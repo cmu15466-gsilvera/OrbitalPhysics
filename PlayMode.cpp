@@ -1532,7 +1532,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	if (bIsTutorial) { // draw tutorial text
 		auto color = glm::u8vec4{0xff};
-		tutorial_text.draw(tut_anim, drawable_size, 0.015f * drawable_size.x, tutorial_locn * glm::vec2(drawable_size), color);
+
+		int scale = static_cast<int>(0.015f * drawable_size.x);
+		glm::vec2 pos = tutorial_locn * glm::vec2(drawable_size);
+		glm::vec4 bounds = tutorial_text.get_text_bounds(scale, pos);
+		glm::vec2 bg_size = 1.05f * glm::vec2(bounds.z-bounds.x, bounds.w-bounds.y);
+		HUD::drawElement(bg_size, tutorial_locn * glm::vec2(drawable_size) + glm::vec2(-bg_size.x * 0.5f, bg_size.y + tutorial_text.line_height), bar, glm::vec4(0x00, 0x00, 0x00, 0x77));
+		tutorial_text.draw(tut_anim, drawable_size, scale, pos, color);
 	}
 
 	if (bShowFPS) { // fps text

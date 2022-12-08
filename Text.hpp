@@ -115,6 +115,7 @@ struct Text {
 
     // for actual text content
     std::string text_content;
+    int line_height = 0;
     bool bIsStaticText = false; // whether or not to build a minimal Atlas (static text) or not (dynamic text)
 
     struct Atlas {
@@ -389,7 +390,7 @@ struct Text {
         }
     }
 
-    float calculate_start_anchor(Atlas *_atlas, size_t &num_newlines, int &line_height, float left_pos) {
+    float calculate_start_anchor(Atlas *_atlas, size_t &num_newlines, int &line_ht, float left_pos) {
         if (_atlas == nullptr) {
             throw std::runtime_error("Atlas is null! cannot calculate start anchor!");
         }
@@ -397,7 +398,7 @@ struct Text {
         // calculate the final width of the text glyphs
         std::vector<float> line_widths;
         line_widths.push_back(0.f);
-        line_height = 0;
+        line_ht = 0;
         for (char c : text_content) {
             const Character& ch = _atlas->chars[c];
 
@@ -408,7 +409,7 @@ struct Text {
             else {
                 line_widths.back() += (ch.Advance >> 6); // bitshift by 6 to get value in pixels (2^6 = 64)
             }
-            line_height = std::max(line_height, ch.Size.y);
+            line_ht = std::max(line_ht, ch.Size.y);
         }
         float final_width = 0.f;
         for (float line_width : line_widths) {
@@ -424,6 +425,41 @@ struct Text {
             anchor_x_start -= final_width; // all the way to the right
         }
         return anchor_x_start;
+    }
+
+    glm::vec4 get_text_bounds(int scale, const glm::vec2& pos) {
+        if (atlas == nullptr) {
+            atlas = new Atlas(typeface, scale, bIsStaticText ? text_content : "");
+        }
+        
+        size_t num_newlines;
+        float anchor_x_start = calculate_start_anchor(atlas, num_newlines, line_height, pos.x);
+        float char_x = anchor_x_start;
+        float char_y = pos.y + line_height;
+        float min_x = char_x, min_y = char_y; // top right of FULL text
+        float max_x = -1, max_y = 1e8; // bottom right of FULL text
+
+
+        const size_t num_render_chars = text_content.size();
+        for (size_t i = 0; i < num_render_chars; i++) {
+            char char_req = text_content[i];
+            const Character& ch = atlas->chars[char_req];
+            if (char_req != '\n') {
+                // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+                char_x += (ch.Advance >> 6); // bitshift by 6 to get value in pixels (2^6 = 64)
+            }
+            else {
+                char_x = anchor_x_start; // reset x
+                char_y -= line_height; // increment Y
+            }
+            if (char_x > max_x) {
+                max_x = char_x;
+            }
+            if (char_y < max_y) {
+                max_y = char_y;
+            }
+        }
+        return glm::vec4(min_x, min_y + line_height, max_x, max_y - line_height);
     }
 
     void draw(float dt, const glm::vec2& drawable_size, float scale, const glm::vec2& pos, glm::vec3 const &color) {
@@ -444,7 +480,6 @@ struct Text {
         }
         
         size_t num_newlines;
-        int line_height;
         float anchor_x_start = calculate_start_anchor(atlas, num_newlines, line_height, pos.x);
         float char_x = anchor_x_start;
         float char_y = pos.y + line_height;
