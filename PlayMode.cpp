@@ -21,6 +21,7 @@
 #include <iterator>
 #include <sstream>
 #include <filesystem>
+#include <algorithm>
 #include <string>
 
 #define DEBUG
@@ -624,6 +625,72 @@ void PlayMode::deserialize_rocket(std::ifstream &file) {
 	LOG("Loaded Rocket '" << name);
 }
 
+void PlayMode::read_params() {
+	std::ifstream file(data_path(params_file));
+	if (!file.is_open()) {
+		throw std::runtime_error("Failed to open params file '" + params_file + "'.");
+	}
+
+	auto assigns = [](std::string const &name, std::string const &whole_line){
+		if (name.size() > whole_line.size()) {
+			return false; // trivially untrue
+		}
+		if (whole_line.substr(0, name.size()) == name) { // like variable_name=ABC
+			return true;
+		}
+		return false;
+	};
+
+	auto useful = [](std::string const &line){
+		return line.substr(line.find('=') + 1); // past the equals sign
+	};
+
+	auto deserialize_float = [](std::string const &str){
+		return static_cast<float>(std::atof(str.c_str()));
+	};
+
+	auto deserialize_bool = [](std::string const &str){
+		return str[0] == 't' || str[0] == 'T';
+	};
+
+	// auto deserialize_int = [](std::string const &str){
+	// 	return std::atoi(str.c_str());
+	// };
+
+	auto deserialize_str = [](std::string const &str){
+		std::string ret = "";
+		for (char c : str) {
+			if (c == '\"' || c == '\'') 
+				continue;
+			ret += c;
+		}
+		return ret;
+	};
+
+	std::string line;
+	while (std::getline(file, line)) {
+		if (line.size() == 0) // empty line
+			continue;
+		if (line[0] == '[')  // section header (for readabililty)
+			continue;
+		if (line[0] == ';')  // comment
+			continue;
+		std::string str = useful(line); // get the useful part out of the line
+		if (assigns("ambient_light", line)) {
+			ambient_light = deserialize_float(str);
+		} else if (assigns("show_fps", line)) {
+			bShowFPS = deserialize_bool(str);
+		} else if (assigns("enable_negative_thrust", line)) {
+			bEnableEasyMode = deserialize_bool(str);
+		} else if (assigns("quicksave_file", line)) {
+			quicksave_file = deserialize_str(str);
+		} else {
+			throw std::runtime_error("Malformed params file. Unknown '" + line + "'.");
+		}
+	}
+	LOG("Params from \"" << data_path(params_file) << "\" updated!");
+}
+
 void PlayMode::exit_to_menu() {
 	SDL_SetRelativeMouseMode(SDL_FALSE);
 	spaceship.engine_loop->set_volume(0.f); // turn off (continuous) engine noises!
@@ -723,7 +790,13 @@ void PlayMode::update(float elapsed) {
 		}
 	}
 
-	{ // update framerate counter
+	{ // update game params
+		if (refresh.downs) {
+			read_params();
+		}
+	}
+
+	if (bShowFPS) { // update framerate counter
 		fps_data.push_back(1.f / elapsed);
 		time_since_fps += elapsed;
 		if (time_since_fps > 1.f) {
@@ -807,19 +880,18 @@ void PlayMode::update(float elapsed) {
 			bool increase_thrust = shift.pressed || up.pressed;
 			bool decrease_thrust = control.pressed || down.pressed;
 
-			// if (spaceship.thrust_percent == 0.f) {
-			// 	if (increase_thrust) {
-			// 		if (bCanThrustChangeDir && forward_thrust == false){
-			// 			forward_thrust = true;
-			// 		}
-			// 	}
-			// 	else if (decrease_thrust && bEnableEasyMode) {
-			// 		if (bCanThrustChangeDir && forward_thrust == true){
-			// 			forward_thrust = false;
-			// 		}
-			// 	}
-			// }
-			forward_thrust = true; // only positive thrust, by popular demand
+			if (spaceship.thrust_percent == 0.f) {
+				if (increase_thrust) {
+					if (bCanThrustChangeDir && forward_thrust == false){
+						forward_thrust = true;
+					}
+				}
+				else if (decrease_thrust && bEnableEasyMode) {
+					if (bCanThrustChangeDir && forward_thrust == true){
+						forward_thrust = false;
+					}
+				}
+			}
 			bCanThrustChangeDir = (!increase_thrust && !decrease_thrust);
 
 			const double MaxThrust = 100.;
@@ -1122,7 +1194,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	//set up light type and position for lit_color_texture_program:
 	glUseProgram(lit_color_texture_program->program);
-	glUniform3fv(lit_color_texture_program->AMBIENT_COLOR_vec3, 1, glm::value_ptr(glm::vec3(0.1f, 0.1f,0.1f)));
+	glUniform3fv(lit_color_texture_program->AMBIENT_COLOR_vec3, 1, glm::value_ptr(glm::vec3(ambient_light)));
 	glUniform3fv(lit_color_texture_program->LIGHT_DIRECTION_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 0.0f,-1.0f)));
 	glUniform3fv(lit_color_texture_program->LIGHT_LOCATION_vec3, 1, glm::value_ptr(star->transform->position));
 	glUniform3fv(lit_color_texture_program->LIGHT_ENERGY_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 0.95f)));
@@ -1344,7 +1416,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		tutorial_text.draw(tut_anim, drawable_size, 0.02f * drawable_size.x, glm::vec2{0.45f * drawable_size.x, 0.75f * drawable_size.y}, color);
 	}
 
-	{ // fps text
+	if (bShowFPS) { // fps text
 		glm::u8vec4 fps_col;
 		if (fps < 20) // bad
 			fps_col = glm::u8vec4{0xff, 0x00, 0x0, 0xff}; // red

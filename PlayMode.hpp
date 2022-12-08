@@ -29,7 +29,7 @@ struct PlayMode : Mode {
 	void exit_to_menu();
 
 	//------ serialization -------
-	const std::string quicksave_file = "quicksave.txt";
+	std::string quicksave_file = "quicksave.txt";
 
 	void serialize(std::string const &filename);
 	void serialize_orbit(std::ofstream &file, Orbit const &orbit);
@@ -45,11 +45,15 @@ struct PlayMode : Mode {
 
 	//----- game state -----
 
+	const std::string params_file = "params.ini";
+	void read_params();
+	float ambient_light = 0.1f; // 1.0f is 100% ambient (easier to see), 0.f is 0% (more realistic)
+
 	//input tracking:
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, tab, shift, control, tilde, plus, minus, space, menu, f5, f9, save, load;
+	} left, right, down, up, tab, shift, control, tilde, plus, minus, space, menu, f5, f9, save, load, refresh;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
@@ -57,6 +61,7 @@ struct PlayMode : Mode {
 	HUD::ButtonSprite *menu_button = nullptr;
 
 	Text fps_text;
+	bool bShowFPS = true;
 	std::vector<float> fps_data = {};
 	float fps = 60.f;
 	float time_since_fps = 0.f;
@@ -97,6 +102,7 @@ struct PlayMode : Mode {
 		{ &tab, {SDLK_TAB} },
 		{ &save, {SDLK_2} },
 		{ &load, {SDLK_3} },
+		{ &refresh, {SDLK_r} },
 		{ &tilde, {SDLK_BACKQUOTE} },
 		{ &shift, {SDLK_LSHIFT, SDLK_RSHIFT} },
 		{ &control, {SDLK_LCTRL, SDLK_RCTRL} },
@@ -125,7 +131,7 @@ struct PlayMode : Mode {
 	std::list< Particle > fuel_pellets;
 	int laser_closeness_for_particles = 40; // percent threshold that the laser needs to have to have effect on particles
 
-	bool bEnableEasyMode = true; // allow "negative thrust" to correct for over-orbit
+	bool bEnableEasyMode = false; // allow "negative thrust" to correct for over-orbit
 	bool bCanThrustChangeDir = true; // whether or not we can thrust
 	bool forward_thrust = true; // false => backwards thrust controls
 
