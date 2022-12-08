@@ -155,6 +155,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		CollisionHeader.init(Text::AnchorType::RIGHT);
 		CollisionTimer.init(Text::AnchorType::RIGHT, true /* monospaced */);
 		LaserText.init(Text::AnchorType::CENTER);
+		fps_text.init(Text::AnchorType::CENTER, true);
+		fps_text.set_text("0");
 	}
 
 	{ // menu buttons
@@ -644,7 +646,11 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 				}
 			}
 		}
-		if (evt.key.keysym.sym == SDLK_ESCAPE || evt.key.keysym.sym == SDLK_1) {
+		if (evt.key.keysym.sym == SDLK_ESCAPE) {
+			was_key_down = true;
+			SDL_SetRelativeMouseMode(SDL_FALSE);
+		}
+		if (evt.key.keysym.sym == SDLK_1) {
 			exit_to_menu();
 			was_key_down = true;
 		}
@@ -707,6 +713,27 @@ void PlayMode::update(float elapsed) {
 			bIsTutorial = true;
 			deserialize(data_path("levels/level_1.txt"));
 			LOG("Starting tutorial...");
+		}
+	}
+
+	{ // update framerate counter
+		fps_data.push_back(1.f / elapsed);
+		time_since_fps += elapsed;
+		if (time_since_fps > 1.f) {
+			{ // take fps average
+				fps = 0.f;
+				for (float f : fps_data)
+					fps += f;
+				fps /= fps_data.size(); // take average
+			}
+			{ // assign fps new text
+				std::stringstream stream;
+				stream << std::fixed << std::setprecision(1) << fps;
+				fps_text.set_text(stream.str());
+			}
+			// housekeeping
+			time_since_fps = 0.f;
+			fps_data.clear();
 		}
 	}
 
@@ -773,23 +800,24 @@ void PlayMode::update(float elapsed) {
 			bool increase_thrust = shift.pressed || up.pressed;
 			bool decrease_thrust = control.pressed || down.pressed;
 
-			if (spaceship.thrust_percent == 0.f) {
-				if (increase_thrust) {
-					if (bCanThrustChangeDir && forward_thrust == false){
-						forward_thrust = true;
-					}
-				}
-				else if (decrease_thrust && bEnableEasyMode) {
-					if (bCanThrustChangeDir && forward_thrust == true){
-						forward_thrust = false;
-					}
-				}
-			}
+			// if (spaceship.thrust_percent == 0.f) {
+			// 	if (increase_thrust) {
+			// 		if (bCanThrustChangeDir && forward_thrust == false){
+			// 			forward_thrust = true;
+			// 		}
+			// 	}
+			// 	else if (decrease_thrust && bEnableEasyMode) {
+			// 		if (bCanThrustChangeDir && forward_thrust == true){
+			// 			forward_thrust = false;
+			// 		}
+			// 	}
+			// }
+			forward_thrust = true; // only positive thrust, by popular demand
 			bCanThrustChangeDir = (!increase_thrust && !decrease_thrust);
 
 			const double MaxThrust = 100.;
 			const double SlowDelta = 1.;
-			const double FastDelta = 10.;
+			const double FastDelta = 2.; // not much faster
 			if (forward_thrust) {
 				if (increase_thrust) {
 					spaceship.thrust_percent = std::min(spaceship.thrust_percent + SlowDelta , MaxThrust);
@@ -902,6 +930,12 @@ void PlayMode::update(float elapsed) {
 	if (playing) { // collision logic
 		if (asteroid.crashed) {
 			target_lock = &asteroid;
+			tab.downs = 1; // to trigger the camera transition
+			game_status = GameStatus::LOSE;
+			dilation = LEVEL_0;
+		}
+		else if (spaceship.crashed) {
+			target_lock = &spaceship;
 			tab.downs = 1; // to trigger the camera transition
 			game_status = GameStatus::LOSE;
 			dilation = LEVEL_0;
@@ -1307,6 +1341,17 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	if (bIsTutorial) { // draw tutorial text
 		auto color = glm::u8vec4{0xff};
 		tutorial_text.draw(tut_anim, drawable_size, 0.02f * drawable_size.x, glm::vec2{0.45f * drawable_size.x, 0.75f * drawable_size.y}, color);
+	}
+
+	{ // fps text
+		glm::u8vec4 fps_col;
+		if (fps < 20) // bad
+			fps_col = glm::u8vec4{0xff, 0x00, 0x0, 0xff}; // red
+		else if (fps < 45) // ok
+			fps_col = glm::u8vec4{0xff, 0xff, 0x0, 0xff}; // yellow
+		else // good
+			fps_col = glm::u8vec4{0x0, 0xff, 0x0, 0xff}; // green
+		fps_text.draw(1.f, drawable_size, 0.02f * drawable_size.x, glm::vec2(0.95) * glm::vec2(drawable_size), fps_col);
 	}
 
 	/* glm::u8vec4 color{0xff}; */

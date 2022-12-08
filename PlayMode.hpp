@@ -56,6 +56,11 @@ struct PlayMode : Mode {
 	glm::uvec2 window_dims;
 	HUD::ButtonSprite *menu_button = nullptr;
 
+	Text fps_text;
+	std::vector<float> fps_data = {};
+	float fps = 60.f;
+	float time_since_fps = 0.f;
+
 	GLuint hdrFBO = 0;
 	GLuint rboDepth = 0;
 	GLuint attachments[2];
@@ -93,8 +98,8 @@ struct PlayMode : Mode {
 		{ &save, {SDLK_2} },
 		{ &load, {SDLK_3} },
 		{ &tilde, {SDLK_BACKQUOTE} },
-		{ &shift, {SDLK_LSHIFT} }, // and rshift?
-		{ &control, {SDLK_LCTRL} },
+		{ &shift, {SDLK_LSHIFT, SDLK_RSHIFT} },
+		{ &control, {SDLK_LCTRL, SDLK_RCTRL} },
 		{ &plus, {SDLK_e, SDLK_PLUS} },
 		{ &minus, {SDLK_q, SDLK_MINUS} },
 		{ &space, {SDLK_SPACE} },
