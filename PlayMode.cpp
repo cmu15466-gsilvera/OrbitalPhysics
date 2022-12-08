@@ -129,6 +129,7 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 	camera = &scene.cameras.front();
 
 	throttle = HUD::loadSprite(data_path("assets/ui/ThrottleFuel.png"));
+	buttons = HUD::loadSprite(data_path("assets/ui/Buttons.png"));
 	throttleOverlay = HUD::loadSprite(data_path("assets/ui/ThrottleOverlay.png"));
 	clock = HUD::loadSprite(data_path("assets/ui/Clock.png"));
 	timecontroller = HUD::loadSprite(data_path("assets/ui/TimeController.png"));
@@ -602,7 +603,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 				}
 			}
 		}
-		if (evt.key.keysym.sym == SDLK_ESCAPE) {
+		if (evt.key.keysym.sym == SDLK_ESCAPE || evt.key.keysym.sym == SDLK_1) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
 			was_key_down = true;
 			bLevelLoaded = false; // reload level on menu
@@ -697,9 +698,9 @@ void PlayMode::update(float elapsed) {
 	}
 
 	if (playing) { //handle quicksave/quickload
-		if (f5.downs > 0) {
+		if (f5.downs > 0 || save.downs > 0) {
 			serialize(data_path("quicksave.txt"));
-		} else if (f9.downs > 0 && std::filesystem::exists(data_path("quicksave.txt"))) {
+		} else if ((f9.downs > 0 || load.downs > 0) && std::filesystem::exists(data_path("quicksave.txt"))) {
 			deserialize(data_path("quicksave.txt"));
 		}
 	}
@@ -1179,6 +1180,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	auto throttle_color = spaceship.thrust_percent >= 0 ? glm::vec4(83, 178, 0, 255) : glm::vec4(178, 83, 0, 255);
 	HUD::drawElement(glm::vec2(390.0f * thrust_amnt, 107.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 192)), bar, throttle_color);
 	HUD::drawElement(glm::vec2(390.0f * 0.60f, 111.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(81, 192)), throttleOverlay);
+	HUD::drawElement(glm::vec2(420.0f, 111.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMRIGHT, glm::vec2(-460, 150)), buttons);
 	HUD::drawElement(glm::vec2(390.0f * fuel_amt, 61.0f), HUD::fromAnchor(HUD::Anchor::BOTTOMLEFT, glm::vec2(20, 79)), bar, glm::vec4(221, 131, 0.0, 255));
 	ThrottleHeader.draw(1.f, drawable_size,  20.f,  glm::vec2(22, 290), glm::vec4(1.f));
 	ThrottleReading.draw(1.f, drawable_size, 60.f, glm::vec2(22, 220), glm::vec4(1.f));

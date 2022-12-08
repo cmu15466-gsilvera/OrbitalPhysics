@@ -45,7 +45,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, tab, shift, control, tilde, plus, minus, space, menu, f5, f9;
+	} left, right, down, up, tab, shift, control, tilde, plus, minus, space, menu, f5, f9, save, load;
 	glm::vec2 mouse_motion_rel{0.f, 0.f};
 	glm::vec2 mouse_motion{0.f, 0.f};
 	bool can_pan_camera = false; // true when mouse down
@@ -73,6 +73,7 @@ struct PlayMode : Mode {
 	HUD::Sprite *bar;
 	HUD::Sprite *target;
 	HUD::Sprite *reticle;
+	HUD::Sprite *buttons;
 	HUD::Sprite *lasercooldown;
 	const Entity *target_lock = nullptr;
 
@@ -85,13 +86,15 @@ struct PlayMode : Mode {
 		{ &up, {SDLK_UP, SDLK_w} },
 		{ &down, {SDLK_DOWN, SDLK_s} },
 		{ &tab, {SDLK_TAB} },
+		{ &save, {SDLK_2} },
+		{ &load, {SDLK_3} },
 		{ &tilde, {SDLK_BACKQUOTE} },
 		{ &shift, {SDLK_LSHIFT} }, // and rshift?
 		{ &control, {SDLK_LCTRL} },
 		{ &plus, {SDLK_e, SDLK_PLUS} },
 		{ &minus, {SDLK_q, SDLK_MINUS} },
 		{ &space, {SDLK_SPACE} },
-		{ &menu, {SDLK_ESCAPE} },
+		{ &menu, {SDLK_ESCAPE, SDLK_1} },
 		{ &f5, {SDLK_F5} },
 		{ &f9, {SDLK_F9} }
 	};
