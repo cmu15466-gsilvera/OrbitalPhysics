@@ -86,11 +86,15 @@ struct Body : public Entity {
 	double soi_radius; //sphere of influence radius, Megameters (1000 kilometers)
 };
 
-// "Body" in space that can be consumed (good/fuel or bad/debris) 
+// "Body" in space that can be consumed (good/fuel or bad/debris)
 // does not affect orbital mechanics (negligible)
 struct Particle : public Body {
-	Particle(double r = 1.0f) : Body(-1, r, 0.0, 0.0) {} // using Id = -1 for pellets
-	float value = 1.f;
+	Particle(int id, double r = 1.0f) : Body(id, r, 0.0, 0.0) {} // using Id = -1 for pellets
+
+	static double constexpr FuelPelletValue = 1.0;
+	static double constexpr DebrisValue = -0.5;
+
+	double value = id == -1 ? FuelPelletValue : DebrisValue;
 	bool bIsConsumed = false;
 };
 

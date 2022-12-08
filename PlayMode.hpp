@@ -129,8 +129,9 @@ struct PlayMode : Mode {
 
 	// spaceship fuel
 	std::list< Particle > fuel_pellets;
+	std::list< Particle > debris_pellets;
 	size_t fuel_particle_count = 30;
-	size_t debris_particle_count = 5;
+	size_t debris_particle_count = 10;
 	int laser_closeness_for_particles = 40; // percent threshold that the laser needs to have to have effect on particles
 
 	bool bEnableEasyMode = false; // allow "negative thrust" to correct for over-orbit
