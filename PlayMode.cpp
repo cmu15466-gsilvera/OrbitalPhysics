@@ -1048,7 +1048,8 @@ void PlayMode::update(float elapsed) {
 		spaceship.update(sim_elapsed, asteroid);
 
 		{ // fuel pellet simulation
-			for (auto it = fuel_pellets.begin(); it != fuel_pellets.end(); it++) {
+			std::vector<std::list<Particle>::iterator> consumed_pellets = {};
+			for (std::list<Particle>::iterator it = fuel_pellets.begin(); it != fuel_pellets.end(); it++) {
 				it->update(sim_elapsed);
 				if (laser_power > laser_closeness_for_particles // distance threshold
 						&& target_lock != nullptr && target_lock == &(*it)) { // only for aimed particle
@@ -1067,14 +1068,18 @@ void PlayMode::update(float elapsed) {
 					}
 					it->pos = glm::dvec3(0.0);
 					it->transform->position = glm::vec3(0.0);
-					fuel_pellets.erase(it);
-					entities.remove(&(*it));
+					consumed_pellets.push_back(it);
 				}
+			}
+			for (auto it : consumed_pellets) {
+				fuel_pellets.erase(it);
+				entities.remove(&(*it));
 			}
 		}
 
 		{ // debris pellet simulation
-			for (auto it = debris_pellets.begin(); it != debris_pellets.end(); it++) {
+			std::vector<std::list<Particle>::iterator> consumed_debris = {};
+			for (std::list<Particle>::iterator it = debris_pellets.begin(); it != debris_pellets.end(); it++) {
 				it->update(sim_elapsed);
 				if (glm::distance2(spaceship.pos, it->pos) > it->radius * it->radius) continue;
 
@@ -1083,6 +1088,9 @@ void PlayMode::update(float elapsed) {
 
 				it->pos = glm::dvec3(0.0);
 				it->transform->position = glm::vec3(0.0);
+				consumed_debris.push_back(it);
+			}
+			for (auto it : consumed_debris) {
 				debris_pellets.erase(it);
 				entities.remove(&(*it));
 			}
@@ -1364,6 +1372,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 			static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff);
 			if (target_lock != nullptr) {
 				for (Particle const &p : fuel_pellets) {
+					if (&p == target_lock) {
+						p.orbit->draw(orbit_lines, red);
+					}
+				}
+				for (Particle const &p : debris_pellets) {
 					if (&p == target_lock) {
 						p.orbit->draw(orbit_lines, red);
 					}
