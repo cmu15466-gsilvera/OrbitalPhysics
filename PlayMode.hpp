@@ -138,6 +138,8 @@ struct PlayMode : Mode {
 	bool bCanThrustChangeDir = true; // whether or not we can thrust
 	bool forward_thrust = true; // false => backwards thrust controls
 
+	static double constexpr MaxSimElapsed = 1.0 / 120.0;
+
 	// asteroid
 	Asteroid asteroid = Asteroid(0.5f, 0.2f);
 

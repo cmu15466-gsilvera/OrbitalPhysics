@@ -865,6 +865,8 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
+	double sim_elapsed = std::min(static_cast< double >(elapsed), MaxSimElapsed);
+
 	if (!bLevelLoaded) {
 		bLevelLaunched = bLevelLoaded;
 		bLevelLoaded = true;
@@ -1041,13 +1043,13 @@ void PlayMode::update(float elapsed) {
 	}
 
 	if (playing) { //orbital simulation
-		star->update(elapsed);
-		asteroid.update(elapsed, spaceship.lasers);
-		spaceship.update(elapsed, asteroid);
+		star->update(sim_elapsed);
+		asteroid.update(sim_elapsed, spaceship.lasers);
+		spaceship.update(sim_elapsed, asteroid);
 
 		{ // fuel pellet simulation
 			for (auto it = fuel_pellets.begin(); it != fuel_pellets.end(); it++) {
-				it->update(elapsed);
+				it->update(sim_elapsed);
 				if (laser_power > laser_closeness_for_particles // distance threshold
 						&& target_lock != nullptr && target_lock == &(*it)) { // only for aimed particle
 					const Beam *beam = nullptr;
@@ -1073,7 +1075,7 @@ void PlayMode::update(float elapsed) {
 
 		{ // debris pellet simulation
 			for (auto it = debris_pellets.begin(); it != debris_pellets.end(); it++) {
-				it->update(elapsed);
+				it->update(sim_elapsed);
 				if (glm::distance2(spaceship.pos, it->pos) > it->radius * it->radius) continue;
 
 				spaceship.fuel += it->value;
@@ -1121,7 +1123,7 @@ void PlayMode::update(float elapsed) {
 			spaceship.fire_laser();
 		}
 
-		spaceship.update_lasers(elapsed);
+		spaceship.update_lasers(sim_elapsed);
 	}
 
 	{ //update camera controls (after spaceship update for smooth motion)
