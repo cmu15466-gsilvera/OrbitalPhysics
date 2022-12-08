@@ -158,6 +158,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		LaserText.init(Text::AnchorType::CENTER);
 		fps_text.init(Text::AnchorType::CENTER, true);
 		fps_text.set_text("0");
+		asteroid_txt.init(Text::AnchorType::CENTER);
+		asteroid_txt.set_static_text("Asteroid");
 	}
 
 	{ // menu buttons
@@ -788,6 +790,7 @@ void PlayMode::update(float elapsed) {
 			if (!state.done) {
 				remaining = true;
 				tutorial_text.set_text(state.text);
+				tutorial_locn = state.pos;
 				for (auto *button : state.activations) {
 					if (button->downs > 0) {
 						state.done = true;
@@ -795,6 +798,7 @@ void PlayMode::update(float elapsed) {
 						break;
 					}
 				}
+				break;
 			}
 		}
 		if (!remaining) {
@@ -1199,7 +1203,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		// Orbit const &orbit = spaceship.orbits.front();
 
 		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff);
-		// static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
+		static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff);
 		// static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
 		// static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
 		// static float constexpr display_multiplier = 1000.0f;
@@ -1239,8 +1243,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		if (spaceship.closest.dist < 1.0e10f) { //draw closest approach
 			glm::vec3 spaceship_point = spaceship.closest.rocket_rpos + spaceship.closest.origin->pos;
 			glm::vec3 asteroid_point = spaceship.closest.asteroid_rpos + spaceship.closest.origin->pos;
-			vector_lines.draw(spaceship_point, spaceship_point + glm::vec3(0.0f, 0.0f, 5.0f), white);
-			vector_lines.draw(asteroid_point, asteroid_point - glm::vec3(0.0f, 0.0f, 5.0f), white);
+			vector_lines.draw(spaceship_point, spaceship_point + glm::vec3(0.0f, 0.0f, 5.0f), yellow);
+			vector_lines.draw(asteroid_point, asteroid_point - glm::vec3(0.0f, 0.0f, 5.0f), yellow);
 		}
 
 
@@ -1275,6 +1279,8 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		// draw_circle(reticle_pos, glm::vec2{reticle_radius_screen, reticle_radius_screen}, reticle_homing ? red : yellow);
 		const auto orange = glm::u8vec4{241, 90, 34, 0x45};
 		HUD::drawElement(target_size, target_pos, reticle, orange);
+
+		asteroid_txt.draw(1.f, drawable_size, 0.015f * drawable_size.x, target_pos, orange);
 	}
 
 	/* { //use DrawLines to overlay some text: */
@@ -1321,7 +1327,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	if (bIsTutorial) { // draw tutorial text
 		auto color = glm::u8vec4{0xff};
-		tutorial_text.draw(tut_anim, drawable_size, 0.02f * drawable_size.x, glm::vec2{0.45f * drawable_size.x, 0.75f * drawable_size.y}, color);
+		tutorial_text.draw(tut_anim, drawable_size, 0.015f * drawable_size.x, tutorial_locn * glm::vec2(drawable_size), color);
 	}
 
 	if (bShowFPS) { // fps text
