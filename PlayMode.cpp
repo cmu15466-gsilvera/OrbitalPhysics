@@ -884,6 +884,7 @@ void PlayMode::update(float elapsed) {
 			bIsTutorial = true;
 			deserialize(data_path("levels/level_1.txt"));
 			LOG("Starting tutorial...");
+			LOG(readme_txt);
 		}
 		bLevelLaunched = true;
 	}

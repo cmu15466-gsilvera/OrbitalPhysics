@@ -30,12 +30,14 @@ The goal of the game is to use your laser to move the asteroid until it is no lo
 - Uses `Q` to increase time acceleration and `E` to decrease time acceleration. Note that player throttle and rotation controls will reset time acceleration to real-time (and similarly increasing time acceleration zeros your throttle).
 - When the player or asteroid is near a sphere of influence (SOI) transition between two orbits, time acceleration will automatically be decreased.
 - The time remaining until the asteroid collision event is displayed at the top left corner.
-- Quicksave with `F5` and quickload with `F9`.
+- Quicksave with `F5` or `2` and quickload with `F9` or `3`.
+- Reload game params with `R`, also feel free to edit them in `params.ini`
 
 ### Player Controls:
 - Increase your rocket engine throttle with `SHFT` (or `W`) and decrease with `CTRL` (or `S`). The UI contains a display of your current throttle and the fuel remaining in the lower left corner.
 - Rotate your ship using `A` and `D`
 - Fire your high powered laser with `SPACEBAR`. Aim with the mouse, which will automatically snap to the center of object. The UI contains a bar at the bottom center indicating if (or how-long-until) the laser is ready to fire.
+- You'll want to shoot the beige fuel pellets to gain fuel and avoid the red debris pellets, change their frequency in `params.ini`
 
 ### General Tips:
 - Note that the engine provides acceleration, which changes your velocity. Since space is very large it may seem like you're not moving when viewing at real-time. Try increasing time acceleration!
