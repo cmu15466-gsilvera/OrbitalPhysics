@@ -756,6 +756,10 @@ void Orbit::sim_predict(
 		}
 
 		points[i] = sim.rpos;
+		if (sim.r < origin->radius && i+1 < PredictDetail) { // Collision
+			points[i+1] = Invalid;
+			break;
+		}
 	}
 
 	if (continuation != nullptr) {

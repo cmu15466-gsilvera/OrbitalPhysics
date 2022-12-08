@@ -89,7 +89,7 @@ struct Body : public Entity {
 // "Body" in space that can be consumed (good/fuel or bad/debris) 
 // does not affect orbital mechanics (negligible)
 struct Particle : public Body {
-	Particle(double r = 0.2f) : Body(-1, r, 0.0, 0.0) {} // using Id = -1 for pellets
+	Particle(double r = 1.0f) : Body(-1, r, 0.0, 0.0) {} // using Id = -1 for pellets
 	float value = 1.f;
 	bool bIsConsumed = false;
 };

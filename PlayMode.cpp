@@ -432,7 +432,6 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 	//check star
 	throw_on_err(std::getline(file, line),
 		"Malformed save file: body - not enough lines.");
-	size_t num_pellets = 0;
 	if (line == "Orbit: None") { //star
 		//set transform
 		body.set_transform(trans);
@@ -462,38 +461,16 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 		Scene::make_drawable(scene, trans, main_meshes.value);
 
 		// enable pellets for non-stars
-		num_pellets = static_cast<int>(radius + 1.f);
-	}
-
-	if (bLevelLoaded) { // scatter surrounding food & debris
-		for (size_t i = 0; i < num_pellets; i++) {
-			float food_radius = 0.25f;
-			Particle* food = new Particle(food_radius);
-			fuel_pellets.push_back(food);
-			scene.transforms.emplace_back();
-			Scene::Transform *fuel_trans = &scene.transforms.back();
-			fuel_trans->name = "FuelParticle"; // simple orange mush
-			fuel_trans->scale = glm::dvec3(3*food_radius); // very small!
-			Scene::make_drawable(scene, fuel_trans, main_meshes.value);
-			// orbit eccentricity
-			double c = 0.0; // (perfect circles) // (std::rand() % 100) / 100.f;
-			// orbit "radius" scale
-			double p = radius * (1.f + 9.f * (std::rand() % 100) / 100.f); // 1-10x the root's radius
-			// radial component (rotation)
-			double phi = 2.f * M_PI * (std::rand() % 100) / 100.f;
-			double theta = 0.0;
-			double retrograde = 0.f;
-			auto *food_orb = new Orbit(&body, c, p, phi, theta, retrograde);
-			food->set_transform(fuel_trans);
-			food->set_orbit(food_orb);
-			food->dayLengthInSeconds = 100.f;
-			entities.push_back(food);
-		}
-		LOG("loaded " << num_pellets << " pellets for body \"" << name << "\" (" << fuel_pellets.size());
 	}
 
 	LOG("Loaded Body '" << name << "' (id: " << std::to_string(id) << ")");
 }
+
+inline static double random_factor(double mag) {
+	//return 1 plus-or-minus r whre r is value randomly sampled from U(-mag,mag)
+	return 1 + (static_cast< double >(std::rand() % 200 - 100) / 100.0 * mag);
+}
+
 
 void PlayMode::deserialize_asteroid(std::ifstream &file) {
 	std::string line, token, errmsg;
@@ -553,6 +530,36 @@ void PlayMode::deserialize_asteroid(std::ifstream &file) {
 	Scene::make_drawable(scene, trans, main_meshes.value);
 
 	LOG("Loaded Asteroid '" << name);
+
+	if (bLevelLoaded) { // scatter surrounding food & debris
+		static size_t constexpr num_pellets = 30;
+		Orbit const &orbit = asteroid.orbits.front();
+
+		for (size_t i = 0; i < num_pellets; i++) {
+			double food_radius = 1.0;
+			fuel_pellets.emplace_back(food_radius);
+			Particle &food = fuel_pellets.back();
+			scene.transforms.emplace_back();
+			Scene::Transform *fuel_trans = &scene.transforms.back();
+			fuel_trans->name = "FuelParticle"; // simple orange mush
+			fuel_trans->scale = glm::dvec3(food_radius); // very small!
+			Scene::make_drawable(scene, fuel_trans, main_meshes.value);
+			// orbit eccentricity
+			double c = std::min(orbit.c * random_factor(0.05), 0.99);
+			// orbit "radius" scale
+			double p = orbit.p * random_factor(0.05); // 1-10x the root's radius
+			// radial component (rotation)
+			double phi = orbit.phi * random_factor(0.05);
+			double theta = orbit.theta +  (2 * M_PI * random_factor(0.3));
+			double retrograde = orbit.incl != 0.0;
+			auto *food_orb = new Orbit(orbit.origin, c, p, phi, theta, retrograde);
+			food.set_transform(fuel_trans);
+			food.set_orbit(food_orb);
+			food.dayLengthInSeconds = 100.f;
+			entities.push_back(&food);
+		}
+		LOG("loaded " << num_pellets << " pellets for body \"" << name << "\" (" << fuel_pellets.size());
+	}
 }
 
 void PlayMode::deserialize_rocket(std::ifstream &file) {
@@ -880,22 +887,22 @@ void PlayMode::update(float elapsed) {
 		
 		{ // particles simulation
 			bool bNeedToRefresh = false; // whether or not it is necessary to refresh
-			for (auto *p : fuel_pellets) {
-				p->update(elapsed);
+			for (auto &p : fuel_pellets) {
+				p.update(elapsed);
 				if (laser_power > laser_closeness_for_particles) { // distance threshold
-					if (target_lock != nullptr && target_lock == p) { // only for aimed particle
+					if (target_lock != nullptr && target_lock == &p) { // only for aimed particle
 						const Beam *beam = nullptr;
 						for (auto &laser : spaceship.lasers) {
-							if (laser.collide(p->pos)) {
+							if (laser.collide(p.pos)) {
 								beam = &laser;
 								break;
 							}
 						}
 						if (beam != nullptr) {
-							p->bIsConsumed = true;
+							p.bIsConsumed = true;
 							bNeedToRefresh = true;
 							{ // update fuel
-								spaceship.fuel += p->value;
+								spaceship.fuel += p.value;
 								spaceship.fuel = std::min(std::max(spaceship.fuel, 0.0), spaceship.maxFuel);
 							}
 						}
@@ -906,23 +913,12 @@ void PlayMode::update(float elapsed) {
 			if (bNeedToRefresh) {
 				// "delete" old fuel pellets
 				std::vector<Particle *> new_pellets = {};
-				std::vector<Particle *> consumed_pellets = {};
-				for (auto *p : fuel_pellets) {
-					if (p->bIsConsumed) {
-						consumed_pellets.push_back(p);
-					} else {
-						new_pellets.push_back(p);
+				for (auto it = fuel_pellets.begin(); it != fuel_pellets.end(); it++) {
+					if (it->bIsConsumed) {
+						fuel_pellets.erase(it);
+						entities.remove(&(*it));
 					}
 				}
-				for (auto *p : consumed_pellets) {
-					// stops rendering the pellet, but it is still in memory... :(
-					entities.remove(p);
-					p->transform->scale = glm::vec3{0.f};
-					p->transform->position = glm::vec3{0.f};
-					p->pos = glm::vec3{0.f};
-				}
-				fuel_pellets.clear();
-				fuel_pellets = new_pellets;
 			}
 		}
 	}
@@ -1194,16 +1190,16 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		static constexpr glm::u8vec4 cyan = glm::u8vec4(0x00, 0xff, 0xff, 0xff);
 		static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x00, 0xff);
 
-		star->draw_orbits(orbit_lines, grey, CurrentCameraArm().camera_arm_length);
+		star->draw_orbits(orbit_lines, grey, CurrentCameraArm().get_camera_arm_dist());
 		spaceship.orbits.front().draw(orbit_lines, cyan);
 		asteroid.orbits.front().draw(orbit_lines, green);
 
 		{ // draw the orbit of the fuel being hovered over
 			static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff);
 			if (target_lock != nullptr) {
-				for (const Particle *p : fuel_pellets) {
-					if (p == target_lock) {
-						p->orbit->draw(orbit_lines, red);
+				for (Particle const &p : fuel_pellets) {
+					if (&p == target_lock) {
+						p.orbit->draw(orbit_lines, red);
 					}
 				}
 			}
@@ -1218,14 +1214,15 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		// Orbit const &orbit = spaceship.orbits.front();
 
 		static constexpr glm::u8vec4 white = glm::u8vec4(0xff, 0xff, 0xff, 0xff);
+		static constexpr glm::u8vec4 food = glm::u8vec4(0xeb, 0x74, 0x34, 0xc0);
 		// static constexpr glm::u8vec4 yellow = glm::u8vec4(0xff, 0xd3, 0x00, 0xff); //heading
 		// static constexpr glm::u8vec4 green = glm::u8vec4(0x00, 0xff, 0x20, 0xff); //rvel
 		// static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff); //acc
 		// static float constexpr display_multiplier = 1000.0f;
 
-		const float radscale = 0.5f;
-		float radius = radscale * CurrentCameraArm().camera_arm_length / CameraArm::init_radius_multiples;
-		float circle_radius = 0.4f * radius;
+		const float radscale = 0.1f;
+		float radius = radscale * CurrentCameraArm().get_camera_arm_dist();
+		float circle_radius = 0.3f * radius;
 		if (radius > 1.f / radscale) {
 			glm::dvec3 heading = spaceship.get_heading();
 			vector_lines.draw(
@@ -1252,7 +1249,11 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 					vector_lines.draw(seg_start, seg_end, color);
 				}
 			};
-			draw_circle(spaceship.pos, circle_radius * glm::vec2(1.f, 1.f), white);
+			draw_circle(spaceship.pos, glm::vec2(circle_radius), white);
+
+			for (Particle const &pellet : fuel_pellets) {
+				draw_circle(pellet.pos, circle_radius * glm::vec2(0.1f, 0.1f), white, 6);
+			}
 		}
 
 		if (spaceship.closest.dist < 1.0e10f) { //draw closest approach
