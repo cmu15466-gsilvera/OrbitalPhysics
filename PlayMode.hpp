@@ -167,25 +167,41 @@ struct PlayMode : Mode {
 	bool bLevelLaunched = false;
 	bool bIsTutorial = false;
 	struct TutorialState {
-		TutorialState(const std::vector<PlayMode::Button *> &bs, const std::string &t) : activations(bs), text(t) {}
+		TutorialState(const std::vector<PlayMode::Button *> &bs, glm::vec2 p, const std::string &t) : activations(bs), text(t), pos(p) {}
 		std::vector<PlayMode::Button*> activations;
 		std::string text;
+		glm::vec2 pos;
 		bool done = false;
 	};
-	float tut_anim = 0.f;
+	float elapsed_s = 0.f;
+	float text_anim_speed = 1.f;
 	std::vector<TutorialState> tutorial_content = {
-		// issued as LIFO queue
-		{{&minus}, "Your goal is to redirect the rogue asteroid labeled \n\nwith the red reticle. When you get close enough\n\naim your laser and shoot it with the space key\n\nFinish this tutorial by pressing the (-) minus key"},
-		{{&down, &control}, "There you go, now decrease/negating thrust with S/CTRL"},
-		{{&up, &shift}, "Epic. Now apply forward thrust by pressing W/shift"},
-		{{&right}, "Now rotate clockwise by pressing D"},
-		{{&space}, "Nice job! Press space to move on."},
-		{{&left}, "Good. Now rotate the ship counter-clockwise by holding A"},
-		{{&tilde}, "Nice! Now refocus on the spaceship by pressing tilde"},
-		{{&tab}, "Change the camera focus by hovering over the \n\ncenter of another planet/entity and pressing TAB"},
-		{{&space}, "Welcome to the tutorial!\n\nLook around with click+drag and scroll to zoom\n\nPress space to begin the rest of the tutorial"},
+		// issued as FIFO queue
+		{{&space}, {0.55f, 0.95f}, "Welcome to the tutorial!\n\nYour goal is to prevent a rogue asteroid collision (green orbit)\n\nthat will happen once the (top left) doomsday clock hits 0\n\n(Press *space* to continue.)"},
+		{{&space}, {0.45f, 0.75f}, "Pan around the camera with click+drag and scroll to zoom\n\n(Press *space* to continue)"},
+		{{&tab}, {0.45f, 0.35f}, "Change the camera focus by hovering over the \n\ncenter of another planet/entity and pressing *TAB*\n\n(Your target is locked when the reticle is red)"},
+		{{&tilde}, {0.45f, 0.75f}, "Refocus to the spaceship by pressing *tilde*"},
+		{{&space}, {0.4f, 0.4f}, "In the bottom-left is your rocket's thrust (green) and fuel levels (orange).\n\nMake sure to keep an eye on your fuel consumption!\n\n(Press *space* to continue)"},
+		{{&space}, {0.55f, 0.40f}, "You have a high-power-long-reload laser on the\n\nrocket which you can use to push the asteroid\n\nBut it has a long reload time and short-range\n\nThe effectiveness is displayed below when you are locked onto a target\n\nYou usually need above 20%% to be successful\n\n(Press *space* to continue)"},
+		{{&plus}, {0.4f, 0.4f}, "Since space is very large, you'll find that most\n\nof your time is spent doing nothing. You can \n\nspeed up that time by changing time dilation\n\nBy orders of magnitude. Press *E* to 10x time speedup\n\n"},
+		{{&minus}, {0.4f, 0.4f}, "You can keep pressing *E* several times\n\nPress *Q* to revert time back to a slower rate (1/10x)"},
+		{{&space}, {0.7f, 0.3f}, "Note that at any time you can press (1) for the menu\n\nBut you will lose all your progress. Press *space*"},
+		{{&save, &load}, {0.7f, 0.3f}, "To keep your progress, you can press (2) to save\n\n and (3) to quick load your latest save\n\nTry it out!"},
+		{{&space}, {0.45f, 0.75f}, "Now we'll go through the rocket controls. Press *space*"},
+		{{&left}, {0.45f, 0.75f}, "Rotate the ship counter-clockwise by holding *A*"},
+		{{&right}, {0.45f, 0.75f}, "Rotate clockwise by pressing *D*"},
+		{{&up, &shift}, {0.45f, 0.75f}, "Apply forward thrust by pressing *W/shift*\n\nNotice that the angle you are rotated\n\naffects how your orbit is manipulated with thrust"},
+		{{&down, &control}, {0.45f, 0.75f}, "Decrease thrust with *S/CTRL*"},
+		{{&space}, {0.45f, 0.75f}, "The yellow lines on your (and asteroid's) orbit\n\nshow the approximated nearest approach position\n\n=> when you and the asteroid will be closest at\n\nthe current orbit trajectories. Press *space*"},
+		{{&space}, {0.45f, 0.75f}, "If you see beige pellets, those are fuel packets that you\n\ncan shoot with your laser (>40%%) to regain fuel\n\nBut watch out for the red pellets which damage fuel\n\n(press *space*)"},
+		{{&space, &refresh}, {0.45f, 0.75f}, "Finally, you can reload some game settings by pressing *r*\n\n(press *space* to continue)"},
+		{{&space}, {0.45f, 0.75f}, "Your goal is to redirect the rogue asteroid labeled \n\nwith the red reticle. When you get close enough (>20%% laser effectiveness)\n\naim your laser and shoot it with the *space* key\n\nFinish this tutorial by pressing *space*"},
 	};
 	Text tutorial_text;
+	glm::vec2 tutorial_locn;
+
+	// logs to terminal
+	const std::string readme_txt = "\n\nPlease consult the readme: README.txt for more detailed instructions!\n\n";
 
 	//camera:
 	Scene::Camera *camera = nullptr;
@@ -237,6 +253,7 @@ struct PlayMode : Mode {
 	Text CollisionHeader;
 	Text CollisionTimer;
 	Text LaserText;
+	Text asteroid_txt;
 
 	// bgm
 	std::shared_ptr< Sound::PlayingSample > bgm_loop;
