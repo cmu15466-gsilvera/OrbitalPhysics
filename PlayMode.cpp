@@ -770,6 +770,8 @@ void PlayMode::read_params() {
 			fuel_particle_count = deserialize_size_t(str);
 		} else if (assigns("debris_particle_count", line)) {
 			debris_particle_count = deserialize_size_t(str);
+		} else if (assigns("text_speed", line)) {
+			text_anim_speed = deserialize_float(str);
 		} else {
 			throw std::runtime_error("Malformed params file. Unknown '" + line + "'.");
 		}
@@ -810,7 +812,11 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		}
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
 			was_key_down = true;
-			SDL_SetRelativeMouseMode(SDL_FALSE);
+			if (SDL_GetRelativeMouseMode() == SDL_TRUE){
+				SDL_SetRelativeMouseMode(SDL_FALSE); // free mouse
+			} else { // exit to menu (2nd press)
+				exit_to_menu();
+			}
 		}
 		if (evt.key.keysym.sym == SDLK_1) {
 			exit_to_menu();
@@ -886,6 +892,7 @@ void PlayMode::update(float elapsed) {
 		if (refresh.downs) {
 			read_params();
 		}
+		elapsed_s = elapsed;
 	}
 
 	if (bShowFPS) { // update framerate counter
@@ -912,7 +919,6 @@ void PlayMode::update(float elapsed) {
 	bool playing = (game_status == GameStatus::PLAYING);
 
 	if (playing && bIsTutorial) {
-		tut_anim = elapsed;
 		bool remaining = false;
 		for (auto &state : tutorial_content) {
 			if (!state.done) {
@@ -1122,7 +1128,6 @@ void PlayMode::update(float elapsed) {
 	}
 
 	if (!playing) { // post-game logic
-		anim = elapsed;
 		SDL_SetRelativeMouseMode(SDL_FALSE); // turn on mouse
 		if (menu_button->is_hovered(mouse_motion) && can_pan_camera)
 		{
@@ -1523,7 +1528,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		std::string message = game_status == GameStatus::WIN ? "Mission Accomplished!" : "Mission Failed!";
 		auto color = game_status == GameStatus::WIN ? glm::u8vec4{0x0, 0xff, 0x0, 0xff} : glm::u8vec4{0xff, 0x0, 0x0, 0xff};
 		GameOverText.set_text(message);
-		GameOverText.draw(anim, drawable_size, 0.05f * drawable_size.x, 0.5f * glm::vec2(drawable_size), color);
+		GameOverText.draw(text_anim_speed * elapsed_s, drawable_size, 0.05f * drawable_size.x, 0.5f * glm::vec2(drawable_size), color);
 
 		if (menu_button != nullptr) {
 			menu_button->draw(drawable_size);
@@ -1538,7 +1543,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		glm::vec4 bounds = tutorial_text.get_text_bounds(scale, pos);
 		glm::vec2 bg_size = 1.05f * glm::vec2(bounds.z-bounds.x, bounds.w-bounds.y);
 		HUD::drawElement(bg_size, tutorial_locn * glm::vec2(drawable_size) + glm::vec2(-bg_size.x * 0.5f, bg_size.y + tutorial_text.line_height), bar, glm::vec4(0x00, 0x00, 0x00, 0x77));
-		tutorial_text.draw(tut_anim, drawable_size, scale, pos, color);
+		tutorial_text.draw(text_anim_speed * elapsed_s, drawable_size, scale, pos, color);
 	}
 
 	if (bShowFPS) { // fps text

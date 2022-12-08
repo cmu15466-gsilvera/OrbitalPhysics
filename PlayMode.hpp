@@ -173,7 +173,8 @@ struct PlayMode : Mode {
 		glm::vec2 pos;
 		bool done = false;
 	};
-	float tut_anim = 0.f;
+	float elapsed_s = 0.f;
+	float text_anim_speed = 1.f;
 	std::vector<TutorialState> tutorial_content = {
 		// issued as FIFO queue
 		{{&space}, {0.55f, 0.95f}, "Welcome to the tutorial!\n\nYour goal is to prevent a rogue asteroid collision (green orbit)\n\nthat will happen once the (top left) doomsday clock hits 0\n\n(Press *space* to continue.)"},
