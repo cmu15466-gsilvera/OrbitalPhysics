@@ -862,6 +862,17 @@ void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 
 	glm::dvec3 const &origin_pos = origin->pos;
 
+	glm::dvec3 pos = get_pos();
+	float min_dist = 1e8;
+	size_t start_idx = 0;
+	for (size_t i = 0 ; i < n; i++) {
+		float dist = glm::l2Norm(pos - (origin_pos + points[i]));
+		if (dist < min_dist) {
+			min_dist = dist;
+			start_idx = i;
+		}
+	}
+
 	// LOG(n << " points");
 	for (size_t i = 0; i < n; i++) {
 		// LOG("drawing " << glm::to_string(points[i-1])  << " to " << glm::to_string(points[i]));
@@ -869,7 +880,7 @@ void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
 
 		if (next == Orbit::Invalid || glm::l2Norm(next) > 1e8) break;
 
-		double alpha = color.w * std::max(0.2, static_cast< double >(n - i)) / n;
+		double alpha = color.w * std::max(0.2, static_cast< double >(n - i + start_idx)) / n;
 		lines.draw(points[i] + origin_pos, next + origin_pos, glm::u8vec4(color.x, color.y, color.z, alpha));
 	}
 
