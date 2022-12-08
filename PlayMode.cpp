@@ -276,6 +276,7 @@ void PlayMode::deserialize(std::string const &filename) {
 	bodies.clear();
 	orbits.clear();
 	entities.clear();
+	fuel_pellets.clear();
 	id_to_body.clear();
 	camera_arms.clear();
 	scene.drawables.clear();
@@ -463,22 +464,26 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 
 	if (bLevelLoaded) { // scatter surrounding food & debris
 		for (size_t i = 0; i < num_pellets; i++) {
-			Particle *food = new Particle();
-			fuel_pellets.insert(food);
+			float food_radius = 0.25f;
+			Particle* food = new Particle(food_radius);
+			fuel_pellets.push_back(food);
 			scene.transforms.emplace_back();
 			Scene::Transform *fuel_trans = &scene.transforms.back();
 			fuel_trans->name = "Moon"; // simple orange mush
-			fuel_trans->scale = glm::dvec3(0.3f); // very small!
+			fuel_trans->scale = glm::dvec3(food_radius); // very small!
 			Scene::make_drawable(scene, fuel_trans, main_meshes.value);
-			double c = (std::rand() % 100) / 100.f;
-			double p = radius * (1.f + 6.f * (std::rand() % 100) / 100.f);
+			// orbit eccentricity
+			double c = 0.0; // (perfect circles) // (std::rand() % 100) / 100.f;
+			// orbit "radius" scale
+			double p = radius * (1.f + 9.f * (std::rand() % 100) / 100.f); // 1-10x the root's radius
+			// radial component (rotation)
 			double phi = 2.f * M_PI * (std::rand() % 100) / 100.f;
-			double theta = 2.f * M_PI * (std::rand() % 100) / 100.f;
+			double theta = 0.0;
 			double retrograde = 0.f;
 			auto *food_orb = new Orbit(&body, c, p, phi, theta, retrograde);
 			food->set_transform(fuel_trans);
 			food->set_orbit(food_orb);
-			body.add_satellite(food); // assign to this body
+			food->dayLengthInSeconds = 100.f;
 			entities.push_back(food);
 		}
 		LOG("loaded " << num_pellets << " pellets for body \"" << name << "\" (" << fuel_pellets.size());
@@ -807,6 +812,7 @@ void PlayMode::update(float elapsed) {
 	// 	UI_text.set_text(stream.str());
 	// }
 
+	int laser_power = 0;
     if (playing) {
 		ThrottleHeader.set_static_text("Throttle");
         if(spaceship.thrust_percent < 100.0f){
@@ -819,7 +825,7 @@ void PlayMode::update(float elapsed) {
 		CollisionTimer.set_text(asteroid.get_time_remaining());
 
 
-		int laser_power = static_cast<int>(100.f * Beam::inverse_sq(world_target, spaceship.pos));
+		laser_power = static_cast<int>(100.f * Beam::inverse_sq(world_target, spaceship.pos));
 		std::string strength_percent = reticle_homing ? " (" + std::to_string(laser_power) + "%)" : "";
 		LaserText.set_text(spaceship.laser_timer == 0.0f ? "Ready to Fire" + strength_percent : "Recharging");
     }
@@ -835,6 +841,54 @@ void PlayMode::update(float elapsed) {
 		star->update(elapsed);
 		asteroid.update(elapsed, spaceship.lasers);
 		spaceship.update(elapsed, asteroid);
+		
+		{ // particles simulation
+			bool bNeedToRefresh = false; // whether or not it is necessary to refresh
+			for (auto *p : fuel_pellets) {
+				p->update(elapsed);
+				if (laser_power > laser_closeness_for_particles) { // distance threshold
+					if (target_lock != nullptr && target_lock == p) { // only for aimed particle
+						const Beam *beam = nullptr;
+						for (auto &laser : spaceship.lasers) {
+							if (laser.collide(p->pos)) {
+								beam = &laser;
+								break;
+							}
+						}
+						if (beam != nullptr) {
+							p->bIsConsumed = true;
+							bNeedToRefresh = true;
+							{ // update fuel
+								spaceship.fuel += p->value;
+								spaceship.fuel = std::min(std::max(spaceship.fuel, 0.0), spaceship.maxFuel);
+							}
+						}
+					}
+				}
+			}
+
+			if (bNeedToRefresh) {
+				// "delete" old fuel pellets
+				std::vector<Particle *> new_pellets = {};
+				std::vector<Particle *> consumed_pellets = {};
+				for (auto *p : fuel_pellets) {
+					if (p->bIsConsumed) {
+						consumed_pellets.push_back(p);
+					} else {
+						new_pellets.push_back(p);
+					}
+				}
+				for (auto *p : consumed_pellets) {
+					// stops rendering the pellet, but it is still in memory... :(
+					entities.remove(p);
+					p->transform->scale = glm::vec3{0.f};
+					p->transform->position = glm::vec3{0.f};
+					p->pos = glm::vec3{0.f};
+				}
+				fuel_pellets.clear();
+				fuel_pellets = new_pellets;
+			}
+		}
 	}
 
 	if (playing) { // collision logic
@@ -1106,11 +1160,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		{ // draw the orbit of the fuel being hovered over
 			static constexpr glm::u8vec4 red = glm::u8vec4(0xff, 0x00, 0x00, 0xff);
 			if (target_lock != nullptr) {
-				Particle *fuel_key = static_cast<Particle*>(const_cast<Entity*>(target_lock));
-				if (fuel_pellets.find(fuel_key) != fuel_pellets.end()) {
-					Particle *draw_fuel = *(fuel_pellets.find(fuel_key));
-					if (draw_fuel != nullptr)
-						draw_fuel->orbit->draw(orbit_lines, red);
+				for (const Particle *p : fuel_pellets) {
+					if (p == target_lock) {
+						p->orbit->draw(orbit_lines, red);
+					}
 				}
 			}
 		}

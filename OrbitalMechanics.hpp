@@ -89,8 +89,9 @@ struct Body : public Entity {
 // "Body" in space that can be consumed (good/fuel or bad/debris) 
 // does not affect orbital mechanics (negligible)
 struct Particle : public Body {
-	Particle(double r_ = 0.1f) : Body(-1, 0.2, 0.0, 0.0) {} // using Id = -1 for pellets
+	Particle(double r = 0.2f) : Body(-1, r, 0.0, 0.0) {} // using Id = -1 for pellets
 	float value = 1.f;
+	bool bIsConsumed = false;
 };
 
 struct Beam {
@@ -166,7 +167,7 @@ struct Rocket : public Entity {
 	static double constexpr MaxFuelConsumption = 0.00002; // Measured by mass, Megagram
 	static double constexpr LaserCooldown = 1.0e4;
 
-	static int constexpr MAX_BEAMS = 1000; // don't have more than this
+	static int constexpr MAX_BEAMS = 100; // don't have more than this
 	glm::dvec3 aim_dir;
 	std::deque<Beam> lasers; // fast insertion/deletion at both ends
 
