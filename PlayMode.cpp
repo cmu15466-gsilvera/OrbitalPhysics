@@ -607,7 +607,7 @@ void PlayMode::read_params() {
 	};
 
 	auto deserialize_float = [](std::string const &str){
-		return std::atof(str.c_str());
+		return static_cast<float>(std::atof(str.c_str()));
 	};
 
 	auto deserialize_bool = [](std::string const &str){
