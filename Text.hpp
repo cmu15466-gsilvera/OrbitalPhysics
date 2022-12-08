@@ -460,7 +460,7 @@ struct Text {
             const Character& ch = atlas->chars[char_req];
             if (char_req != '\n') {
                 float xpos = char_x + ch.Bearing.x;
-                float ypos = -char_y - (ch.Size.y - ch.Bearing.y);
+                float ypos = char_y + ch.Bearing.y - line_height;
                 float w = static_cast<float>(ch.Size.x);
                 float h = static_cast<float>(ch.Size.y);
                 // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
@@ -471,12 +471,12 @@ struct Text {
 
                 // each 4 tuple is a {x, y, s, t} to index into the vertex/texture coordinates/attribute
                 render_data.insert(render_data.end(), {
-                    xpos,     -ypos - h, ch.t.x,                ch.t.y + h / atlas->h,
-                    xpos,     -ypos,     ch.t.x,                ch.t.y,
-                    xpos + w, -ypos,     ch.t.x + w / atlas->w, ch.t.y,
-                    xpos,     -ypos - h, ch.t.x,                ch.t.y + h / atlas->h,
-                    xpos + w, -ypos,     ch.t.x + w / atlas->w, ch.t.y,
-                    xpos + w, -ypos - h, ch.t.x + w / atlas->w, ch.t.y + h / atlas->h
+                    xpos,     ypos,     ch.t.x,                ch.t.y,
+                    xpos + w, ypos,     ch.t.x + w / atlas->w, ch.t.y,
+                    xpos,     ypos - h, ch.t.x,                ch.t.y + h / atlas->h,
+                    xpos + w, ypos,     ch.t.x + w / atlas->w, ch.t.y,
+                    xpos,     ypos - h, ch.t.x,                ch.t.y + h / atlas->h,
+                    xpos + w, ypos - h, ch.t.x + w / atlas->w, ch.t.y + h / atlas->h
                 });
             }
             else {
