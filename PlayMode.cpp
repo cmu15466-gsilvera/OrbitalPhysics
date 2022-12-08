@@ -155,6 +155,8 @@ PlayMode::PlayMode() : scene(*orbit_scene) {
 		CollisionHeader.init(Text::AnchorType::RIGHT);
 		CollisionTimer.init(Text::AnchorType::RIGHT, true /* monospaced */);
 		LaserText.init(Text::AnchorType::CENTER);
+		fps_text.init(Text::AnchorType::CENTER, true);
+		fps_text.set_text("0");
 	}
 
 	{ // menu buttons
@@ -681,6 +683,27 @@ void PlayMode::update(float elapsed) {
 		}
 
 		bLevelLoaded = true;
+	}
+
+	{ // update framerate counter
+		fps_data.push_back(1.f / elapsed);
+		time_since_fps += elapsed;
+		if (time_since_fps > 1.f) {
+			{ // take fps average
+				fps = 0.f;
+				for (float f : fps_data)
+					fps += f;
+				fps /= fps_data.size(); // take average
+			}
+			{ // assign fps new text
+				std::stringstream stream;
+				stream << std::fixed << std::setprecision(1) << fps;
+				fps_text.set_text(stream.str());
+			}
+			// housekeeping
+			time_since_fps = 0.f;
+			fps_data.clear();
+		}
 	}
 
 	bool playing = (game_status == GameStatus::PLAYING);
@@ -1227,6 +1250,17 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	if (bIsTutorial) { // draw tutorial text
 		auto color = glm::u8vec4{0xff};
 		tutorial_text.draw(tut_anim, drawable_size, 0.02f * drawable_size.x, glm::vec2{0.45f * drawable_size.x, 0.75f * drawable_size.y}, color);
+	}
+
+	{ // fps text
+		glm::u8vec4 fps_col;
+		if (fps < 20) // bad
+			fps_col = glm::u8vec4{0xff, 0x00, 0x0, 0xff}; // red
+		else if (fps < 45) // ok
+			fps_col = glm::u8vec4{0xff, 0xff, 0x0, 0xff}; // yellow
+		else // good
+			fps_col = glm::u8vec4{0x0, 0xff, 0x0, 0xff}; // green
+		fps_text.draw(1.f, drawable_size, 0.02f * drawable_size.x, glm::vec2(0.95) * glm::vec2(drawable_size), fps_col);
 	}
 
 	/* glm::u8vec4 color{0xff}; */
