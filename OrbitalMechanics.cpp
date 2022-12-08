@@ -868,7 +868,7 @@ void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) const {
 
 	glm::dvec3 const &origin_pos = origin->pos;
 
-	glm::dvec3 pos = get_pos();
+	const glm::dvec3 pos = get_pos();
 	float min_dist = 1e8;
 	size_t start_idx = 0;
 	for (size_t i = 0 ; i < n; i++) {

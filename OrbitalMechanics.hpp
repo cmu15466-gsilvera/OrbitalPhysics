@@ -239,10 +239,10 @@ struct Orbit {
 	glm::dvec3 get_rvel(double theta_);
 
 	//Convenience functions
-	glm::dvec3 get_pos() {
+	glm::dvec3 get_pos() const {
 		return rpos + origin->pos;
 	}
-	glm::dvec3 get_vel() {
+	glm::dvec3 get_vel() const {
 		return rvel + origin->vel;
 	}
 
