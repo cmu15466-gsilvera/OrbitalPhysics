@@ -93,8 +93,8 @@ struct PlayMode : Mode {
 		{ &save, {SDLK_2} },
 		{ &load, {SDLK_3} },
 		{ &tilde, {SDLK_BACKQUOTE} },
-		{ &shift, {SDLK_LSHIFT} }, // and rshift?
-		{ &control, {SDLK_LCTRL} },
+		{ &shift, {SDLK_LSHIFT, SDLK_RSHIFT} },
+		{ &control, {SDLK_LCTRL, SDLK_RCTRL} },
 		{ &plus, {SDLK_e, SDLK_PLUS} },
 		{ &minus, {SDLK_q, SDLK_MINUS} },
 		{ &space, {SDLK_SPACE} },

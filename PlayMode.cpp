@@ -612,7 +612,11 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 				}
 			}
 		}
-		if (evt.key.keysym.sym == SDLK_ESCAPE || evt.key.keysym.sym == SDLK_1) {
+		if (evt.key.keysym.sym == SDLK_ESCAPE) {
+			was_key_down = true;
+			SDL_SetRelativeMouseMode(SDL_FALSE);
+		}
+		if (evt.key.keysym.sym == SDLK_1) {
 			exit_to_menu();
 			was_key_down = true;
 		}
@@ -742,23 +746,24 @@ void PlayMode::update(float elapsed) {
 			bool increase_thrust = shift.pressed || up.pressed;
 			bool decrease_thrust = control.pressed || down.pressed;
 
-			if (spaceship.thrust_percent == 0.f) {
-				if (increase_thrust) {
-					if (bCanThrustChangeDir && forward_thrust == false){
-						forward_thrust = true;
-					}
-				}
-				else if (decrease_thrust && bEnableEasyMode) {
-					if (bCanThrustChangeDir && forward_thrust == true){
-						forward_thrust = false;
-					}
-				}
-			}
+			// if (spaceship.thrust_percent == 0.f) {
+			// 	if (increase_thrust) {
+			// 		if (bCanThrustChangeDir && forward_thrust == false){
+			// 			forward_thrust = true;
+			// 		}
+			// 	}
+			// 	else if (decrease_thrust && bEnableEasyMode) {
+			// 		if (bCanThrustChangeDir && forward_thrust == true){
+			// 			forward_thrust = false;
+			// 		}
+			// 	}
+			// }
+			forward_thrust = true; // only positive thrust, by popular demand
 			bCanThrustChangeDir = (!increase_thrust && !decrease_thrust);
 
 			const double MaxThrust = 100.;
 			const double SlowDelta = 1.;
-			const double FastDelta = 10.;
+			const double FastDelta = 2.; // not much faster
 			if (forward_thrust) {
 				if (increase_thrust) {
 					spaceship.thrust_percent = std::min(spaceship.thrust_percent + SlowDelta , MaxThrust);
