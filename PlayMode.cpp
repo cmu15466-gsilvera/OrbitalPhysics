@@ -472,8 +472,8 @@ void PlayMode::deserialize_body(std::ifstream &file) {
 			fuel_pellets.push_back(food);
 			scene.transforms.emplace_back();
 			Scene::Transform *fuel_trans = &scene.transforms.back();
-			fuel_trans->name = "Moon"; // simple orange mush
-			fuel_trans->scale = glm::dvec3(food_radius); // very small!
+			fuel_trans->name = "FuelParticle"; // simple orange mush
+			fuel_trans->scale = glm::dvec3(3*food_radius); // very small!
 			Scene::make_drawable(scene, fuel_trans, main_meshes.value);
 			// orbit eccentricity
 			double c = 0.0; // (perfect circles) // (std::rand() % 100) / 100.f;
