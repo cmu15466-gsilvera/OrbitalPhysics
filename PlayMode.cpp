@@ -1260,7 +1260,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 			fps_col = glm::u8vec4{0xff, 0xff, 0x0, 0xff}; // yellow
 		else // good
 			fps_col = glm::u8vec4{0x0, 0xff, 0x0, 0xff}; // green
-		fps_text.draw(1.f, drawable_size, 0.02f * drawable_size.x, glm::vec2(0.95) * glm::vec2(drawable_size), fps_col);
+		fps_text.draw(1.f, drawable_size, 0.02f * drawable_size.x, glm::vec2(0.95f) * glm::vec2(drawable_size), fps_col);
 	}
 
 	/* glm::u8vec4 color{0xff}; */
