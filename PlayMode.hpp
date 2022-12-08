@@ -28,6 +28,9 @@ struct PlayMode : Mode {
 	virtual void draw(glm::uvec2 const &drawable_size) override;
 	void exit_to_menu();
 
+	//------ serialization -------
+	const std::string quicksave_file = "quicksave.txt";
+
 	void serialize(std::string const &filename);
 	void serialize_orbit(std::ofstream &file, Orbit const &orbit);
 	void serialize_body(std::ofstream &file, Body const &body);

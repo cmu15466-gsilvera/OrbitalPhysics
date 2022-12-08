@@ -585,6 +585,7 @@ void PlayMode::deserialize_rocket(std::ifstream &file) {
 
 void PlayMode::exit_to_menu() {
 	SDL_SetRelativeMouseMode(SDL_FALSE);
+	spaceship.engine_loop->set_volume(0.f); // turn off (continuous) engine noises!
 	bLevelLoaded = false; // reload level on menu
 	bIsTutorial = false;
 	game_status = GameStatus::PLAYING; // reset game status on menu
@@ -703,9 +704,11 @@ void PlayMode::update(float elapsed) {
 
 	if (playing) { //handle quicksave/quickload
 		if (f5.downs > 0 || save.downs > 0) {
-			serialize(data_path("quicksave.txt"));
-		} else if ((f9.downs > 0 || load.downs > 0) && std::filesystem::exists(data_path("quicksave.txt"))) {
-			deserialize(data_path("quicksave.txt"));
+			LOG("Saving current progress to \"" << data_path(quicksave_file) << "\"");
+			serialize(data_path(quicksave_file));
+		} else if ((f9.downs > 0 || load.downs > 0) && std::filesystem::exists(data_path(quicksave_file))) {
+			LOG("Loading state from \"" << data_path(quicksave_file) << "\"");
+			deserialize(data_path(quicksave_file));
 		}
 	}
 
