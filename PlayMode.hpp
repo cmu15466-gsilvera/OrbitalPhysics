@@ -127,9 +127,18 @@ struct PlayMode : Mode {
 	// spaceship
 	Rocket spaceship;
 
+	// spaceship fuel
+	std::list< Particle > fuel_pellets;
+	std::list< Particle > debris_pellets;
+	size_t fuel_particle_count = 30;
+	size_t debris_particle_count = 10;
+	int laser_closeness_for_particles = 40; // percent threshold that the laser needs to have to have effect on particles
+
 	bool bEnableEasyMode = false; // allow "negative thrust" to correct for over-orbit
 	bool bCanThrustChangeDir = true; // whether or not we can thrust
 	bool forward_thrust = true; // false => backwards thrust controls
+
+	static double constexpr MaxSimElapsed = 1.0 / 120.0;
 
 	// asteroid
 	Asteroid asteroid = Asteroid(0.5f, 0.2f);
@@ -155,6 +164,7 @@ struct PlayMode : Mode {
 	float anim = 0.f;
 
 	bool bLevelLoaded = false;
+	bool bLevelLaunched = false;
 	bool bIsTutorial = false;
 	struct TutorialState {
 		TutorialState(const std::vector<PlayMode::Button *> &bs, glm::vec2 p, const std::string &t) : activations(bs), text(t), pos(p) {}
@@ -208,7 +218,11 @@ struct PlayMode : Mode {
 		};
 
 		inline const glm::vec3 get_target_point() const { // for smooth transitions
-			return get_focus_point() + static_cast< float>(camera_arm_length * entity->radius) * camera_pan_offset;
+			return get_focus_point() + camera_arm_length * static_cast< float>(entity->radius) * camera_pan_offset;
+		};
+
+		inline const float get_camera_arm_dist() const { // for smooth transitions
+			return camera_arm_length * static_cast< float>(entity->radius);
 		};
 	};
 

@@ -157,6 +157,9 @@ void Body::init_sim() {
 }
 
 void Body::simulate(double time) {
+	if (id < 0) // optimization so the pellets don't re-simulate orbit
+		return;
+
 	if (orbit != nullptr) {
 		orbit->simulate(time);
 	}
@@ -173,7 +176,8 @@ void Body::draw_orbits(DrawLines &lines, glm::u8vec4 const &color, double scale)
 
 	for (Body *body : satellites) {
 		assert(body != nullptr);
-		body->draw_orbits(lines, color, scale);
+		if (body->id >= 0)
+			body->draw_orbits(lines, color, scale);
 	}
 }
 
@@ -496,7 +500,7 @@ void Asteroid::update(double elapsed, std::deque< Beam > const &lasers) {
 	}
 }
 
-Orbit::Orbit(Body *origin_, glm::dvec3 pos, glm::dvec3 vel, bool simulated) : origin(origin_) {
+Orbit::Orbit(Body *origin_, glm::dvec3 pos, glm::dvec3 vel, bool simulated, bool verbose) : origin(origin_) {
 	//Math references:
 	//https://orbital-mechanics.space/classical-orbital-elements/orbital-elements-and-the-state-vector.html
 	//https://scienceworld.wolfram.com/physics/SemilatusRectum.html
@@ -583,7 +587,7 @@ Orbit::Orbit(Body *origin_, glm::dvec3 pos, glm::dvec3 vel, bool simulated) : or
 	// LOG("\tnew vel: " << glm::to_string(get_vel()));
 }
 
-Orbit::Orbit(Body *origin_, double c_, double p_, double phi_, double theta_, bool retrograde)
+Orbit::Orbit(Body *origin_, double c_, double p_, double phi_, double theta_, bool retrograde, bool verbose )
 		: origin(origin_), c(c_), p(p_), phi(phi_), theta(theta_) {
 
 	incl = retrograde ? M_PI : 0.0;
@@ -605,8 +609,10 @@ Orbit::Orbit(Body *origin_, double c_, double p_, double phi_, double theta_, bo
 		0.0, -std::sin(incl), std::cos(incl)
 	);
 
-	LOG("Created orbit around: " << origin_->transform->name);
-	LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a << " incl: " << incl);
+	if (verbose) {
+		LOG("Created orbit around: " << origin_->transform->name);
+		LOG("\tc: " << c << " p: " << p << " phi: " << phi << " a: " << a << " incl: " << incl);
+	}
 
 	init_dynamics();
 }
@@ -750,6 +756,10 @@ void Orbit::sim_predict(
 		}
 
 		points[i] = sim.rpos;
+		if (sim.r < origin->radius && i+1 < PredictDetail) { // Collision
+			points[i+1] = Invalid;
+			break;
+		}
 	}
 
 	if (continuation != nullptr) {
@@ -857,12 +867,12 @@ double Orbit::find_time_of_collision() {
 	}
 }
 
-void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) {
+void Orbit::draw(DrawLines &lines, glm::u8vec4 const &color) const {
 	size_t n = points.size();
 
 	glm::dvec3 const &origin_pos = origin->pos;
 
-	glm::dvec3 pos = get_pos();
+	const glm::dvec3 pos = get_pos();
 	double min_dist = 1e8;
 	size_t start_idx = 0;
 	for (size_t i = 0 ; i < n; i++) {
