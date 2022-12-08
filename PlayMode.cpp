@@ -582,6 +582,14 @@ void PlayMode::deserialize_rocket(std::ifstream &file) {
 	LOG("Loaded Rocket '" << name);
 }
 
+void PlayMode::exit_to_menu() {
+	SDL_SetRelativeMouseMode(SDL_FALSE);
+	bLevelLoaded = false; // reload level on menu
+	bIsTutorial = false;
+	game_status = GameStatus::PLAYING; // reset game status on menu
+	Mode::set_current(next_mode); // switch to menu mode
+}
+
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
 	auto prev_window_dims = window_dims;
 	window_dims = window_size;
@@ -603,12 +611,8 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			}
 		}
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
-			SDL_SetRelativeMouseMode(SDL_FALSE);
+			exit_to_menu();
 			was_key_down = true;
-			bLevelLoaded = false; // reload level on menu
-			bIsTutorial = false;
-			game_status = GameStatus::PLAYING; // reset game status on menu
-			Mode::set_current(next_mode); // switch to menu mode
 		}
 		return was_key_down;
 	} else if (evt.type == SDL_KEYUP) {
@@ -830,8 +834,7 @@ void PlayMode::update(float elapsed) {
 		SDL_SetRelativeMouseMode(SDL_FALSE); // turn on mouse
 		if (menu_button->is_hovered(mouse_motion) && can_pan_camera)
 		{
-			Mode::set_current(next_mode);
-			next_mode->mode_level = 0;
+			exit_to_menu();
 		}
 	}
 
