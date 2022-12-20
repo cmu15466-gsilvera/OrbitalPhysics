@@ -1083,8 +1083,8 @@ void PlayMode::update(float elapsed) {
 				}
 			}
 			for (auto it : consumed_pellets) {
-				fuel_pellets.erase(it);
 				entities.remove(&(*it));
+				fuel_pellets.erase(it);
 			}
 		}
 
@@ -1102,8 +1102,8 @@ void PlayMode::update(float elapsed) {
 				consumed_debris.push_back(it);
 			}
 			for (auto it : consumed_debris) {
-				debris_pellets.erase(it);
 				entities.remove(&(*it));
+				debris_pellets.erase(it);
 			}
 		}
 	}
